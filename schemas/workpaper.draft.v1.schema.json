@@ -1,0 +1,133 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:finresearchops:schema:workpaper:draft:v1",
+  "title": "FinResearchOps Workpaper draft v1",
+  "description": "M1 data-contract draft that maps a Case to immutable FinAuditGate evidence, calculation, outcome, and trace-summary artifacts. It is not a Workpaper builder.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "workpaper_ref",
+    "case_ref",
+    "run_ref",
+    "machine_decision",
+    "answer",
+    "answer_unit",
+    "document_sha256",
+    "evidence_ledger_ref",
+    "formula_ref",
+    "gate_reason_codes",
+    "candidate_artifact_ref",
+    "trace_summary_ref",
+    "trace_summary_status"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "finresearchops.workpaper/draft-v1"
+    },
+    "workpaper_ref": {
+      "type": "string",
+      "minLength": 1
+    },
+    "case_ref": {
+      "type": "string",
+      "minLength": 1
+    },
+    "run_ref": {
+      "$ref": "urn:finauditgate:schema:run-ref:v1"
+    },
+    "machine_decision": {
+      "enum": [
+        "ACCEPT",
+        "RETRY",
+        "ABSTAIN",
+        "HUMAN_REVIEW"
+      ]
+    },
+    "answer": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "answer_unit": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "document_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "evidence_ledger_ref": {
+      "type": "string",
+      "pattern": "^runs/[0-9a-f]{64}/ledger\\.json$"
+    },
+    "formula_ref": {
+      "type": "string",
+      "pattern": "^runs/[0-9a-f]{64}/formula\\.json$"
+    },
+    "gate_reason_codes": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
+    },
+    "candidate_artifact_ref": {
+      "type": "string",
+      "pattern": "^runs/[0-9a-f]{64}/candidate\\.json$"
+    },
+    "trace_summary_ref": {
+      "type": "null",
+      "description": "Reserved for the M2/M3 trace-summary artifact. Null in M1 because no model/tool trace summary exists."
+    },
+    "trace_summary_status": {
+      "const": "NOT_STARTED"
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "machine_decision": {
+            "const": "ACCEPT"
+          }
+        },
+        "required": [
+          "machine_decision"
+        ]
+      },
+      "then": {
+        "properties": {
+          "answer": {
+            "type": "string",
+            "minLength": 1
+          },
+          "answer_unit": {
+            "type": "string",
+            "minLength": 1
+          },
+          "gate_reason_codes": {
+            "maxItems": 0
+          }
+        }
+      },
+      "else": {
+        "properties": {
+          "answer": {
+            "type": "null"
+          },
+          "answer_unit": {
+            "type": "null"
+          },
+          "gate_reason_codes": {
+            "minItems": 1
+          }
+        }
+      }
+    }
+  ]
+}

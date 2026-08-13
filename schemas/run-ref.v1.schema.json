@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:finauditgate:schema:run-ref:v1",
+  "title": "FinAuditGate RunRef v1",
+  "description": "Stable content-derived reference to one append-only FinAuditGate run artifact set.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "run_id"
+  ],
+  "properties": {
+    "run_id": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    }
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "schema_version": "finauditgate.source-plan/v1",
+  "source_id": "alibaba-fy2026-form-20f",
+  "issuer": "Alibaba Group Holding Limited",
+  "document_title": "FY2026 Form 20-F",
+  "reporting_period": "2026-03-31",
+  "filing_date": "2026-05-20",
+  "accession": "0001193125-26-231755",
+  "official_filing_index_url": "https://www.sec.gov/Archives/edgar/data/1577552/000119312526231755/0001193125-26-231755-index.htm",
+  "planned_retrieval_url": "https://www.sec.gov/Archives/edgar/data/1577552/000119312526231755/baba-20260331.htm",
+  "retrieval_method": "SEC_EDGAR",
+  "acquisition_status": "PLANNED_NOT_ACQUIRED",
+  "terms_url": "https://www.sec.gov/about/webmaster-frequently-asked-questions",
+  "terms_checked_at": "2026-08-12",
+  "redistribution": "SEC_REUSABLE_WITH_ATTRIBUTION",
+  "network_allowed_during_replay": false,
+  "maximum_requests_per_second": 1,
+  "requires_declared_user_agent": true,
+  "raw_sha256": null,
+  "byte_size": null,
+  "mime_type": null,
+  "retrieved_at": null
+}

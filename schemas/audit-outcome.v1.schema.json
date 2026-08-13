@@ -1,0 +1,104 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:finauditgate:schema:audit-outcome:v1",
+  "title": "FinAuditGate AuditOutcome v1",
+  "description": "Machine-gate result returned by FinAuditGate.run(). It never represents a human review action.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "task_id",
+    "decision",
+    "answer",
+    "answer_unit",
+    "run_ref",
+    "document_sha256",
+    "reason_codes"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "finauditgate.run/v1"
+    },
+    "task_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "decision": {
+      "enum": [
+        "ACCEPT",
+        "RETRY",
+        "ABSTAIN",
+        "HUMAN_REVIEW"
+      ]
+    },
+    "answer": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "answer_unit": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "run_ref": {
+      "$ref": "urn:finauditgate:schema:run-ref:v1"
+    },
+    "document_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "reason_codes": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "decision": {
+            "const": "ACCEPT"
+          }
+        },
+        "required": [
+          "decision"
+        ]
+      },
+      "then": {
+        "properties": {
+          "answer": {
+            "type": "string",
+            "minLength": 1
+          },
+          "answer_unit": {
+            "type": "string",
+            "minLength": 1
+          },
+          "reason_codes": {
+            "maxItems": 0
+          }
+        }
+      },
+      "else": {
+        "properties": {
+          "answer": {
+            "type": "null"
+          },
+          "answer_unit": {
+            "type": "null"
+          },
+          "reason_codes": {
+            "minItems": 1
+          }
+        }
+      }
+    }
+  ]
+}

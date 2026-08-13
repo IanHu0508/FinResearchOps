@@ -1,0 +1,108 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:finresearchops:schema:case-record:draft:v1",
+  "title": "FinResearchOps Case Record draft v1",
+  "description": "M1 data-contract draft for one filing-update case. It does not implement case transitions; that behavior belongs to the M2 Application Module.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "case_ref",
+    "question",
+    "cutoff",
+    "source_ref",
+    "status",
+    "run_refs"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "finresearchops.case-record/draft-v1"
+    },
+    "case_ref": {
+      "type": "string",
+      "minLength": 1
+    },
+    "question": {
+      "type": "string",
+      "minLength": 1
+    },
+    "cutoff": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+    },
+    "source_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_id",
+        "document_name",
+        "document_sha256",
+        "declared_published_at"
+      ],
+      "properties": {
+        "source_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "document_name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "document_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "declared_published_at": {
+          "type": "string",
+          "format": "date"
+        }
+      }
+    },
+    "status": {
+      "description": "Draft Application-owned state vocabulary. Legal transitions are intentionally not implemented in M1.",
+      "enum": [
+        "CREATED",
+        "ANALYSIS_RECORDED",
+        "AWAITING_REVIEW",
+        "APPROVED",
+        "RETURNED",
+        "REJECTED"
+      ]
+    },
+    "run_refs": {
+      "type": "array",
+      "items": {
+        "$ref": "urn:finauditgate:schema:run-ref:v1"
+      },
+      "uniqueItems": true
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "CREATED"
+          }
+        },
+        "required": [
+          "status"
+        ]
+      },
+      "then": {
+        "properties": {
+          "run_refs": {
+            "maxItems": 0
+          }
+        }
+      },
+      "else": {
+        "properties": {
+          "run_refs": {
+            "minItems": 1
+          }
+        }
+      }
+    }
+  ]
+}
