@@ -1,0 +1,37 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:finresearchops:schema:replay-record:v1",
+  "title": "FinResearchOps successful Replay Record v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "case_ref",
+    "run_ref",
+    "report",
+    "replay_ref"
+  ],
+  "properties": {
+    "schema_version": {"const": "finresearchops.replay-record/v1"},
+    "case_ref": {"type": "string", "pattern": "^case-[0-9a-f]{64}$"},
+    "run_ref": {"$ref": "urn:finauditgate:schema:run-ref:v1"},
+    "report": {
+      "anyOf": [
+        {"$ref": "urn:finauditgate:schema:replay-report:v1"},
+        {"$ref": "urn:finauditgate:schema:replay-report:v2"}
+      ]
+    },
+    "replay_ref": {"type": "string", "pattern": "^replay-[0-9a-f]{64}$"}
+  },
+  "allOf": [
+    {
+      "properties": {
+        "report": {
+          "type": "object",
+          "properties": {"consistent": {"const": true}},
+          "required": ["consistent"]
+        }
+      }
+    }
+  ]
+}

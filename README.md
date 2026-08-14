@@ -1,6 +1,11 @@
 # FinResearchOps / FinAuditGate
 
-> **Status:** `PARTIAL` overall; M1 `COMPLETED` by this initial immutable commit. The FinResearchOps Application Module, generalized deterministic core, real-data/model Adapters, experiments, and resume results are not complete.
+> **Status:** `PARTIAL` overall. M1 is `COMPLETED` at immutable commit
+> `8eae1dd`; the bounded scripted M2 slice is `COMPLETED` after renewed full-M2
+> Standards/Spec review, source and isolated clean-wheel verification, and
+> closure of the three reopened defects. The M2 candidate is locally
+> hash-frozen but not committed or released. Real-data/model Adapters, issuer work,
+> evaluation, UI, and resume admission remain incomplete.
 
 FinResearchOps is the outward product: a filing-update and research-change workflow for equity researchers. FinAuditGate is its trusted core for fail-closed evidence, financial semantics, deterministic calculation, and replay. They are two layers of one project; this repository and the `finauditgate` Python package keep their existing names.
 
@@ -21,23 +26,54 @@ outcome = gate.run(task)
 report = gate.replay(run_ref)
 ```
 
-The current slice verifies exactly one content-bound synthetic revenue-growth profile, content-addressed artifacts, offline replay, and fail-closed `HUMAN_REVIEW` for anything outside that profile. Its `FrozenDocumentPackage` makes submitted bytes and declared metadata immutable; it does **not** prove that a source or publication date is official. Case, Review Record, Workpaper, and Change Packet have M1 schema drafts and a contract-only example, while the Application Module that would create and enforce them remains `NOT_STARTED`. This is not a runnable LLM Agent.
+The public core Interface remains exactly `run()` / `replay()`. M2 adds one
+second content-bound original synthetic profile with versioned fiscal-period,
+metric, basis, currency, unit, scale, and sign registries; a bounded one-retry
+proposal/candidate attempt sequence; deterministic Decimal lineage; and
+replay/v2. The root
+package still exports only the seven frozen M1 core symbols.
+
+The `finauditgate.application` subpackage now implements the M2
+FinResearchOps Interface:
+
+```python
+application_outcome = application.handle(command)
+case_view = application.read_case(case_ref)
+```
+
+It derives Case state from an integrity-checked append-only event journal,
+keeps machine decisions separate from human review, and on covered eligible
+normal paths exports only a replay-verified `proposal_only=true` Change Packet.
+The completed M2 candidate treats the journal head as the committed visible
+prefix, never treats a pending intent or commit receipt as command authority,
+and passes the bounded independent crash-recovery and membership re-audits.
+`FrozenDocumentPackage`
+freezes submitted bytes and declared metadata; it does **not** prove that a
+source or publication date is official. This remains a scripted synthetic
+runtime, not a runnable LLM Agent or a real filing workflow.
 
 ## Milestone progress
 
-- Completed at planning level: two-layer identity, first user, six-step workflow, proposal-only outlet, Application/Core Seam, model route, data route, stop ceiling, non-goals, and UI deferral.
-- Completed M0 decisions/setup: `Apache-2.0`, the recommended 125–140 h Resume MVP tier, user-provided repo-local Git identity, and a uv-managed Python 3.12.13 repository `.venv`.
+- Completed at planning level: two-layer identity, first user, six-step workflow, proposal-only outlet, Application/Core Seam, model route, data route, non-goals, and UI deferral.
+- Completed M0 decisions/setup: `Apache-2.0`, user-provided repo-local Git identity, and a uv-managed Python 3.12.13 repository `.venv`. The former 125–140 h planning tier is retained only as history; work hours are no longer Gate evidence.
 - M0 complete: two independent read-only audits verified all M0 evidence and found no privacy/scope blocker.
-- Existing inherited evidence: scripted synthetic `run()` / `replay()` round-trip, adversarial fail-closed/replay-integrity checks, and the public/private data boundary.
+- Existing inherited evidence: the M1 scripted synthetic `run()` / `replay()` round-trip, adversarial fail-closed/replay-integrity checks, and the public/private data boundary.
 - M1 complete: this initial immutable commit contains the seven-symbol core Interface, versioned core schemas, four product schema drafts, one scripted product-journey mapping, a core synthetic demo, fail-closed adversarial coverage, append-only/idempotent artifacts, and historical-policy replay compatibility.
-- M1 completion is narrow milestone evidence, not a completed Agent claim. The Application Module and M2 remain `NOT_STARTED`; real local-model smoke and Tencent acquisition remain M3; post-freeze Alibaba evaluation remains M4.
+- M2 completed bounded slice: registered semantic normalization and ambiguity,
+  bounded retry/stop rules, replay/v2, formal Application schemas, `handle` /
+  `read_case`, append-only Review, proposal-only Packet export, and the scripted
+  journey pass the renewed full-M2 Gate. This completion is limited to the
+  scripted synthetic M2 contract.
+- M2 completion is not a completed-Agent claim. Real local-model smoke and
+  Tencent acquisition are `NOT_STARTED` M3 work requiring separate
+  authorization; post-freeze Alibaba evaluation remains M4.
 
 ## Repository contents
 
-- `src/finauditgate/`: future public package and internal Modules.
-- `tests/`: synthetic-only offline verification.
+- `src/finauditgate/`: the public core package plus the M2 Application Module.
+- `tests/`: synthetic-only, network-free core and Application verification.
 - `fixtures/synthetic/`: original synthetic filings and failure cases.
-- `schemas/`: four implemented core v1 contracts, four M1 product schema drafts, and a contract-only synthetic journey example.
+- `schemas/`: core replay contracts, M1 historical drafts, and formal M2 Application artifact contracts.
 - `manifests/examples/`: public-safe example provenance metadata.
 - `docs/`: architecture, data policy, evaluation protocol, and status.
 - `scripts/`: reproducible local commands added only when implemented.

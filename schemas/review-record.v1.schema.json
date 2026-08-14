@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:finresearchops:schema:review-record:v1",
+  "title": "FinResearchOps append-only Review Record v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "case_ref",
+    "run_ref",
+    "workpaper_ref",
+    "action",
+    "reason",
+    "recorded_at",
+    "previous_case_status",
+    "resulting_case_status",
+    "review_ref"
+  ],
+  "properties": {
+    "schema_version": {"const": "finresearchops.review-record/v1"},
+    "case_ref": {"type": "string", "pattern": "^case-[0-9a-f]{64}$"},
+    "run_ref": {"$ref": "urn:finauditgate:schema:run-ref:v1"},
+    "workpaper_ref": {"type": "string", "pattern": "^workpaper-[0-9a-f]{64}$"},
+    "action": {"enum": ["APPROVE", "RETURN", "REJECT"]},
+    "reason": {"type": "string", "minLength": 1},
+    "recorded_at": {"type": "string", "format": "date-time"},
+    "previous_case_status": {"const": "AWAITING_REVIEW"},
+    "resulting_case_status": {"enum": ["APPROVED", "RETURNED", "REJECTED"]},
+    "review_ref": {"type": "string", "pattern": "^review-[0-9a-f]{64}$"}
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"action": {"const": "APPROVE"}}, "required": ["action"]},
+      "then": {"properties": {"resulting_case_status": {"const": "APPROVED"}}}
+    },
+    {
+      "if": {"properties": {"action": {"const": "RETURN"}}, "required": ["action"]},
+      "then": {"properties": {"resulting_case_status": {"const": "RETURNED"}}}
+    },
+    {
+      "if": {"properties": {"action": {"const": "REJECT"}}, "required": ["action"]},
+      "then": {"properties": {"resulting_case_status": {"const": "REJECTED"}}}
+    }
+  ]
+}

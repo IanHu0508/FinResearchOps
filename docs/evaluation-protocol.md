@@ -30,8 +30,9 @@ Do not use `strict blind held-out`, `pristine benchmark`, or `China-market gener
 
 FinResearchOps product artifacts will additionally require a Case Record,
 Workpaper, append-only Review Record, and proposal-only Research Change Packet.
-Their M1 schema drafts exist, but their Application Implementation and runtime
-cross-object enforcement are `NOT_STARTED`; listing or validating a schema is
-not evidence that an application workflow or human-review loop exists.
+Formal versions and runtime cross-object enforcement/failure recovery pass the
+bounded scripted M2 Gate. Real-model and issuer evaluation remain `NOT_STARTED`.
+That implementation evidence is not an evaluation result and does not prove
+behavior with a real model or issuer filing.
 
 Public claims require raw-count reporting and resume-admission review; small samples must not be inflated into broad percentages.

@@ -10,6 +10,7 @@ PYTHONPATH=src .venv/bin/python scripts/synthetic_demo.py \
 ```
 
 This is a core demo, not the FinResearchOps product CLI. The product CLI is
-only a contract draft in `docs/cli-contract.draft.md`; its Application Module
-does not exist yet. SEC acquisition, evaluation, and public-release scripts are
-also not implemented.
+only a contract draft in `docs/cli-contract.draft.md`. The M2 scripted
+Application Module exists and is exercised through its public Interface in the
+offline suite, but no CLI script has been implemented. SEC acquisition,
+evaluation, and public-release scripts are also not implemented.

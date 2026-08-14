@@ -17,6 +17,10 @@ class EvidenceCandidate:
     period: str
     value: str
     unit: str
+    metric_basis: str | None = None
+    currency: str | None = None
+    scale: str | None = None
+    sign: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -40,4 +44,8 @@ class ModelCandidate:
 class CandidateModel(Protocol):
     """Internal Interface implemented by scripted and local Adapters."""
 
-    def propose(self, task: AuditTask) -> ModelCandidate: ...
+    def propose(
+        self,
+        task: AuditTask,
+        attempt_index: int = 0,
+    ) -> ModelCandidate: ...

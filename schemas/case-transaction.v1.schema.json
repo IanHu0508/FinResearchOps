@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:finresearchops:schema:case-transaction:v1",
+  "title": "FinResearchOps recoverable Case transaction intent v1",
+  "description": "Content-addressed pending intent binding one public command, one material artifact, one immutable Case event, and the expected journal-head transition. The intent is not authority by itself.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "case_ref",
+    "sequence",
+    "previous_head",
+    "next_head",
+    "command_identity",
+    "material_kind",
+    "material_ref",
+    "material_payload",
+    "event",
+    "transaction_ref"
+  ],
+  "properties": {
+    "schema_version": {"const": "finresearchops.case-transaction/v1"},
+    "case_ref": {"type": "string", "pattern": "^case-[0-9a-f]{64}$"},
+    "sequence": {"type": "integer", "minimum": 1},
+    "previous_head": {"$ref": "case-journal-head.v1.schema.json"},
+    "next_head": {"$ref": "case-journal-head.v1.schema.json"},
+    "command_identity": {
+      "description": "Canonical public-command semantics that alone may authorize resuming this pending transition.",
+      "type": "object"
+    },
+    "material_kind": {"enum": ["workpaper", "review"]},
+    "material_ref": {
+      "type": "string",
+      "pattern": "^(workpaper|review)-[0-9a-f]{64}$"
+    },
+    "material_payload": {"type": "object"},
+    "event": {"type": "object"},
+    "transaction_ref": {
+      "type": "string",
+      "pattern": "^transaction-[0-9a-f]{64}$"
+    }
+  }
+}

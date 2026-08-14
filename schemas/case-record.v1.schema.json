@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:finresearchops:schema:case-record:v1",
+  "title": "FinResearchOps immutable Case Record v1",
+  "description": "The immutable Case definition persisted by CREATE_CASE. Current status and linked artifacts are derived by read_case from append-only events.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "case_ref",
+    "question",
+    "cutoff",
+    "source_ref",
+    "answer_contract",
+    "risk_class",
+    "mode"
+  ],
+  "properties": {
+    "schema_version": {"const": "finresearchops.case-record/v1"},
+    "case_ref": {"type": "string", "pattern": "^case-[0-9a-f]{64}$"},
+    "question": {"type": "string", "minLength": 1},
+    "cutoff": {"type": "string", "format": "date"},
+    "source_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_id",
+        "document_name",
+        "document_sha256",
+        "declared_published_at"
+      ],
+      "properties": {
+        "source_id": {"type": "string", "minLength": 1},
+        "document_name": {"type": "string", "minLength": 1},
+        "document_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "declared_published_at": {"type": "string", "format": "date"}
+      }
+    },
+    "answer_contract": {"const": "PERCENTAGE_CHANGE"},
+    "risk_class": {"enum": ["LOW", "MEDIUM", "MATERIAL"]},
+    "mode": {"enum": ["SYNTHETIC_DEV", "PRIVATE_DEV", "POST_FREEZE_EVAL"]}
+  }
+}

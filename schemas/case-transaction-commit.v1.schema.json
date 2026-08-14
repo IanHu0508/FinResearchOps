@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:finresearchops:schema:case-transaction-commit:v1",
+  "title": "FinResearchOps Case transaction commit marker v1",
+  "description": "Append-once receipt for a content-addressed Case transaction. Readers must independently verify the material, event, and committed journal prefix; this marker is not authority by itself.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "case_ref",
+    "transaction_ref",
+    "sequence",
+    "next_head_sha256"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "finresearchops.case-transaction-commit/v1"
+    },
+    "case_ref": {"type": "string", "pattern": "^case-[0-9a-f]{64}$"},
+    "transaction_ref": {
+      "type": "string",
+      "pattern": "^transaction-[0-9a-f]{64}$"
+    },
+    "sequence": {"type": "integer", "minimum": 1},
+    "next_head_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    }
+  }
+}

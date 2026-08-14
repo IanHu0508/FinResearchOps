@@ -6,6 +6,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import tempfile
 from typing import Any
 
 
@@ -27,22 +28,33 @@ def write_once(path: Path, payload: bytes) -> None:
     """Create an artifact once; an existing different value is a conflict."""
 
     path.parent.mkdir(parents=True, exist_ok=True)
-    try:
-        descriptor = os.open(
-            path,
-            os.O_WRONLY | os.O_CREAT | os.O_EXCL,
-            0o600,
-        )
-    except FileExistsError:
+    if path.exists():
         if path.read_bytes() != payload:
             raise RuntimeError(f"append-only artifact conflict at {path.name}")
         return
-
+    descriptor, temporary_name = tempfile.mkstemp(
+        prefix=f".{path.name}.",
+        suffix=".tmp",
+        dir=path.parent,
+    )
+    temporary_path = Path(temporary_name)
     try:
         with os.fdopen(descriptor, "wb") as artifact:
             artifact.write(payload)
             artifact.flush()
             os.fsync(artifact.fileno())
-    except BaseException:
-        path.unlink(missing_ok=True)
-        raise
+        try:
+            os.link(temporary_path, path)
+        except FileExistsError:
+            if path.read_bytes() != payload:
+                raise RuntimeError(
+                    f"append-only artifact conflict at {path.name}"
+                )
+        else:
+            directory_descriptor = os.open(path.parent, os.O_RDONLY)
+            try:
+                os.fsync(directory_descriptor)
+            finally:
+                os.close(directory_descriptor)
+    finally:
+        temporary_path.unlink(missing_ok=True)

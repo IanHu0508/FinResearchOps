@@ -1,0 +1,93 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:finresearchops:schema:research-change-packet:v1",
+  "title": "FinResearchOps proposal-only Research Change Packet v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "case_ref",
+    "run_ref",
+    "review_ref",
+    "workpaper_ref",
+    "proposal_only",
+    "verified_facts",
+    "calculations",
+    "impact_statement",
+    "unresolved_items",
+    "packet_ref"
+  ],
+  "properties": {
+    "schema_version": {"const": "finresearchops.research-change-packet/v1"},
+    "case_ref": {"type": "string", "pattern": "^case-[0-9a-f]{64}$"},
+    "run_ref": {"$ref": "urn:finauditgate:schema:run-ref:v1"},
+    "review_ref": {"type": "string", "pattern": "^review-[0-9a-f]{64}$"},
+    "workpaper_ref": {"type": "string", "pattern": "^workpaper-[0-9a-f]{64}$"},
+    "proposal_only": {"const": true},
+    "verified_facts": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "evidence_id",
+          "metric",
+          "metric_basis",
+          "period",
+          "value",
+          "currency",
+          "unit",
+          "scale",
+          "sign",
+          "span_sha256"
+        ],
+        "properties": {
+          "evidence_id": {"type": "string", "minLength": 1},
+          "metric": {"type": "string", "minLength": 1},
+          "metric_basis": {"type": ["string", "null"]},
+          "period": {"type": "string", "minLength": 1},
+          "value": {"type": "string", "minLength": 1},
+          "currency": {"type": ["string", "null"]},
+          "unit": {"type": "string", "minLength": 1},
+          "scale": {"type": ["string", "null"]},
+          "sign": {"type": ["string", "null"]},
+          "span_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+        }
+      }
+    },
+    "calculations": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "operation",
+          "operand_ids",
+          "result",
+          "output_unit",
+          "calculation_policy_sha256"
+        ],
+        "properties": {
+          "operation": {"type": "string", "minLength": 1},
+          "operand_ids": {
+            "type": "array",
+            "minItems": 1,
+            "items": {"type": "string", "minLength": 1}
+          },
+          "result": {"type": "string", "minLength": 1},
+          "output_unit": {"type": "string", "minLength": 1},
+          "calculation_policy_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+        }
+      }
+    },
+    "impact_statement": {"type": "string", "minLength": 1},
+    "unresolved_items": {
+      "type": "array",
+      "items": {"type": "string", "minLength": 1}
+    },
+    "packet_ref": {"type": "string", "pattern": "^packet-[0-9a-f]{64}$"}
+  }
+}

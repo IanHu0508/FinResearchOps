@@ -12,18 +12,45 @@ from finauditgate.ports.model import (
 
 
 ScriptedCandidate = ModelCandidate
+ScriptedAttemptSequence = tuple[ModelCandidate, ...]
 
 
 class ScriptedModelAdapter:
     """Return predeclared candidates without network or model inference."""
 
-    def __init__(self, candidates: Mapping[str, ModelCandidate]) -> None:
+    def __init__(
+        self,
+        candidates: Mapping[
+            str,
+            ModelCandidate | ScriptedAttemptSequence,
+        ],
+    ) -> None:
         self._candidates = MappingProxyType(dict(candidates))
 
-    def propose(self, task: AuditTask) -> ModelCandidate:
+    def propose(
+        self,
+        task: AuditTask,
+        attempt_index: int = 0,
+    ) -> ModelCandidate:
+        if type(attempt_index) is not int or attempt_index < 0:
+            raise ValueError("attempt_index must be a non-negative integer")
         try:
-            return self._candidates[task.task_id]
+            candidate = self._candidates[task.task_id]
         except KeyError as exc:
             raise LookupError(
                 f"no scripted candidate for task {task.task_id!r}"
             ) from exc
+        if type(candidate) is tuple:
+            try:
+                return candidate[attempt_index]
+            except IndexError as exc:
+                raise LookupError(
+                    f"no scripted attempt {attempt_index} for task "
+                    f"{task.task_id!r}"
+                ) from exc
+        if attempt_index != 0:
+            raise LookupError(
+                f"no scripted attempt {attempt_index} for task "
+                f"{task.task_id!r}"
+            )
+        return candidate

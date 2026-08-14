@@ -1,0 +1,18 @@
+issuer=Aurora Devices;synthetic=true;profile=m2-revenue-growth
+metric=Net sales;basis=Reported;period=Year ended 2024-12-31;value=125.00;currency=US dollar;unit=Monetary;scale=Millions;sign=Positive
+metric=Total revenue;basis=IFRS reported;period=FY 2025;value=150.00;currency=USD;unit=Currency amount;scale=Million;sign=As presented
+metric=Operating income;basis=IFRS reported;period=FY 2025;value=150.00;currency=USD;unit=Currency amount;scale=Million;sign=As presented
+metric=Sales;basis=IFRS reported;period=FY 2025;value=150.00;currency=USD;unit=Currency amount;scale=Million;sign=As presented
+metric=Total revenue;basis=Adjusted;period=FY 2025;value=150.00;currency=USD;unit=Currency amount;scale=Million;sign=As presented
+metric=Total revenue;basis=IFRS reported;period=Annual period;value=150.00;currency=USD;unit=Currency amount;scale=Million;sign=As presented
+metric=Total revenue;basis=IFRS reported;period=FY 2025;value=150.00;currency=EUR;unit=Currency amount;scale=Million;sign=As presented
+metric=Total revenue;basis=IFRS reported;period=FY 2025;value=150.00;currency=Dollar;unit=Currency amount;scale=Million;sign=As presented
+metric=Total revenue;basis=IFRS reported;period=FY 2025;value=150.00;currency=USD;unit=Shares;scale=Million;sign=As presented
+metric=Total revenue;basis=IFRS reported;period=FY 2025;value=150.00;currency=USD;unit=Financial measure;scale=Million;sign=As presented
+metric=Total revenue;basis=IFRS reported;period=FY 2025;value=150.00;currency=USD;unit=Currency amount;scale=Billions;sign=As presented
+metric=Total revenue;basis=IFRS reported;period=FY 2025;value=150.00;currency=USD;unit=Currency amount;scale=Reported scale;sign=As presented
+metric=Total revenue;basis=IFRS reported;period=FY 2025;value=150.00;currency=USD;unit=Currency amount;scale=Million;sign=Negative
+metric=Total revenue;basis=IFRS reported;period=FY 2025;value=150.00;currency=USD;unit=Currency amount;scale=Million;sign=Reported sign
+metric=Total revenue;basis=IFRS reported;period=FY 2025;value=not-a-number;currency=USD;unit=Currency amount;scale=Million;sign=As presented
+metric=Total revenue;basis=IFRS reported;period=FY 2025;value=Infinity;currency=USD;unit=Currency amount;scale=Million;sign=As presented
+metric=Net sales;basis=Reported;period=Year ended 2024-12-31;value=0;currency=US dollar;unit=Monetary;scale=Millions;sign=Positive

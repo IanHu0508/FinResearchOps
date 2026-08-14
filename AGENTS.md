@@ -2,7 +2,19 @@
 
 ## Status
 
-This is the single planned public repository for the two-layer project: FinResearchOps is the outward workflow and FinAuditGate is its trusted core. M1 is `COMPLETED` by the initial immutable commit, while the repository and core Implementation remain `PARTIAL`: only one exact content-bound synthetic `run()` / offline `replay()` profile, M1 core contracts, and product schema drafts exist. The FinResearchOps Application Module, generalized deterministic core, real Model Adapter, issuer inputs, experiments, and resume results are not complete. Never turn this narrow evidence into completed-Agent language.
+This is the single planned public repository for the two-layer project:
+FinResearchOps is the outward workflow and FinAuditGate is its trusted core. M1
+is `COMPLETED` by the initial immutable commit. The current uncommitted,
+locally hash-frozen M2 candidate contains two exact content-bound synthetic core
+profiles, formal M2 artifacts, and the scripted Application review/export loop.
+It passes the renewed full-M2 Standards/Spec Gate, source/clean-wheel checks,
+and the three reopened-defect re-audits; bounded scripted M2 is therefore
+`COMPLETED`. The repository, core, and Application remain `PARTIAL` overall; a real
+Model Adapter, issuer inputs, evaluation, release, UI, and resume results are
+not complete. Never turn this narrow evidence into completed-Agent language.
+Do not modify the frozen M2 source/test candidate unless the user explicitly
+reopens implementation work. Work hours are planning context only and are not
+Gate evidence or blockers.
 
 ## Public-release seam
 
@@ -11,7 +23,9 @@ This directory is the only public Git worktree. All files must be safe to publis
 ## Interface and Module rules
 
 - Keep the package and repository identities `finauditgate` / `finaudit-gate`; do not create a second project for FinResearchOps.
-- The planned FinResearchOps Application Module owns Case, human Review, Export, and replay coordination behind `handle(command)` and `read_case(case_ref)`. It is currently `NOT_STARTED`.
+- The FinResearchOps Application Module owns Case, human Review, Export, and
+  replay coordination behind `handle(command)` and `read_case(case_ref)`. Its
+  M2 scripted synthetic slice is `COMPLETED`; the overall module is `PARTIAL`.
 - Preserve the intended external Interface: `run(task)` and `replay(run_ref)`.
 - Callers and tests cross the same Interface.
 - Keep fiscal-period, metric, unit, evidence, calculation, retry, machine-gate, and core-artifact complexity inside the FinAuditGate Implementation. Keep Case lifecycle, human Review, Workpaper construction, and Packet export inside the FinResearchOps Application Implementation.
@@ -39,5 +53,5 @@ This directory is the only public Git worktree. All files must be safe to publis
 ## Git safety
 
 - No remote, commit, or push without explicit user authorization.
-- Do not add a license until the user selects it.
+- Do not change the selected Apache-2.0 license without explicit authorization.
 - Before any public push, scan for private paths, secrets, PDFs, long source excerpts, logos, held-out gold, and raw model traces.

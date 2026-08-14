@@ -73,6 +73,30 @@ def standard_candidate(document: bytes) -> ScriptedCandidate:
 
 
 class SyntheticRoundTripTest(unittest.TestCase):
+    def test_unlisted_attempts_file_cannot_reclassify_an_m1_run(self) -> None:
+        document = FIXTURE_PATH.read_bytes()
+        task = standard_task(document, "synthetic-m1-generation-routing")
+
+        with tempfile.TemporaryDirectory() as artifact_root:
+            root = Path(artifact_root)
+            outcome = FinAuditGate(
+                artifact_root=root,
+                model=ScriptedModelAdapter(
+                    {task.task_id: standard_candidate(document)}
+                ),
+            ).run(task)
+            (
+                root
+                / "runs"
+                / outcome.run_ref.run_id
+                / "attempts.json"
+            ).write_bytes(b"{}")
+            replay = FinAuditGate(artifact_root=root).replay(outcome.run_ref)
+
+        self.assertTrue(replay.consistent)
+        self.assertEqual("finauditgate.replay/v1", replay.schema_version)
+        self.assertEqual(8, replay.verified_artifact_count)
+
     def test_candidate_string_subclass_is_normalized_from_canonical_bytes(self) -> None:
         class EquivocatingStr(str):
             def __eq__(self, other: object) -> bool:
