@@ -8,7 +8,7 @@ from typing import Literal
 
 
 RUN_SCHEMA_VERSION = "finauditgate.run/v1"
-REPLAY_SCHEMA_VERSION = "finauditgate.replay/v1"
+REPLAY_SCHEMA_VERSION = "finauditgate.replay/v5"
 _SHA256_HEX = re.compile(r"[0-9a-f]{64}")
 
 

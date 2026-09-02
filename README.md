@@ -1,123 +1,122 @@
 # FinResearchOps / FinAuditGate
 
-> **Status:** `PARTIAL` overall. M1 is `COMPLETED` at immutable commit
-> `8eae1dd`; the bounded scripted M2 slice is `COMPLETED` after renewed full-M2
-> Standards/Spec review, source and isolated clean-wheel verification, and
-> closure of the three reopened defects. The M2 candidate is locally
-> hash-frozen but not committed or released. Real-data/model Adapters, issuer work,
-> evaluation, UI, and resume admission remain incomplete.
+A filing-update workflow for equity researchers, built around one idea: **the
+model may only propose; deterministic code verifies and calculates; a person
+approves; everything replays offline.**
 
-FinResearchOps is the outward product: a filing-update and research-change workflow for equity researchers. FinAuditGate is its trusted core for fail-closed evidence, financial semantics, deterministic calculation, and replay. They are two layers of one project; this repository and the `finauditgate` Python package keep their existing names.
-
-## Active MVP
+- **FinAuditGate** is the core. Given one frozen document and one question, it
+  takes a candidate from a model (two evidence spans, their financial
+  semantics, one allowlisted formula), checks every claim against the frozen
+  bytes and a reviewed profile, computes the answer with `Decimal`, and returns
+  exactly one of `ACCEPT / RETRY / ABSTAIN / HUMAN_REVIEW`. Every run is a set
+  of append-once, content-addressed artifacts that a second gate with no model
+  can replay.
+- **FinResearchOps** is the workflow around it: a Case is created from a frozen
+  filing, analysed once, inspected as a Workpaper, reviewed by a person
+  (`APPROVE / RETURN / REJECT`), and only then exported as a proposal-only
+  Research Change Packet.
 
 ```text
-FinResearchOps: frozen filing → Case → analysis → Workpaper
-→ human APPROVE / RETURN / REJECT → proposal-only Change Packet → replay
-                          ↓
-FinAuditGate: period / metric / unit → Evidence Ledger → Decimal calculation
-→ ACCEPT / RETRY / ABSTAIN / HUMAN_REVIEW → offline replay
+frozen text slice (≤ 32 KB)
+   → local model (Qwen3-4B via Ollama, one forced tool call)
+   → FinAuditGate: span/hash check, semantics, Decimal, one retry
+   → ACCEPT / RETRY / ABSTAIN / HUMAN_REVIEW
+   → FinResearchOps: Case → Workpaper → human review → Change Packet
+   → offline replay (no model, no network)
 ```
 
-The external Interface is deliberately small:
+Current status lives in one place: [`docs/status.md`](docs/status.md).
 
-```python
-outcome = gate.run(task)
-report = gate.replay(run_ref)
-```
+## Quick start
 
-The public core Interface remains exactly `run()` / `replay()`. M2 adds one
-second content-bound original synthetic profile with versioned fiscal-period,
-metric, basis, currency, unit, scale, and sign registries; a bounded one-retry
-proposal/candidate attempt sequence; deterministic Decimal lineage; and
-replay/v2. The root
-package still exports only the seven frozen M1 core symbols.
-
-The `finauditgate.application` subpackage now implements the M2
-FinResearchOps Interface:
-
-```python
-application_outcome = application.handle(command)
-case_view = application.read_case(case_ref)
-```
-
-It derives Case state from an integrity-checked append-only event journal,
-keeps machine decisions separate from human review, and on covered eligible
-normal paths exports only a replay-verified `proposal_only=true` Change Packet.
-The completed M2 candidate treats the journal head as the committed visible
-prefix, never treats a pending intent or commit receipt as command authority,
-and passes the bounded independent crash-recovery and membership re-audits.
-`FrozenDocumentPackage`
-freezes submitted bytes and declared metadata; it does **not** prove that a
-source or publication date is official. This remains a scripted synthetic
-runtime, not a runnable LLM Agent or a real filing workflow.
-
-## Milestone progress
-
-- Completed at planning level: two-layer identity, first user, six-step workflow, proposal-only outlet, Application/Core Seam, model route, data route, non-goals, and UI deferral.
-- Completed M0 decisions/setup: `Apache-2.0`, user-provided repo-local Git identity, and a uv-managed Python 3.12.13 repository `.venv`. The former 125–140 h planning tier is retained only as history; work hours are no longer Gate evidence.
-- M0 complete: two independent read-only audits verified all M0 evidence and found no privacy/scope blocker.
-- Existing inherited evidence: the M1 scripted synthetic `run()` / `replay()` round-trip, adversarial fail-closed/replay-integrity checks, and the public/private data boundary.
-- M1 complete: this initial immutable commit contains the seven-symbol core Interface, versioned core schemas, four product schema drafts, one scripted product-journey mapping, a core synthetic demo, fail-closed adversarial coverage, append-only/idempotent artifacts, and historical-policy replay compatibility.
-- M2 completed bounded slice: registered semantic normalization and ambiguity,
-  bounded retry/stop rules, replay/v2, formal Application schemas, `handle` /
-  `read_case`, append-only Review, proposal-only Packet export, and the scripted
-  journey pass the renewed full-M2 Gate. This completion is limited to the
-  scripted synthetic M2 contract.
-- M2 completion is not a completed-Agent claim. Real local-model smoke and
-  Tencent acquisition are `NOT_STARTED` M3 work requiring separate
-  authorization; post-freeze Alibaba evaluation remains M4.
-
-## Repository contents
-
-- `src/finauditgate/`: the public core package plus the M2 Application Module.
-- `tests/`: synthetic-only, network-free core and Application verification.
-- `fixtures/synthetic/`: original synthetic filings and failure cases.
-- `schemas/`: core replay contracts, M1 historical drafts, and formal M2 Application artifact contracts.
-- `manifests/examples/`: public-safe example provenance metadata.
-- `docs/`: architecture, data policy, evaluation protocol, and status.
-- `scripts/`: reproducible local commands added only when implemented.
-
-## Environment rebuild and verification
-
-The verified M0 environment uses uv-managed CPython 3.12.13 from Astral's `python-build-standalone` distributions; it is not a Python.org macOS binary. The installer is deliberately prevented from changing shell profiles:
+The package is standard-library only. The verified environment is a
+uv-managed CPython 3.12.13 with a repository `.venv` (see `.python-version`).
 
 ```bash
-curl -LsSf https://astral.sh/uv/0.12.3/install.sh | env UV_NO_MODIFY_PATH=1 sh
-$HOME/.local/bin/uv python install 3.12.13 --managed-python
-$HOME/.local/bin/uv venv --python 3.12.13 --managed-python .venv
-PYTHONPATH=src .venv/bin/python -m unittest discover -s tests -v
+PYTHONPATH=src .venv/bin/python -m unittest discover -s tests
 ```
 
-The exact Python patch is also pinned in `.python-version`. Do not substitute the system Python or a Codex-managed runtime. Updating uv or Python is a deliberate environment-contract change and requires a clean rebuild plus the offline suite.
-
-To build and verify the installed package in a disposable user-owned environment:
+Run the public synthetic profile end to end and replay it without a model:
 
 ```bash
-M1_VERIFY_ROOT="$(mktemp -d)"
-$HOME/.local/bin/uv build --wheel --out-dir "$M1_VERIFY_ROOT/dist"
-$HOME/.local/bin/uv venv --python 3.12.13 --managed-python "$M1_VERIFY_ROOT/venv"
-$HOME/.local/bin/uv pip install --python "$M1_VERIFY_ROOT/venv/bin/python" "$M1_VERIFY_ROOT"/dist/*.whl
-env -u PYTHONPATH "$M1_VERIFY_ROOT/venv/bin/python" -c 'import finauditgate; print(finauditgate.__all__)'
-env -u PYTHONPATH "$M1_VERIFY_ROOT/venv/bin/python" scripts/synthetic_demo.py --artifact-root "$M1_VERIFY_ROOT/artifacts"
+PYTHONPATH=src .venv/bin/python scripts/synthetic_demo.py --artifact-root .local/demo
 ```
 
-The package has no runtime dependency or network path. A first wheel build may access the configured Python package index to obtain the pinned `setuptools==84.0.0` build backend; that build-time resolution is distinct from the offline `run()` / `replay()` guarantee. Updating the backend is an explicit build-contract change and requires the clean verification sequence again.
+Build and verify the installed package in a disposable environment:
 
-## Explicit non-goals for the current MVP
+```bash
+W="$(mktemp -d)"
+$HOME/.local/bin/uv build --wheel --out-dir "$W/dist" --offline
+$HOME/.local/bin/uv venv --python 3.12.13 --managed-python "$W/venv"
+$HOME/.local/bin/uv pip install --python "$W/venv/bin/python" --offline "$W"/dist/*.whl
+env -u PYTHONPATH "$W/venv/bin/finresearchops" --help
+```
 
-- live web search or automated HKEX access;
-- OCR or universal PDF/table parsing;
-- arbitrary Python/shell execution;
-- trading or automatic changes to formal research state;
-- vector databases, multi-Agent orchestration, cloud deployment, or any UI before the v2 UI Entry Gate;
-- SFT/RLHF/RL or paper-reproduction claims;
-- production-grade security or China-market generalization claims.
+## Running a real case with the local model
+
+`finresearchops` is a thin CLI over the Application Interface
+(`handle(command)` / `read_case(case_ref)`). It needs a local Ollama daemon
+with the frozen tag installed, and every private input must live under the
+workspace's sibling `private/` tree:
+
+```bash
+ollama pull qwen3:4b-q4_K_M
+finresearchops --artifact-root /…/private/runs/dev/example \
+  create-case --mode PRIVATE_DEV --document /…/private/…/slice.txt \
+  --source-id tencent-2025-annual-report --published-at 2026-04-09 \
+  --cutoff 2026-05-01 --question "…"
+finresearchops --artifact-root /…/private/runs/dev/example \
+  run-analysis --case-ref case-… --model-trace-root /…/private/model-traces \
+  --validation-profile /…/private/profiles/case-01.json
+```
+
+The complete procedure, including how to build the validation profile from
+reviewed facts, is in [`docs/runbook-private-case.md`](docs/runbook-private-case.md).
+The CLI actions are documented in [`docs/cli.md`](docs/cli.md).
+
+## What is and is not proven
+
+Proven by the offline suite (131 tests, no network, no model, no issuer data):
+
+- the deterministic gate on a public synthetic profile, including registered
+  fiscal-period / metric / basis / currency / unit / scale / sign aliases,
+  bounded one-retry behaviour, and fail-closed handling of malformed proposals;
+- the Application lifecycle with append-only Reviews, proposal-only export, and
+  crash recovery at every publication boundary;
+- the local-model Adapter contract with mocked loopback exchanges: one frozen
+  request, bounded raw capture, one content-addressed trace per call, and an
+  offline verifier that reconstructs the proposal from the saved bytes;
+- private validation profiles for acceptable answers, post-cutoff documents,
+  and questions with no admissible evidence, through to Packet export.
+
+Not proven yet:
+
+- any `ACCEPT` on a real issuer document with the real local model;
+- generalisation beyond one formula (`growth_rate_percent`) and hand-cut text
+  slices (there is no PDF parsing or retrieval inside the product);
+- any evaluation result.
+
+## Repository layout
+
+- `src/finauditgate/` — core (`core/`), Application (`application/`), model
+  Adapters (`adapters/`), the paired-evaluation helper (`evaluation/`), CLI.
+- `tests/` — offline `unittest` suite.
+- `fixtures/synthetic/` — the one original synthetic filing fragment.
+- `schemas/` — JSON Schemas for every persisted artifact, one version each.
+- `manifests/examples/` — public-safe route and source metadata.
+- `scripts/` — the synthetic demo and the validation-profile builder.
+- `docs/` — architecture, status, CLI, runbook, data policy, evaluation protocol.
 
 ## Data
 
-The public repository will contain only synthetic fixtures and reviewed public-safe metadata. Real Tencent source files, extracted text, evaluation gold, and raw traces remain outside this Git worktree. See [data policy](docs/data-policy.md).
+The repository contains only original code, synthetic fixtures, schemas, and
+public-safe metadata. Issuer documents, extracted text, validation profiles,
+raw model traces, and manual QA stay in the sibling `private/` directory and
+never enter Git. See [`docs/data-policy.md`](docs/data-policy.md) and
+[`NOTICE_DATA.md`](NOTICE_DATA.md).
 
 ## License
 
-Original code, documentation, schemas, and synthetic fixtures in this repository are licensed under the [Apache License 2.0](LICENSE). Third-party filings, issuer names and marks, model weights, and evaluation material are not relicensed; see [the data and third-party material notice](NOTICE_DATA.md).
+Original code, documentation, schemas, and synthetic fixtures are licensed
+under the [Apache License 2.0](LICENSE). Third-party filings, issuer names and
+marks, model weights, and evaluation material are not relicensed.

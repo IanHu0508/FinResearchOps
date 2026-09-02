@@ -1,16 +1,19 @@
 # Scripts
 
-`synthetic_demo.py` is a runnable, network-free demonstration of the exact M1
-FinAuditGate profile. It calls the public `run()` entry with a scripted Adapter,
-then calls public `replay()` through a fresh gate with no model Adapter:
+`synthetic_demo.py` runs the public synthetic profile through `run()` with a
+scripted Adapter, then replays it through a fresh gate with no Adapter:
 
 ```bash
-PYTHONPATH=src .venv/bin/python scripts/synthetic_demo.py \
-  --artifact-root .local/synthetic-demo
+PYTHONPATH=src .venv/bin/python scripts/synthetic_demo.py --artifact-root .local/demo
 ```
 
-This is a core demo, not the FinResearchOps product CLI. The product CLI is
-only a contract draft in `docs/cli-contract.draft.md`. The M2 scripted
-Application Module exists and is exercised through its public Interface in the
-offline suite, but no CLI script has been implemented. SEC acquisition,
-evaluation, and public-release scripts are also not implemented.
+`build_validation_profile.py` turns reviewed facts (two exact spans, their
+values and periods, the shared semantics) into the canonical private
+validation profile the gate loads. Spans are located by unique byte search. It
+also builds the no-admissible-evidence shape:
+
+```bash
+PYTHONPATH=src .venv/bin/python scripts/build_validation_profile.py --help
+```
+
+Usage in context: `docs/runbook-private-case.md`.

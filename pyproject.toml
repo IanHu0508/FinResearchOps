@@ -12,5 +12,8 @@ license-files = ["LICENSE"]
 requires-python = ">=3.12,<3.13"
 dependencies = []
 
+[project.scripts]
+finresearchops = "finauditgate.cli:main"
+
 [tool.setuptools.packages.find]
 where = ["src"]

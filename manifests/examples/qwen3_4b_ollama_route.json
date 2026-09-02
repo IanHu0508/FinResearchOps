@@ -1,0 +1,64 @@
+{
+  "schema_version": "finauditgate.local-model-route/v3",
+  "runtime": {
+    "name": "ollama",
+    "smoke_tested_version": "0.32.11",
+    "version_policy": "OBSERVED_AND_RECORDED_IN_EVERY_TRACE_NOT_A_GATE",
+    "transport": "LOOPBACK_HTTP_ONLY",
+    "default_endpoint": "http://127.0.0.1:11434",
+    "distribution_url": "https://ollama.com/download/mac",
+    "license": "MIT",
+    "license_url": "https://github.com/ollama/ollama/blob/main/LICENSE"
+  },
+  "model": {
+    "id": "qwen3:4b-q4_K_M",
+    "manifest_digest": "2bfd38a7daaf4b1037efe517ccb73d1a3bbd4822cf89f1a82be1569050a114e0",
+    "gguf_blob_sha256": "163553aea1b1de62de7c5eb2ef5afb756b4b3133308d9ae7e42e951d8d696ef5",
+    "artifact_size_bytes": 2620788260,
+    "format": "gguf",
+    "family": "qwen3",
+    "parameter_size": "4.0B",
+    "quantization": "Q4_K_M",
+    "advertised_context_length": 40960,
+    "upstream_model_url": "https://huggingface.co/Qwen/Qwen3-4B-GGUF",
+    "registry_url": "https://ollama.com/library/qwen3:4b-q4_K_M",
+    "license": "Apache-2.0",
+    "license_text_sha256": "b87250e4478f8f0673bc61cd397e402ac33ca3a6f23a7ad9512618ab33f18fbe"
+  },
+  "adapter": {
+    "module": "finauditgate.adapters.ollama",
+    "class": "OllamaModelAdapter",
+    "port_method": "CandidateModel.propose",
+    "redirect_policy": "FORBID_ALL_REDIRECTS",
+    "proxy_policy": "IGNORE_ENVIRONMENT_PROXIES",
+    "pre_flight_check": "INSTALLED_TAG_MUST_CARRY_FROZEN_DIGEST",
+    "execution_identity": "SHARED_DAEMON_REQUEST_SCOPED_MODEL_BYTES_NOT_PROVEN",
+    "trace_schema": "finauditgate.model-call-trace/v6",
+    "receipt_schema": "finauditgate.model-trace-receipt/v3",
+    "prompt_sha256": "2b7087660cad16ea3e6d1d9d43b2b9ecbbb54c864f2f234a8687095d25b2120c",
+    "tool_schema_sha256": "4604bc2e8c382e12af94dfc7e0143cb0234b8afaf254cdbc0147fddfa4f105ca",
+    "generation_config_sha256": "7cc9b30d73f8c7d2cf0452296aded88671de2c732c55a6502a1bde07b460d594"
+  },
+  "budgets": {
+    "generation_context_tokens": 4096,
+    "maximum_generated_tokens": 1024,
+    "maximum_document_bytes": 32768,
+    "maximum_request_bytes": 262144,
+    "maximum_response_bytes": 1048576,
+    "maximum_trace_bytes": 2097152,
+    "temperature": 0,
+    "seed": 0
+  },
+  "local_runtime_observation": {
+    "observed_on": "2026-08-14",
+    "source": "ollama_api_ps",
+    "reported_processor": "100% GPU",
+    "reported_loaded_size_bytes": 3293262642,
+    "reported_size_vram_bytes": 3293262642,
+    "active_context_length": 4096,
+    "scope": "LOCAL_SYNTHETIC_SMOKE_ONLY"
+  },
+  "private_artifacts": "CONTENT_ADDRESSED_OUTSIDE_PUBLIC_REPOSITORY",
+  "weights_in_repository": false,
+  "network_required_for_offline_replay": false
+}

@@ -1,91 +1,114 @@
-# FinResearchOps / FinAuditGate Architecture Contract
+# Architecture
 
-> Status: `PARTIAL` overall; the locally frozen bounded scripted M2 slice is
-> `COMPLETED` after renewed full-M2 Standards/Spec sign-off, source/clean-wheel
-> verification, and closure of the three reopened defects. Real
-> model/source/evaluation paths and UI are not implemented.
+Status is tracked in [`status.md`](status.md); this document describes only
+how the current code works.
 
-## Two-layer ownership
+## Two layers, two small Interfaces
 
 ```text
-future CLI / later UI
+finresearchops CLI (thin)
       ↓
-FinResearchOps Application Module                         M2 COMPLETED (SCRIPTED)
-  Case / Workpaper / Review / Export / replay coordination
-  handle(command) / read_case(case_ref)
-      ↓ public core Interface only
-FinAuditGate                                               PARTIAL
-  evidence and calculation admissibility
-  run(task) / replay(run_ref)
+FinResearchOps Application            handle(command) -> ApplicationOutcome
+  Case / Workpaper / Review / Packet   read_case(case_ref) -> CaseView
       ↓
-Scripted Model Adapter / local content-addressed artifacts
+FinAuditGate core                      run(AuditTask) -> AuditOutcome
+  evidence + calculation admissibility replay(RunRef) -> ReplayReport
+      ↓
+CandidateModel.propose()               ScriptedModelAdapter | OllamaModelAdapter
 ```
 
-Machine `ACCEPT / RETRY / ABSTAIN / HUMAN_REVIEW` belongs to FinAuditGate.
-Human `APPROVE / RETURN / REJECT` belongs to FinResearchOps. Machine `ACCEPT`
-always leaves a Case in `AWAITING_REVIEW`; it never becomes human approval by
-itself. Change Packets are proposal-only.
+Machine decisions (`ACCEPT / RETRY / ABSTAIN / HUMAN_REVIEW`) belong to the
+core. Human actions (`APPROVE / RETURN / REJECT`) belong to the Application.
+A machine `ACCEPT` always leaves a Case in `AWAITING_REVIEW`; only a person can
+approve, and only an approved `ACCEPT` whose replay is consistent can be
+exported. Change Packets are proposal-only.
 
-## FinAuditGate external Interface
+## One run
 
-```text
-run(AuditTask) -> AuditOutcome
-replay(RunRef) -> ReplayReport
-```
+1. **Normalize the task.** The task is serialized to canonical JSON and read
+   back, so an Adapter cannot smuggle mutable state into what is executed.
+2. **Choose the profile.** `SYNTHETIC_DEV` tasks are validated against the one
+   public synthetic profile (`core/synthetic_profile.py`). `PRIVATE_DEV` tasks
+   require a reviewed private profile (`core/profiles.py`) and a model trace.
+3. **Ask for at most two proposals.** The Adapter is called with
+   `attempt_index` 0 and, only if the first attempt was a recoverable `RETRY`,
+   once more with 1. Every proposal is first converted into a bounded canonical
+   snapshot (`core/proposal_snapshot.py`) so even garbage is replayable.
+4. **Validate and calculate.** The profile executor checks the spans, hashes,
+   values, normalized semantics, operand lineage, and formula, then computes
+   the growth rate under a frozen `Decimal` context.
+5. **Persist.** Eight artifacts (nine for traced runs) are written once under
+   `runs/<run_id>/`; the run id is the SHA-256 of `identity.json`, which binds
+   the task, candidate, attempts, model-trace summary, and policy hashes.
 
-The root package still exposes the seven frozen M1 symbols. M2 did not add a
-second core entry point. Internally, M2 adds a content-bound synthetic policy
-with versioned registries, explicit ambiguity and conflict decisions, a retry
-budget of one, canonical proposal/candidate attempt snapshots bound to RunRef, deterministic
-Decimal calculation, operand lineage, and replay/v2. Historical M1 RunRefs keep
-their replay/v1 identity and eight verified artifacts; M2 uses replay/v2 and
-nine.
+`replay()` reads the manifest, checks every artifact hash, rebuilds the
+attempt sequence, re-runs the validation with no Adapter, and reports whether
+the stored decision, answer, ledger, formula, and identity still follow.
 
-The model can propose candidates only. It cannot verify a locator, normalize a
-financial semantic, select rounding, execute code, or choose a hard decision.
-Replay never calls a model, source, or network.
+## Persisted artifacts
 
-## FinResearchOps Application Interface
+Each artifact has exactly one schema version; see
+[`../schemas/README.md`](../schemas/README.md) for the table.
 
-```text
-handle(command) -> ApplicationOutcome
-read_case(case_ref) -> CaseView
-```
+## The local-model route
 
-The closed command set is create, run analysis, submit review, export Change
-Packet, and replay. Case state is derived from canonical append-only events.
-The journal integrity head detects tail truncation or event replacement and
-defines the committed, visible event prefix. Business-state contents still
-come only from that immutable event prefix. Workpapers and
-Reviews are content-addressed inside their owning Case, and per-Case locks
-serialize state validation through commit across local Application instances.
-The repaired candidate uses a content-addressed Case transaction intent and an
-append-once commit receipt. An intent is never business authority: inspection
-shows the old state while head is unchanged, and only an explicitly repeated,
-canonically matching public command may finish a pending publication. Readers
-independently verify every receipt against material, event, and journal prefix.
-Only the current committed tail may be missing its receipt; a missing historical
-receipt or an unsealed tail followed by another pending intent fails closed.
-This recovery path passes its bounded independent re-audit and the renewed
-full-M2 Gate without changing the public Interface.
+`adapters/ollama_route.py` is the single frozen definition of the route: model
+tag and digest, system prompt, tool schema, generation config, and budgets.
+Their hashes are part of every trace.
 
-Export eligibility is checked at runtime: latest same-Case RunRef, machine
-`ACCEPT`, consistent offline replay, matching Workpaper, and append-only
-`APPROVE` are all required. Packet facts and calculations are copied from the
-replay-verified core ledger/formula rather than recalculated in the Application.
+Per attempt the Adapter (`adapters/ollama.py`):
 
-## Seams and remaining boundaries
+1. records the daemon version from `/api/version` (observed, never a gate);
+2. requires that `/api/tags` lists the frozen tag with the frozen digest;
+3. sends the frozen `/api/chat` request and captures the raw bytes with a
+   fixed byte budget, keeping partial bodies;
+4. derives one proposal or one failure code from those bytes
+   (`adapters/ollama_trace.inspect_captured_response`);
+5. writes one content-addressed trace under the private trace root and returns
+   a receipt of hashes and codes.
 
-- The only implemented model Adapter is scripted and synthetic.
-- `FrozenDocumentPackage` freezes submitted bytes plus declared metadata; it
-  does not authenticate an official source.
-- Persistence uses atomic single-file append-once publication, POSIX per-Case
-  locks, and a private command-authorized transaction protocol for material Case
-  transitions. This declared M2 persistence model passes the full-M2 Gate;
-  elapsed work time is not a Gate condition. It is not a formal proof for
-  arbitrary hardware power loss or a hostile filesystem writer.
-- The CLI remains a contract draft. Tests use the same Application Interface.
-- A later CLI or UI must cross `handle` / `read_case` and may not duplicate
-  financial or lifecycle rules.
-- Real model, issuer acquisition, evaluation, public release, and UI remain
-  outside M2.
+`core/model_trace.verify_raw_model_trace` repeats steps 3–4 offline from the
+saved bytes: it checks the trace hash, that the saved request equals the frozen
+route request for this task and attempt, that the response bytes hash as
+recorded, and that the same bytes still yield the same proposal or failure.
+Raw request/response bytes never leave the private trace root; Workpapers bind
+only the trace summary, and Packets carry no trace reference.
+
+A shared daemon cannot prove which model bytes produced a response. The trace
+therefore records the observed tag digest and daemon version; it does not
+claim more.
+
+## Private validation profiles
+
+A profile is the reviewed answer key for one question on one frozen document:
+exact byte spans, span hashes, values, normalized semantics, and the one
+formula. Three shapes exist:
+
+| Shape | Meaning | Gate outcome |
+|---|---|---|
+| two spans + formula | an acceptable answer exists | `ACCEPT` only on an exact match |
+| `declared_published_at` after `task_cutoff` | the document is post-cutoff | `HUMAN_REVIEW / POST_CUTOFF_DOCUMENT` |
+| empty `evidence_allowlist`, null `calculation` | nothing in the document answers the question | `HUMAN_REVIEW / NO_ADMISSIBLE_EVIDENCE` |
+
+`scripts/build_validation_profile.py` builds a canonical profile from reviewed
+facts by unique byte search.
+
+## Application persistence
+
+Case state is derived from an append-only event journal with an integrity
+head. Material transitions (a new Workpaper, a new Review) are written as a
+content-addressed transaction intent, published, then sealed with a commit
+receipt; readers verify receipts independently, so an interrupted transition
+is either invisible or exactly resumable by the same command. Per-Case POSIX
+locks serialize local writers. This is deliberately heavier than a single-user
+CLI needs and is a candidate for later simplification; it is fully tested.
+
+## Boundaries
+
+- Only `run-analysis` constructs a model Adapter. Everything else reopens the
+  Application offline.
+- `PRIVATE_DEV` documents, profiles, traces, artifacts, and paired outputs
+  must resolve below the workspace's sibling `private/` tree; the artifact root
+  fixes one workspace anchor and mixed workspaces are rejected.
+- The core is standard-library only. The local runtime is an external
+  application, not a Python dependency.

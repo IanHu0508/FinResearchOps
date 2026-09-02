@@ -1,4 +1,10 @@
-"""Content-bound M2 financial semantics and deterministic calculation."""
+"""The one public synthetic validation profile and its registered semantics.
+
+`SYNTHETIC_POLICY` binds the Aurora fixture by SHA-256, freezes the accepted
+question, and carries the alias registries used to normalize fiscal periods,
+metrics, bases, currencies, units, scales, and signs.  It is the only profile a
+`SYNTHETIC_DEV` task can be accepted against; private profiles are separate.
+"""
 
 from __future__ import annotations
 
@@ -20,14 +26,14 @@ from finauditgate.core.artifacts import canonical_json_bytes, sha256_hex
 from finauditgate.ports.model import ModelCandidate
 
 
-M2_DOCUMENT_SHA256 = (
+SYNTHETIC_DOCUMENT_SHA256 = (
     "b8068de14be8f02595b6a48b4bfb9e61f43676c5259cba9ed2f77e1600b2a269"
 )
-_M2_POLICY_PAYLOAD = {
+_SYNTHETIC_POLICY_PAYLOAD = {
     "schema_version": "finauditgate.calculation-policy/v2",
     "validation_profile": "synthetic-aurora-revenue-growth/v1",
     "source_id": "synthetic-aurora-revenue-growth-v2",
-    "document_sha256": M2_DOCUMENT_SHA256,
+    "document_sha256": SYNTHETIC_DOCUMENT_SHA256,
     "task_question": (
         "What was Aurora Devices FY2025 revenue growth versus FY2024?"
     ),
@@ -106,12 +112,11 @@ _M2_POLICY_PAYLOAD = {
         },
     },
 }
-M2_POLICY_BYTES = canonical_json_bytes(_M2_POLICY_PAYLOAD)
-M2_POLICY_SHA256 = sha256_hex(M2_POLICY_BYTES)
-M2_REGISTRIES_SHA256 = sha256_hex(
-    canonical_json_bytes(_M2_POLICY_PAYLOAD["registries"])
+SYNTHETIC_POLICY_BYTES = canonical_json_bytes(_SYNTHETIC_POLICY_PAYLOAD)
+SYNTHETIC_POLICY_SHA256 = sha256_hex(SYNTHETIC_POLICY_BYTES)
+SYNTHETIC_REGISTRIES_SHA256 = sha256_hex(
+    canonical_json_bytes(_SYNTHETIC_POLICY_PAYLOAD["registries"])
 )
-M2_REPLAY_SCHEMA_VERSION = "finauditgate.replay/v2"
 
 
 def _deep_freeze(value: Any) -> Any:
@@ -124,11 +129,11 @@ def _deep_freeze(value: Any) -> Any:
     return value
 
 
-M2_POLICY = _deep_freeze(_M2_POLICY_PAYLOAD)
+SYNTHETIC_POLICY = _deep_freeze(_SYNTHETIC_POLICY_PAYLOAD)
 
 
-class M2ValidationFailure(ValueError):
-    """A deterministic M2 disposition with stable public reason codes."""
+class ValidationFailure(ValueError):
+    """A deterministic disposition with stable public reason codes."""
 
     def __init__(self, decision: Decision, *reason_codes: str) -> None:
         super().__init__(", ".join(reason_codes))
@@ -140,7 +145,7 @@ def failed_artifacts(
     decision: Decision,
     reason_codes: tuple[str, ...],
 ) -> tuple[dict[str, object], dict[str, object]]:
-    """Canonical M2 artifacts for a calculation that was not admissible."""
+    """Canonical ledger/formula artifacts for a non-admissible calculation."""
 
     return (
         {
@@ -159,40 +164,44 @@ def failed_artifacts(
     )
 
 
-def evaluate_accepted_candidate(
+def evaluate_profiled_candidate(
     document: bytes,
     candidate: ModelCandidate,
     task: AuditTask,
+    *,
+    policy: dict[str, object],
+    policy_sha256: str,
+    registries_sha256: str,
 ) -> tuple[dict[str, object], dict[str, object]]:
-    """Validate the first M2 ACCEPT slice and execute its frozen formula."""
+    """Validate one frozen synthetic profile and execute its formula."""
 
-    if sha256_hex(document) != M2_DOCUMENT_SHA256:
-        raise M2ValidationFailure(
+    if sha256_hex(document) != policy["document_sha256"]:
+        raise ValidationFailure(
             Decision.HUMAN_REVIEW,
             "SOURCE_PROFILE_CONFLICT",
         )
-    if task.document.source_id != M2_POLICY["source_id"]:
-        raise M2ValidationFailure(
+    if task.document.source_id != policy["source_id"]:
+        raise ValidationFailure(
             Decision.HUMAN_REVIEW,
             "SOURCE_PROFILE_CONFLICT",
         )
-    if task.question != M2_POLICY["task_question"]:
-        raise M2ValidationFailure(
+    if task.question != policy["task_question"]:
+        raise ValidationFailure(
             Decision.HUMAN_REVIEW,
             "QUESTION_PROFILE_CONFLICT",
         )
-    if task.mode != M2_POLICY["accepted_mode"]:
-        raise M2ValidationFailure(
+    if task.mode != policy["accepted_mode"]:
+        raise ValidationFailure(
             Decision.HUMAN_REVIEW,
             "MODE_CONFLICT",
         )
-    if task.risk_class != M2_POLICY["accepted_risk_class"]:
-        raise M2ValidationFailure(
+    if task.risk_class != policy["accepted_risk_class"]:
+        raise ValidationFailure(
             Decision.HUMAN_REVIEW,
             "RISK_CLASS_REQUIRES_HUMAN_REVIEW",
         )
     if task.document.declared_published_at > task.cutoff:
-        raise M2ValidationFailure(
+        raise ValidationFailure(
             Decision.HUMAN_REVIEW,
             "POST_CUTOFF_DOCUMENT",
         )
@@ -205,22 +214,22 @@ def evaluate_accepted_candidate(
             calculation.quantize,
         )
     ):
-        raise M2ValidationFailure(
+        raise ValidationFailure(
             Decision.RETRY,
             "CANDIDATE_SHAPE_INVALID",
         )
-    if calculation.operation != M2_POLICY["operation"]:
-        raise M2ValidationFailure(
+    if calculation.operation != policy["operation"]:
+        raise ValidationFailure(
             Decision.ABSTAIN,
             "FORMULA_NOT_ALLOWLISTED",
         )
     if len(candidate.evidence) < 2:
-        raise M2ValidationFailure(
+        raise ValidationFailure(
             Decision.RETRY,
             "MISSING_EVIDENCE",
         )
     if len(candidate.evidence) > 2:
-        raise M2ValidationFailure(
+        raise ValidationFailure(
             Decision.ABSTAIN,
             "EVIDENCE_SHAPE_NOT_ALLOWLISTED",
         )
@@ -233,7 +242,7 @@ def evaluate_accepted_candidate(
             or not evidence.evidence_id.strip()
             or evidence.evidence_id in seen_ids
         ):
-            raise M2ValidationFailure(
+            raise ValidationFailure(
                 Decision.RETRY,
                 "CANDIDATE_SHAPE_INVALID",
             )
@@ -252,7 +261,7 @@ def evaluate_accepted_candidate(
             type(value) is not str or not value.strip()
             for value in semantic_claims
         ):
-            raise M2ValidationFailure(
+            raise ValidationFailure(
                 Decision.RETRY,
                 "CANDIDATE_SHAPE_INVALID",
             )
@@ -266,7 +275,7 @@ def evaluate_accepted_candidate(
                 <= len(document)
             )
         ):
-            raise M2ValidationFailure(
+            raise ValidationFailure(
                 Decision.RETRY,
                 "EVIDENCE_LOCATOR_INVALID",
             )
@@ -274,7 +283,7 @@ def evaluate_accepted_candidate(
         try:
             record = _parse_record(span.decode("utf-8"))
         except (UnicodeDecodeError, ValueError) as exc:
-            raise M2ValidationFailure(
+            raise ValidationFailure(
                 Decision.RETRY,
                 "EVIDENCE_LOCATOR_INVALID",
             ) from exc
@@ -302,34 +311,42 @@ def evaluate_accepted_candidate(
                     if key != "value"
                 }
             ):
-                raise M2ValidationFailure(
+                raise ValidationFailure(
                     Decision.RETRY,
                     "CLAIMED_VALUE_MISMATCH",
                 )
-            raise M2ValidationFailure(
+            raise ValidationFailure(
                 Decision.RETRY,
                 "CLAIMED_EVIDENCE_MISMATCH",
             )
         try:
             value = Decimal(record["value"])
         except InvalidOperation as exc:
-            raise M2ValidationFailure(
+            raise ValidationFailure(
                 Decision.RETRY,
                 "EVIDENCE_VALUE_INVALID",
             ) from exc
         if not value.is_finite():
-            raise M2ValidationFailure(
+            raise ValidationFailure(
                 Decision.RETRY,
                 "EVIDENCE_VALUE_INVALID",
             )
         normalized = {
-            "metric": _resolve("metric", record["metric"]),
-            "metric_basis": _resolve("metric_basis", record["basis"]),
-            "fiscal_period": _resolve("fiscal_period", record["period"]),
-            "currency": _resolve("currency", record["currency"]),
-            "unit": _resolve("unit", record["unit"]),
-            "scale": _resolve("scale", record["scale"]),
-            "sign": _resolve("sign", record["sign"]),
+            "metric": _resolve(policy, "metric", record["metric"]),
+            "metric_basis": _resolve(
+                policy,
+                "metric_basis",
+                record["basis"],
+            ),
+            "fiscal_period": _resolve(
+                policy,
+                "fiscal_period",
+                record["period"],
+            ),
+            "currency": _resolve(policy, "currency", record["currency"]),
+            "unit": _resolve(policy, "unit", record["unit"]),
+            "scale": _resolve(policy, "scale", record["scale"]),
+            "sign": _resolve(policy, "sign", record["sign"]),
         }
         nodes.append(
             {
@@ -346,13 +363,13 @@ def evaluate_accepted_candidate(
             }
         )
 
-    if calculation.output_unit != M2_POLICY["output_unit"]:
-        raise M2ValidationFailure(
+    if calculation.output_unit != policy["output_unit"]:
+        raise ValidationFailure(
             Decision.HUMAN_REVIEW,
             "OUTPUT_UNIT_CONFLICT",
         )
-    if calculation.quantize != M2_POLICY["quantize"]:
-        raise M2ValidationFailure(
+    if calculation.quantize != policy["quantize"]:
+        raise ValidationFailure(
             Decision.HUMAN_REVIEW,
             "QUANTIZATION_CONFLICT",
         )
@@ -364,7 +381,7 @@ def evaluate_accepted_candidate(
             for item in calculation.operand_ids
         )
     ):
-        raise M2ValidationFailure(
+        raise ValidationFailure(
             Decision.RETRY,
             "OPERAND_LINEAGE_INVALID",
         )
@@ -373,11 +390,11 @@ def evaluate_accepted_candidate(
         current = by_id[calculation.operand_ids[0]]
         prior = by_id[calculation.operand_ids[1]]
     except KeyError as exc:
-        raise M2ValidationFailure(
+        raise ValidationFailure(
             Decision.RETRY,
             "OPERAND_LINEAGE_INVALID",
         ) from exc
-    expected = M2_POLICY["expected"]
+    expected = policy["expected"]
     conflict_codes = {
         "metric": "METRIC_CONFLICT",
         "metric_basis": "METRIC_BASIS_CONFLICT",
@@ -397,7 +414,7 @@ def evaluate_accepted_candidate(
             "sign",
         ):
             if semantics[name] != expected[name]:
-                raise M2ValidationFailure(
+                raise ValidationFailure(
                     Decision.HUMAN_REVIEW,
                     conflict_codes[name],
                 )
@@ -407,7 +424,7 @@ def evaluate_accepted_candidate(
         or prior["normalized_semantics"]["fiscal_period"]
         != expected["comparison_period"]
     ):
-        raise M2ValidationFailure(
+        raise ValidationFailure(
             Decision.HUMAN_REVIEW,
             "FISCAL_PERIOD_CONFLICT",
         )
@@ -415,27 +432,27 @@ def evaluate_accepted_candidate(
     current_value = Decimal(current["value"])
     prior_value = Decimal(prior["value"])
     if prior_value == 0:
-        raise M2ValidationFailure(
+        raise ValidationFailure(
             Decision.ABSTAIN,
             "FORMULA_DOMAIN_ERROR",
         )
     context = Context(
-        prec=M2_POLICY["precision"],
+        prec=policy["precision"],
         rounding=ROUND_HALF_EVEN,
-        Emin=M2_POLICY["emin"],
-        Emax=M2_POLICY["emax"],
-        capitals=M2_POLICY["capitals"],
-        clamp=M2_POLICY["clamp"],
+        Emin=policy["emin"],
+        Emax=policy["emax"],
+        capitals=policy["capitals"],
+        clamp=policy["clamp"],
         traps=[InvalidOperation, DivisionByZero, Overflow],
     )
     with localcontext(context):
         result = (
             (current_value - prior_value) / prior_value * Decimal("100")
-        ).quantize(Decimal(M2_POLICY["quantize"]), rounding=ROUND_HALF_EVEN)
+        ).quantize(Decimal(policy["quantize"]), rounding=ROUND_HALF_EVEN)
 
     ledger = {
         "schema_version": "finauditgate.ledger/v2",
-        "semantic_registry_sha256": M2_REGISTRIES_SHA256,
+        "semantic_registry_sha256": registries_sha256,
         "nodes": nodes,
     }
     formula = {
@@ -461,8 +478,8 @@ def evaluate_accepted_candidate(
         "input_scale": current["normalized_semantics"]["scale"],
         "output_unit": calculation.output_unit,
         "quantize": calculation.quantize,
-        "rounding": M2_POLICY["rounding"],
-        "calculation_policy_sha256": M2_POLICY_SHA256,
+        "rounding": policy["rounding"],
+        "calculation_policy_sha256": policy_sha256,
         "result": format(result, "f"),
     }
     return ledger, formula
@@ -473,7 +490,7 @@ def _parse_record(record: str) -> dict[str, str]:
     for field in record.split(";"):
         key, separator, value = field.partition("=")
         if separator != "=" or not key or not value or key in parsed:
-            raise ValueError("invalid M2 synthetic evidence record")
+            raise ValueError("invalid synthetic evidence record")
         parsed[key] = value
     if set(parsed) != {
         "metric",
@@ -485,13 +502,17 @@ def _parse_record(record: str) -> dict[str, str]:
         "scale",
         "sign",
     }:
-        raise ValueError("M2 synthetic evidence record has unexpected fields")
+        raise ValueError("synthetic evidence record has unexpected fields")
     return parsed
 
 
-def _resolve(registry_name: str, label: str) -> str:
+def _resolve(
+    policy: dict[str, object],
+    registry_name: str,
+    label: str,
+) -> str:
     normalized_label = _normalize_label(label)
-    registry: dict[str, list[str]] = M2_POLICY["registries"][registry_name]
+    registry: dict[str, list[str]] = policy["registries"][registry_name]
     matches = [
         canonical
         for canonical, aliases in registry.items()
@@ -507,12 +528,12 @@ def _resolve(registry_name: str, label: str) -> str:
         "sign": "SIGN",
     }[registry_name]
     if not matches:
-        raise M2ValidationFailure(
+        raise ValidationFailure(
             Decision.HUMAN_REVIEW,
             f"{reason_prefix}_UNRESOLVED",
         )
     if len(matches) > 1:
-        raise M2ValidationFailure(
+        raise ValidationFailure(
             Decision.HUMAN_REVIEW,
             f"{reason_prefix}_AMBIGUOUS",
         )

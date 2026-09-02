@@ -1,0 +1,297 @@
+"""Single schema/codec source for the local model's candidate tool."""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+from typing import TypeAlias
+
+from finauditgate.ports.model import (
+    CalculationCandidate,
+    EvidenceCandidate,
+    ModelCandidate,
+)
+
+
+TOOL_NAME = "propose_financial_candidate"
+
+
+class ToolContractError(ValueError):
+    """A closed tool argument failed the shared schema/codec contract."""
+
+    def __init__(self, code: str) -> None:
+        self.code = code
+        super().__init__(code)
+
+
+@dataclass(frozen=True, slots=True)
+class _StringRule:
+    error_code: str
+    const: str | None = None
+    const_error_code: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class _ArrayRule:
+    item: "_Rule"
+    length: int
+    error_code: str
+
+
+@dataclass(frozen=True, slots=True)
+class _ObjectRule:
+    fields: tuple[tuple[str, "_Rule"], ...]
+    error_code: str
+
+
+_Rule: TypeAlias = _StringRule | _ArrayRule | _ObjectRule
+
+
+def _string(error_code: str, *, const: str | None = None) -> _StringRule:
+    return _StringRule(
+        error_code=error_code,
+        const=const,
+        const_error_code=(
+            "TOOL_ARGUMENT_NOT_ALLOWLISTED" if const is not None else None
+        ),
+    )
+
+
+_EVIDENCE_ERROR = "EVIDENCE_ARGUMENT_SHAPE_INVALID"
+_CALCULATION_ERROR = "CALCULATION_ARGUMENT_SHAPE_INVALID"
+_EVIDENCE_RULE = _ObjectRule(
+    fields=tuple(
+        (name, _string(_EVIDENCE_ERROR))
+        for name in (
+            "evidence_id",
+            "exact_span",
+            "metric",
+            "metric_basis",
+            "period",
+            "value",
+            "currency",
+            "unit",
+            "scale",
+            "sign",
+        )
+    ),
+    error_code=_EVIDENCE_ERROR,
+)
+_CALCULATION_RULE = _ObjectRule(
+    fields=(
+        (
+            "operation",
+            _string(_CALCULATION_ERROR, const="growth_rate_percent"),
+        ),
+        (
+            "operand_ids",
+            _ArrayRule(
+                item=_string(_CALCULATION_ERROR),
+                length=2,
+                error_code=_CALCULATION_ERROR,
+            ),
+        ),
+        (
+            "output_unit",
+            _string(_CALCULATION_ERROR, const="PERCENT"),
+        ),
+        (
+            "quantize",
+            _string(_CALCULATION_ERROR, const="0.01"),
+        ),
+    ),
+    error_code=_CALCULATION_ERROR,
+)
+_ARGUMENT_RULE = _ObjectRule(
+    fields=(
+        (
+            "evidence",
+            _ArrayRule(
+                item=_EVIDENCE_RULE,
+                length=2,
+                error_code=_EVIDENCE_ERROR,
+            ),
+        ),
+        ("calculation", _CALCULATION_RULE),
+    ),
+    error_code="TOOL_ARGUMENT_SHAPE_INVALID",
+)
+
+
+class CandidateToolContract:
+    """Generate the JSON Schema and decode with the same immutable rules."""
+
+    def tool_schema(self) -> dict[str, object]:
+        return {
+            "type": "function",
+            "function": {
+                "name": TOOL_NAME,
+                "description": (
+                    "Propose two unverified evidence spans and one "
+                    "allowlisted financial calculation. The deterministic "
+                    "gate verifies them."
+                ),
+                "parameters": _json_schema(_ARGUMENT_RULE),
+            },
+        }
+
+    def decode(
+        self,
+        arguments: object,
+        document: bytes,
+    ) -> ModelCandidate:
+        if type(document) is not bytes:
+            raise TypeError("document must be immutable bytes")
+        decoded = _decode(_ARGUMENT_RULE, arguments)
+        raw_evidence = decoded["evidence"]
+        evidence = tuple(
+            _evidence_candidate(item, document) for item in raw_evidence
+        )
+        calculation = decoded["calculation"]
+        return ModelCandidate(
+            evidence=evidence,
+            calculation=CalculationCandidate(
+                operation=calculation["operation"],
+                operand_ids=tuple(calculation["operand_ids"]),
+                output_unit=calculation["output_unit"],
+                quantize=calculation["quantize"],
+            ),
+        )
+
+    def encode(
+        self,
+        candidate: ModelCandidate,
+        document: bytes,
+    ) -> dict[str, object]:
+        """Reconstruct the one canonical tool argument from a candidate.
+
+        This inverse is used by the offline trace verifier.  A proposal that
+        cannot round-trip to the exact frozen document span is not the same
+        proposal as the model response.
+        """
+
+        if type(candidate) is not ModelCandidate:
+            raise ToolContractError("TOOL_ARGUMENT_SHAPE_INVALID")
+        if type(document) is not bytes:
+            raise TypeError("document must be immutable bytes")
+        evidence_payloads: list[dict[str, object]] = []
+        for evidence in candidate.evidence:
+            if type(evidence) is not EvidenceCandidate or not (
+                type(evidence.byte_start) is int
+                and type(evidence.byte_end) is int
+                and 0 <= evidence.byte_start < evidence.byte_end <= len(document)
+            ):
+                raise ToolContractError("EVIDENCE_ARGUMENT_SHAPE_INVALID")
+            try:
+                exact_span = document[
+                    evidence.byte_start : evidence.byte_end
+                ].decode("utf-8")
+            except UnicodeDecodeError as exc:
+                raise ToolContractError(
+                    "EVIDENCE_ARGUMENT_SHAPE_INVALID"
+                ) from exc
+            evidence_payloads.append(
+                {
+                    "evidence_id": evidence.evidence_id,
+                    "exact_span": exact_span,
+                    "metric": evidence.metric,
+                    "metric_basis": evidence.metric_basis,
+                    "period": evidence.period,
+                    "value": evidence.value,
+                    "currency": evidence.currency,
+                    "unit": evidence.unit,
+                    "scale": evidence.scale,
+                    "sign": evidence.sign,
+                }
+            )
+        arguments: dict[str, object] = {
+            "evidence": evidence_payloads,
+            "calculation": {
+                "operation": candidate.calculation.operation,
+                "operand_ids": list(candidate.calculation.operand_ids),
+                "output_unit": candidate.calculation.output_unit,
+                "quantize": candidate.calculation.quantize,
+            },
+        }
+        decoded = self.decode(arguments, document)
+        if decoded != candidate:
+            raise ToolContractError("TOOL_ARGUMENT_CANDIDATE_MISMATCH")
+        return arguments
+
+
+def _json_schema(rule: _Rule) -> dict[str, object]:
+    if isinstance(rule, _StringRule):
+        return (
+            {"const": rule.const}
+            if rule.const is not None
+            else {"type": "string"}
+        )
+    if isinstance(rule, _ArrayRule):
+        return {
+            "type": "array",
+            "minItems": rule.length,
+            "maxItems": rule.length,
+            "items": _json_schema(rule.item),
+        }
+    properties = {
+        name: _json_schema(field_rule)
+        for name, field_rule in rule.fields
+    }
+    return {
+        "type": "object",
+        "additionalProperties": False,
+        "required": [name for name, _ in rule.fields],
+        "properties": properties,
+    }
+
+
+def _decode(rule: _Rule, value: object) -> object:
+    if isinstance(rule, _StringRule):
+        if type(value) is not str or not value.strip():
+            raise ToolContractError(rule.error_code)
+        if rule.const is not None and value != rule.const:
+            raise ToolContractError(
+                rule.const_error_code or rule.error_code
+            )
+        return value
+    if isinstance(rule, _ArrayRule):
+        if type(value) is not list or len(value) != rule.length:
+            raise ToolContractError(rule.error_code)
+        return [_decode(rule.item, item) for item in value]
+    if type(value) is not dict:
+        raise ToolContractError(rule.error_code)
+    expected_fields = {name for name, _ in rule.fields}
+    if set(value) != expected_fields:
+        raise ToolContractError(rule.error_code)
+    return {
+        name: _decode(field_rule, value[name])
+        for name, field_rule in rule.fields
+    }
+
+
+def _evidence_candidate(
+    raw_evidence: dict[str, str],
+    document: bytes,
+) -> EvidenceCandidate:
+    try:
+        exact_span = raw_evidence["exact_span"].encode("utf-8")
+    except UnicodeEncodeError as exc:
+        raise ToolContractError(_EVIDENCE_ERROR) from exc
+    byte_start = document.find(exact_span)
+    if byte_start < 0 or document.find(exact_span, byte_start + 1) >= 0:
+        raise ToolContractError("EVIDENCE_SPAN_NOT_UNIQUE")
+    return EvidenceCandidate(
+        evidence_id=raw_evidence["evidence_id"],
+        byte_start=byte_start,
+        byte_end=byte_start + len(exact_span),
+        metric=raw_evidence["metric"],
+        metric_basis=raw_evidence["metric_basis"],
+        period=raw_evidence["period"],
+        value=raw_evidence["value"],
+        currency=raw_evidence["currency"],
+        unit=raw_evidence["unit"],
+        scale=raw_evidence["scale"],
+        sign=raw_evidence["sign"],
+    )
+
+
+CANDIDATE_TOOL_CONTRACT = CandidateToolContract()

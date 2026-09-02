@@ -1,54 +1,56 @@
-# Schemas
+# Persisted artifacts and their schemas
 
-Status: M1 core and historical draft delivery `COMPLETED`; the formal M2
-synthetic Application schema set and its runtime cross-object enforcement pass
-the renewed full-M2 Gate. M2 runtime contracts are `COMPLETED` for the bounded
-scripted slice.
+Every artifact the code reads or writes has exactly one schema version. When a
+shape changes, that artifact's version is bumped and the old branch is deleted;
+older numbers exist only in Git history and the archived pre-simplification
+tree. Version numbers are monotonic and may have gaps.
 
-Implemented FinAuditGate v1 contracts:
+JSON Schema files exist for the artifacts that cross the Application or
+public boundary. Core run artifacts are defined by the code that writes and
+replays them (`src/finauditgate/core/engine.py`).
 
-- `run-task-artifact.v1.schema.json`: the canonical persisted form derived from
-  `AuditTask`; immutable document bytes are represented by their SHA-256.
-- `run-ref.v1.schema.json`
-- `audit-outcome.v1.schema.json`
-- `replay-report.v1.schema.json`
+## FinAuditGate run directory (`runs/<run_id>/`)
 
-M2 core replay contract:
+| File | Schema version | Contents |
+|---|---|---|
+| `task.json` | `finauditgate.task/v1` | the normalized `AuditTask` (`run-task-artifact.v1.schema.json`) |
+| `candidate.json` | `finauditgate.candidate/v2` or `null` | the last well-formed candidate |
+| `attempts.json` | `finauditgate.attempts/v2` | every proposal snapshot, candidate, disposition, and reason codes |
+| `policy.json` | `finauditgate.calculation-policy/v2` or `finauditgate.private-dev-validation-profile/v2` | the frozen profile the run was validated against |
+| `ledger.json` | `finauditgate.ledger/v2` | verified evidence nodes, or the rejection record |
+| `formula.json` | `finauditgate.formula/v2` | operand lineage, Decimal context, result, or the non-execution record |
+| `outcome.json` | `finauditgate.run/v1` | the returned `AuditOutcome` (`audit-outcome.v1.schema.json`) |
+| `identity.json` | `finauditgate.run-identity/v5` | hashes of task, candidate, attempts, model-trace summary (nullable), policy; its SHA-256 is the run id |
+| `model-trace.json` | `finauditgate.model-trace-summary/v3` | per-attempt trace receipts (traced runs only) |
+| `manifest.json` | `finauditgate.manifest/v2` | filename and SHA-256 of every artifact above |
 
-- `replay-report.v2.schema.json`: binds the canonical attempt sequence and the
-  nine-artifact M2 replay generation while preserving replay/v1 for M1 runs.
+`replay()` returns `finauditgate.replay/v5` (`replay-report.v5.schema.json`).
 
-`FrozenDocumentPackage` is the Python input value used by `AuditTask`. Its
-`source_id`, name, and publication date are caller-declared metadata. Frozen
-means the submitted bytes and declarations are immutable, not that the source
-has been authenticated.
+## Private model traces (`<trace root>/model-calls/sha256/<sha>.json`)
 
-Formal M2 FinResearchOps runtime contracts:
+| Artifact | Schema version |
+|---|---|
+| raw trace (request, base64 response, HTTP status, capture flag, metrics) | `finauditgate.model-call-trace/v6` |
+| receipt embedded in the run's trace summary | `finauditgate.model-trace-receipt/v3` |
 
-- `case-journal-head.v1.schema.json`
-- `case-transaction.v1.schema.json`
-- `case-transaction-commit.v1.schema.json`
-- `case-record.v1.schema.json`
-- `workpaper.v1.schema.json`
-- `review-record.v1.schema.json`
-- `research-change-packet.v1.schema.json`
-- `replay-record.v1.schema.json`
+## FinResearchOps Case directory (`application/cases/<case_ref>/`)
 
-The Application validates these closed shapes and implements the M2 rules JSON
-Schema cannot express alone. The completed M2 candidate treats the head as the
-committed visible prefix, an intent as non-authoritative pending work, and a
-commit marker as an independently verified receipt. Case/run ownership,
-append-only transition recovery, and proposal eligibility pass their targeted
-re-audits and the renewed full-M2 Gate.
+| File | Schema | JSON Schema file |
+|---|---|---|
+| `case.json` | `finresearchops.case-record/v1` | `case-record.v1.schema.json` |
+| `journal-head.json` | `finresearchops.case-journal-head/v1` | `case-journal-head.v1.schema.json` |
+| `transactions/*.intent.json` | `finresearchops.case-transaction/v1` | `case-transaction.v1.schema.json` |
+| `transactions/*.commit.json` | `finresearchops.case-transaction-commit/v1` | `case-transaction-commit.v1.schema.json` |
+| `workpapers/*.json` | `finresearchops.workpaper/v3` | `workpaper.v3.schema.json` |
+| `reviews/*.json` | `finresearchops.review-record/v1` | `review-record.v1.schema.json` |
+| `packets/*.json` | `finresearchops.research-change-packet/v1` | `research-change-packet.v1.schema.json` |
+| `replays/*.json` | `finresearchops.replay-record/v3` | `replay-record.v3.schema.json` |
 
-Historical M1 FinResearchOps data-contract drafts:
+`run-ref.v1.schema.json` is the shared `{run_id}` reference.
 
-- `case-record.draft.v1.schema.json`
-- `workpaper.draft.v1.schema.json`
-- `review-record.draft.v1.schema.json`
-- `research-change-packet.draft.v1.schema.json`
+## Paired evaluation (`paired/`)
 
-The draft files and `examples/synthetic-product-journey.draft.v1.json` preserve
-the M1 contract snapshot. Their embedded `NOT_STARTED` fields describe that M1
-historical snapshot, not the current M2 runtime. They are not accepted as M2
-runtime artifacts.
+| Artifact | Schema version |
+|---|---|
+| execution pair | `finresearchops.paired-execution/v2` |
+| human QA record | `finresearchops.paired-human-qa/v1` |

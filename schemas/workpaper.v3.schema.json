@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "urn:finresearchops:schema:workpaper:v1",
-  "title": "FinResearchOps Workpaper v1",
-  "description": "A content-addressed mapping from one Case and FinAuditGate RunRef to replay-verified core artifacts.",
+  "$id": "urn:finresearchops:schema:workpaper:v3",
+  "title": "FinResearchOps Workpaper v3",
+  "description": "A content-addressed Workpaper binding one FinAuditGate run to its Case. Traced runs point trace_summary_ref at model-trace.json; scripted runs point it at attempts.json.",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -23,7 +23,7 @@
     "workpaper_ref"
   ],
   "properties": {
-    "schema_version": {"const": "finresearchops.workpaper/v1"},
+    "schema_version": {"const": "finresearchops.workpaper/v3"},
     "case_ref": {"type": "string", "pattern": "^case-[0-9a-f]{64}$"},
     "run_ref": {"$ref": "urn:finauditgate:schema:run-ref:v1"},
     "machine_decision": {"enum": ["ACCEPT", "RETRY", "ABSTAIN", "HUMAN_REVIEW"]},
@@ -33,19 +33,9 @@
     "evidence_ledger_ref": {"type": "string", "pattern": "^runs/[0-9a-f]{64}/ledger\\.json$"},
     "formula_ref": {"type": "string", "pattern": "^runs/[0-9a-f]{64}/formula\\.json$"},
     "candidate_artifact_ref": {"type": "string", "pattern": "^runs/[0-9a-f]{64}/candidate\\.json$"},
-    "attempts_artifact_ref": {
-      "anyOf": [
-        {"type": "null"},
-        {"type": "string", "pattern": "^runs/[0-9a-f]{64}/attempts\\.json$"}
-      ]
-    },
-    "trace_summary_ref": {
-      "type": "string",
-      "pattern": "^runs/[0-9a-f]{64}/(?:attempts|candidate)\\.json$"
-    },
-    "trace_summary_status": {
-      "enum": ["ATTEMPTS_RECORDED", "SCRIPTED_CANDIDATE_RECORDED"]
-    },
+    "attempts_artifact_ref": {"type": "string", "pattern": "^runs/[0-9a-f]{64}/attempts\\.json$"},
+    "trace_summary_ref": {"type": "string", "pattern": "^runs/[0-9a-f]{64}/(?:attempts|model-trace)\\.json$"},
+    "trace_summary_status": {"enum": ["ATTEMPTS_RECORDED", "MODEL_TRACE_BOUND"]},
     "gate_reason_codes": {
       "type": "array",
       "items": {"type": "string", "minLength": 1},

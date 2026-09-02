@@ -1,5 +1,14 @@
 # Example Manifests
 
-Public examples may contain synthetic hashes and safe official-source metadata. They must never include private paths, credentials, private emails, hidden gold, or unreviewed source excerpts.
+Public examples contain only safe official-source metadata and hashes. They
+must never include private paths, credentials, hidden gold, or source excerpts.
 
-`alibaba_fy2026_20f_plan.json` freezes the intended SEC accession and acquisition constraints. Its explicit `PLANNED_NOT_ACQUIRED` state means it is not a download record, cache manifest, or evaluation artifact.
+`alibaba_fy2026_20f_plan.json` freezes an intended SEC accession and
+acquisition constraints. Its `PLANNED_NOT_ACQUIRED` state means it is not a
+download record, cache manifest, or evaluation artifact.
+
+`qwen3_4b_ollama_route.json` records the one frozen local-model route: model
+tag and digests, public license/source links, the prompt/tool/generation-config
+hashes the Adapter and the offline verifier share, byte and token budgets, and
+the daemon version observed when the route was smoke-tested. It contains no
+weights, raw responses, private paths, or results.

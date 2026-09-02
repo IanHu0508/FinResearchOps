@@ -1,0 +1,736 @@
+from dataclasses import replace
+from datetime import date
+import hashlib
+import json
+from pathlib import Path
+import tempfile
+import unittest
+from unittest.mock import patch
+
+from finauditgate import AuditTask, Decision, FinAuditGate, FrozenDocumentPackage
+from finauditgate.adapters.ollama import OllamaModelAdapter
+from finauditgate.adapters.ollama_route import MODEL_DIGEST, MODEL_ID
+from finauditgate.application import (
+    CreateCase,
+    ExportChangePacket,
+    FinResearchOps,
+    ReplayRun,
+    ReviewAction,
+    RunAnalysis,
+    SubmitReview,
+)
+from finauditgate.core.artifacts import canonical_json_bytes
+from finauditgate.core.model_trace import verify_raw_model_trace
+from finauditgate.core.profiles import PrivateDevValidationProfile
+from finauditgate.ports.model import (
+    CalculationCandidate,
+    EvidenceCandidate,
+    ModelCandidate,
+    ModelExecution,
+)
+from tests.test_model_trace_binding import _traced_execution
+
+
+NATURAL_DOCUMENT = (
+    "Orion Components plc — annual results\n"
+    "Revenue by fiscal year (USD millions)\n"
+    "FY2024 | Revenue | 125.00\n"
+    "FY2025 | Revenue | 150.00\n"
+    "Management reported that demand remained stable.\n"
+).encode("utf-8")
+QUESTION = "What was Orion Components FY2025 revenue growth versus FY2024?"
+SOURCE_ID = "private-orion-natural-disclosure-v1"
+DOCUMENT_NAME = "orion-natural-disclosure.txt"
+PRIOR_SPAN = b"FY2024 | Revenue | 125.00"
+CURRENT_SPAN = b"FY2025 | Revenue | 150.00"
+
+
+class _JSONResponse:
+    def __init__(self, payload: dict[str, object]) -> None:
+        self._payload = json.dumps(payload).encode("utf-8")
+
+    def __enter__(self) -> "_JSONResponse":
+        return self
+
+    def __exit__(self, *args: object) -> None:
+        return None
+
+    def read(self, amount: int = -1) -> bytes:
+        return self._payload if amount < 0 else self._payload[:amount]
+
+
+def _route_responses(
+    candidate: ModelCandidate | None = None,
+    *,
+    operation: str | None = None,
+) -> tuple[_JSONResponse, ...]:
+    """One attempt on the wire: /api/version, /api/tags, /api/chat."""
+
+    tags = _JSONResponse(
+        {
+            "models": [
+                {
+                    "name": MODEL_ID,
+                    "model": MODEL_ID,
+                    "size": 2_620_788_260,
+                    "digest": MODEL_DIGEST,
+                    "details": {
+                        "format": "gguf",
+                        "family": "qwen3",
+                        "parameter_size": "4.0B",
+                        "quantization_level": "Q4_K_M",
+                        "context_length": 40_960,
+                    },
+                    "capabilities": ["completion", "tools", "thinking"],
+                }
+            ]
+        }
+    )
+    candidate = candidate or _candidate()
+    arguments = {
+        "evidence": [
+            {
+                "evidence_id": evidence.evidence_id,
+                "exact_span": NATURAL_DOCUMENT[
+                    evidence.byte_start:evidence.byte_end
+                ].decode("utf-8"),
+                "metric": evidence.metric,
+                "metric_basis": evidence.metric_basis,
+                "period": evidence.period,
+                "value": evidence.value,
+                "currency": evidence.currency,
+                "unit": evidence.unit,
+                "scale": evidence.scale,
+                "sign": evidence.sign,
+            }
+            for evidence in candidate.evidence
+        ],
+        "calculation": {
+            "operation": (
+                candidate.calculation.operation if operation is None else operation
+            ),
+            "operand_ids": list(candidate.calculation.operand_ids),
+            "output_unit": candidate.calculation.output_unit,
+            "quantize": candidate.calculation.quantize,
+        },
+    }
+    chat = _JSONResponse(
+        {
+            "model": MODEL_ID,
+            "message": {
+                "role": "assistant",
+                "content": "",
+                "tool_calls": [
+                    {
+                        "function": {
+                            "name": "propose_financial_candidate",
+                            "arguments": arguments,
+                        }
+                    }
+                ],
+            },
+            "done": True,
+            "done_reason": "stop",
+            "total_duration": 2_000_000,
+            "load_duration": 1_000_000,
+            "prompt_eval_count": 500,
+            "eval_count": 100,
+        }
+    )
+    return (_JSONResponse({"version": "0.33.1"}), tags, chat)
+
+
+def _locator(document: bytes, span: bytes) -> tuple[int, int]:
+    start = document.index(span)
+    return start, start + len(span)
+
+
+def _profile_payload(
+    document: bytes,
+    *,
+    prior_span_sha256: str | None = None,
+    declared_published_at: str = "2026-02-15",
+    task_cutoff: str = "2026-03-01",
+) -> dict[str, object]:
+    prior_start, prior_end = _locator(document, PRIOR_SPAN)
+    current_start, current_end = _locator(document, CURRENT_SPAN)
+    semantics = {
+        "metric": "revenue",
+        "metric_basis": "REPORTED",
+        "currency": "USD",
+        "unit": "MONETARY",
+        "scale": "MILLION",
+        "sign": "POSITIVE",
+    }
+    return {
+        "schema_version": "finauditgate.private-dev-validation-profile/v2",
+        "validation_profile": "private-natural-revenue-growth/v2",
+        "source_id": SOURCE_ID,
+        "document_name": DOCUMENT_NAME,
+        "document_sha256": hashlib.sha256(document).hexdigest(),
+        "declared_published_at": declared_published_at,
+        "task_cutoff": task_cutoff,
+        "task_question": QUESTION,
+        "accepted_mode": "PRIVATE_DEV",
+        "accepted_risk_class": "LOW",
+        "evidence_allowlist": [
+            {
+                "evidence_id": "revenue_prior",
+                "role": "COMPARISON",
+                "byte_start": prior_start,
+                "byte_end": prior_end,
+                "span_sha256": (
+                    prior_span_sha256 or hashlib.sha256(PRIOR_SPAN).hexdigest()
+                ),
+                "value": "125.00",
+                "normalized_semantics": {**semantics, "fiscal_period": "FY2024"},
+            },
+            {
+                "evidence_id": "revenue_current",
+                "role": "CURRENT",
+                "byte_start": current_start,
+                "byte_end": current_end,
+                "span_sha256": hashlib.sha256(CURRENT_SPAN).hexdigest(),
+                "value": "150.00",
+                "normalized_semantics": {**semantics, "fiscal_period": "FY2025"},
+            },
+        ],
+        "calculation": {
+            "operation": "growth_rate_percent",
+            "operand_ids": ["revenue_current", "revenue_prior"],
+            "output_unit": "PERCENT",
+            "quantize": "0.01",
+            "decimal_context": {
+                "precision": 28,
+                "rounding": "ROUND_HALF_EVEN",
+                "emin": -999999,
+                "emax": 999999,
+                "capitals": 1,
+                "clamp": 0,
+            },
+        },
+    }
+
+
+def _no_evidence_profile_payload(document: bytes) -> dict[str, object]:
+    payload = _profile_payload(document)
+    payload["validation_profile"] = "private-no-admissible-evidence/v1"
+    payload["evidence_allowlist"] = []
+    payload["calculation"] = None
+    return payload
+
+
+def _private_task(
+    document: bytes = NATURAL_DOCUMENT,
+    *,
+    published_at: date = date(2026, 2, 15),
+    cutoff: date = date(2026, 3, 1),
+) -> AuditTask:
+    return AuditTask(
+        task_id=SOURCE_ID,
+        question=QUESTION,
+        cutoff=cutoff,
+        document=FrozenDocumentPackage(
+            source_id=SOURCE_ID,
+            document_name=DOCUMENT_NAME,
+            document_bytes=document,
+            declared_published_at=published_at,
+        ),
+        mode="PRIVATE_DEV",
+    )
+
+
+def _candidate(document: bytes = NATURAL_DOCUMENT) -> ModelCandidate:
+    prior_start, prior_end = _locator(document, PRIOR_SPAN)
+    current_start, current_end = _locator(document, CURRENT_SPAN)
+    return ModelCandidate(
+        evidence=(
+            EvidenceCandidate(
+                evidence_id="revenue_prior",
+                byte_start=prior_start,
+                byte_end=prior_end,
+                metric="revenue",
+                metric_basis="REPORTED",
+                period="FY2024",
+                value="125.00",
+                currency="USD",
+                unit="MONETARY",
+                scale="MILLION",
+                sign="POSITIVE",
+            ),
+            EvidenceCandidate(
+                evidence_id="revenue_current",
+                byte_start=current_start,
+                byte_end=current_end,
+                metric="revenue",
+                metric_basis="REPORTED",
+                period="FY2025",
+                value="150.00",
+                currency="USD",
+                unit="MONETARY",
+                scale="MILLION",
+                sign="POSITIVE",
+            ),
+        ),
+        calculation=CalculationCandidate(
+            operation="growth_rate_percent",
+            operand_ids=("revenue_current", "revenue_prior"),
+            output_unit="PERCENT",
+            quantize="0.01",
+        ),
+    )
+
+
+class _TraceSequenceModel:
+    def __init__(self, executions: tuple[ModelExecution, ...]) -> None:
+        self._executions = executions
+
+    def propose(self, task: AuditTask, attempt_index: int = 0) -> ModelExecution:
+        del task
+        try:
+            return self._executions[attempt_index]
+        except IndexError as exc:
+            raise LookupError("no more traced attempts") from exc
+
+
+def _workspace(temporary_directory: str) -> Path:
+    workspace = Path(temporary_directory)
+    (workspace / "finaudit-gate" / ".git").mkdir(parents=True)
+    private = workspace / "private"
+    private.mkdir()
+    return private
+
+
+def _profile(private: Path, payload: dict[str, object]) -> PrivateDevValidationProfile:
+    path = private / "profiles" / "natural-profile.json"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(canonical_json_bytes(payload))
+    return PrivateDevValidationProfile.from_path(path)
+
+
+class PrivateDevValidationProfileTest(unittest.TestCase):
+    def test_protocol_rejection_verifies_offline(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            private = _workspace(temporary_directory)
+            task = _private_task()
+            trace_root = private / "model-traces"
+            with patch(
+                "finauditgate.adapters.ollama._open_no_redirect",
+                side_effect=_route_responses(operation="percentage_change"),
+            ):
+                execution = OllamaModelAdapter(trace_root=trace_root).propose(task)
+            verified, offline_failure = verify_raw_model_trace(
+                trace_root.resolve(),
+                execution.trace_receipt,
+                task=task,
+                attempt_index=0,
+                expected_proposal=None,
+                expected_failure_code="TOOL_ARGUMENT_NOT_ALLOWLISTED",
+            )
+            trace = json.loads(
+                (trace_root / execution.trace_receipt.raw_trace_ref).read_bytes()
+            )
+
+        self.assertIsNone(offline_failure, offline_failure)
+        self.assertIsNotNone(verified)
+        self.assertIsNone(execution.proposal)
+        self.assertEqual("TOOL_ARGUMENT_NOT_ALLOWLISTED", execution.failure_code)
+        self.assertEqual("CANDIDATE_REJECTED", trace["parse_status"])
+        self.assertEqual(MODEL_DIGEST, trace["observed_model_digest"])
+        self.assertIsNone(trace["response_derived_proposal_sha256"])
+
+    def test_protocol_rejections_are_bounded_and_replayable(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            private = _workspace(temporary_directory)
+            task = _private_task()
+            profile = _profile(private, _profile_payload(NATURAL_DOCUMENT))
+            trace_root = private / "model-traces"
+            artifact_root = private / "artifacts" / "core"
+            with patch(
+                "finauditgate.adapters.ollama._open_no_redirect",
+                side_effect=(
+                    _route_responses(operation="percentage_change")
+                    + _route_responses(operation="percentage_change")
+                ),
+            ) as open_no_redirect:
+                outcome = FinAuditGate(
+                    artifact_root=artifact_root,
+                    model=OllamaModelAdapter(trace_root=trace_root),
+                    model_trace_root=trace_root,
+                    private_dev_profile=profile,
+                ).run(task)
+            replay = FinAuditGate(
+                artifact_root=artifact_root,
+                model_trace_root=trace_root,
+            ).replay(outcome.run_ref)
+            run_directory = artifact_root / "runs" / outcome.run_ref.run_id
+            attempts = json.loads((run_directory / "attempts.json").read_bytes())
+            trace_count = len(list(trace_root.glob("model-calls/sha256/*.json")))
+            request_count = open_no_redirect.call_count
+
+        self.assertIs(Decision.RETRY, outcome.decision)
+        self.assertEqual(
+            ("MODEL_CANDIDATE_REJECTED", "RETRY_BUDGET_EXHAUSTED"),
+            outcome.reason_codes,
+        )
+        self.assertEqual(6, request_count)
+        self.assertEqual(2, trace_count)
+        self.assertEqual(
+            [["MODEL_CANDIDATE_REJECTED"], ["MODEL_CANDIDATE_REJECTED"]],
+            [attempt["reason_codes"] for attempt in attempts["attempts"]],
+        )
+        self.assertTrue(replay.consistent, replay.reason)
+        self.assertIs(Decision.RETRY, replay.decision)
+        self.assertEqual("finauditgate.replay/v5", replay.schema_version)
+
+    def test_profile_binds_source_publication_date_and_task_cutoff(self) -> None:
+        base_task = _private_task()
+        attacks = {
+            "published-at": replace(
+                base_task,
+                document=replace(
+                    base_task.document,
+                    declared_published_at=date(2026, 2, 14),
+                ),
+            ),
+            "cutoff": replace(base_task, cutoff=date(2026, 3, 2)),
+        }
+        for name, task in attacks.items():
+            with self.subTest(name=name), tempfile.TemporaryDirectory() as temporary_directory:
+                private = _workspace(temporary_directory)
+                profile = _profile(private, _profile_payload(NATURAL_DOCUMENT))
+                trace_root = private / "model-traces"
+                with patch(
+                    "finauditgate.adapters.ollama._open_no_redirect",
+                    side_effect=_route_responses(),
+                ):
+                    outcome = FinAuditGate(
+                        artifact_root=private / "artifacts" / "core",
+                        model=OllamaModelAdapter(trace_root=trace_root),
+                        model_trace_root=trace_root,
+                        private_dev_profile=profile,
+                    ).run(task)
+
+            self.assertIs(Decision.HUMAN_REVIEW, outcome.decision)
+            self.assertIn(
+                "SOURCE_PROFILE_CONFLICT"
+                if name == "published-at"
+                else "CUTOFF_PROFILE_CONFLICT",
+                outcome.reason_codes,
+            )
+
+    def test_natural_disclosure_reaches_accept_review_export_and_replay(
+        self,
+    ) -> None:
+        self.assertNotIn(b"metric=", NATURAL_DOCUMENT)
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            private = _workspace(temporary_directory)
+            task = _private_task()
+            profile = _profile(private, _profile_payload(NATURAL_DOCUMENT))
+            trace_root = private / "model-traces"
+            application = FinResearchOps(
+                artifact_root=private / "product-artifacts",
+                model=OllamaModelAdapter(trace_root=trace_root),
+                model_trace_root=trace_root,
+                private_dev_profile=profile,
+            )
+            created = application.handle(
+                CreateCase(
+                    question=task.question,
+                    cutoff=task.cutoff,
+                    document=task.document,
+                    mode="PRIVATE_DEV",
+                )
+            )
+            with patch(
+                "finauditgate.adapters.ollama._open_no_redirect",
+                side_effect=_route_responses(),
+            ):
+                analyzed = application.handle(RunAnalysis(case_ref=created.case_ref))
+            view = application.read_case(created.case_ref)
+            replayed = application.handle(ReplayRun(run_ref=analyzed.run_ref))
+            application.handle(
+                SubmitReview(
+                    case_ref=created.case_ref,
+                    run_ref=analyzed.run_ref,
+                    action=ReviewAction.APPROVE,
+                    reason="Reviewed against the frozen private profile.",
+                )
+            )
+            exported = application.handle(
+                ExportChangePacket(case_ref=created.case_ref, run_ref=analyzed.run_ref)
+            )
+            reopened = application.read_case(created.case_ref)
+            case_directory = (
+                private / "product-artifacts" / "application" / "cases" / created.case_ref
+            )
+            workpaper_artifact = json.loads(
+                (case_directory / "workpapers" / f"{analyzed.workpaper_ref}.json").read_bytes()
+            )
+            replay_artifact = json.loads(
+                (case_directory / "replays" / f"{replayed.replay_ref}.json").read_bytes()
+            )
+            packet_bytes = (
+                case_directory / "packets" / f"{exported.packet_ref}.json"
+            ).read_bytes()
+            schema_root = Path(__file__).parents[1] / "schemas"
+            workpaper_schema = json.loads(
+                (schema_root / "workpaper.v3.schema.json").read_bytes()
+            )
+            replay_record_schema = json.loads(
+                (schema_root / "replay-record.v3.schema.json").read_bytes()
+            )
+            replay_report_schema = json.loads(
+                (schema_root / "replay-report.v5.schema.json").read_bytes()
+            )
+
+        self.assertIs(Decision.ACCEPT, analyzed.machine_decision)
+        self.assertEqual("20.00", view.workpapers[-1].answer)
+        self.assertEqual("MODEL_TRACE_BOUND", view.workpapers[-1].trace_summary_status)
+        self.assertEqual(
+            "finauditgate.replay/v5",
+            reopened.replays[-1].report.schema_version,
+        )
+        self.assertEqual(set(workpaper_schema["properties"]), set(workpaper_artifact))
+        self.assertEqual(set(replay_record_schema["properties"]), set(replay_artifact))
+        self.assertEqual(
+            set(replay_report_schema["properties"]),
+            set(replay_artifact["report"]),
+        )
+        packet = reopened.packets[0]
+        self.assertTrue(packet.proposal_only)
+        self.assertEqual(2, len(packet.verified_facts))
+        self.assertEqual("20.00", packet.calculations[0].result)
+        self.assertTrue(all(fact.span_sha256 for fact in packet.verified_facts))
+        self.assertNotIn(b"raw_response_base64", packet_bytes)
+        self.assertNotIn(b"model-calls/sha256", packet_bytes)
+
+    def test_wrong_locator_span_value_period_metric_and_operand_fail_closed(
+        self,
+    ) -> None:
+        base = _candidate()
+        header_start, header_end = _locator(
+            NATURAL_DOCUMENT,
+            b"Revenue by fiscal year (USD millions)",
+        )
+        attacks = {
+            "locator": (
+                replace(
+                    base,
+                    evidence=(
+                        replace(base.evidence[0], byte_start=header_start, byte_end=header_end),
+                        base.evidence[1],
+                    ),
+                ),
+                None,
+                "EVIDENCE_LOCATOR_INVALID",
+            ),
+            "span": (base, "f" * 64, "EVIDENCE_SPAN_HASH_MISMATCH"),
+            "value": (
+                replace(
+                    base,
+                    evidence=(replace(base.evidence[0], value="124.00"), base.evidence[1]),
+                ),
+                None,
+                "CLAIMED_VALUE_MISMATCH",
+            ),
+            "period": (
+                replace(
+                    base,
+                    evidence=(replace(base.evidence[0], period="FY2023"), base.evidence[1]),
+                ),
+                None,
+                "FISCAL_PERIOD_CONFLICT",
+            ),
+            "metric": (
+                replace(
+                    base,
+                    evidence=(
+                        replace(base.evidence[0], metric="gross_profit"),
+                        base.evidence[1],
+                    ),
+                ),
+                None,
+                "METRIC_CONFLICT",
+            ),
+            "operand": (
+                replace(
+                    base,
+                    calculation=replace(
+                        base.calculation,
+                        operand_ids=("revenue_prior", "revenue_current"),
+                    ),
+                ),
+                None,
+                "OPERAND_LINEAGE_INVALID",
+            ),
+        }
+        for name, (candidate, span_hash, expected_reason) in attacks.items():
+            with self.subTest(name=name), tempfile.TemporaryDirectory() as temporary_directory:
+                private = _workspace(temporary_directory)
+                task = _private_task()
+                profile = _profile(
+                    private,
+                    _profile_payload(NATURAL_DOCUMENT, prior_span_sha256=span_hash),
+                )
+                trace_root = private / "model-traces"
+                with patch(
+                    "finauditgate.adapters.ollama._open_no_redirect",
+                    side_effect=_route_responses(candidate) + _route_responses(candidate),
+                ):
+                    outcome = FinAuditGate(
+                        artifact_root=private / "artifacts" / "core",
+                        model=OllamaModelAdapter(trace_root=trace_root),
+                        model_trace_root=trace_root,
+                        private_dev_profile=profile,
+                    ).run(task)
+                attempts = json.loads(
+                    (
+                        private / "artifacts" / "core" / "runs"
+                        / outcome.run_ref.run_id / "attempts.json"
+                    ).read_bytes()
+                )
+
+            self.assertIsNot(Decision.ACCEPT, outcome.decision)
+            self.assertIn(expected_reason, attempts["attempts"][0]["reason_codes"])
+
+    def test_post_cutoff_profile_returns_human_review_and_replays(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            private = _workspace(temporary_directory)
+            task = _private_task(published_at=date(2026, 3, 5), cutoff=date(2026, 3, 1))
+            profile = _profile(
+                private,
+                _profile_payload(
+                    NATURAL_DOCUMENT,
+                    declared_published_at="2026-03-05",
+                    task_cutoff="2026-03-01",
+                ),
+            )
+            trace_root = private / "model-traces"
+            artifact_root = private / "artifacts" / "core"
+            with patch(
+                "finauditgate.adapters.ollama._open_no_redirect",
+                side_effect=_route_responses() + _route_responses(),
+            ):
+                outcome = FinAuditGate(
+                    artifact_root=artifact_root,
+                    model=OllamaModelAdapter(trace_root=trace_root),
+                    model_trace_root=trace_root,
+                    private_dev_profile=profile,
+                ).run(task)
+            replay = FinAuditGate(
+                artifact_root=artifact_root,
+                model_trace_root=trace_root,
+            ).replay(outcome.run_ref)
+
+        self.assertIs(Decision.HUMAN_REVIEW, outcome.decision)
+        self.assertEqual(("POST_CUTOFF_DOCUMENT",), outcome.reason_codes)
+        self.assertTrue(replay.consistent, replay.reason)
+        self.assertIs(Decision.HUMAN_REVIEW, replay.decision)
+
+    def test_no_admissible_evidence_profile_never_accepts(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            private = _workspace(temporary_directory)
+            task = _private_task()
+            profile = _profile(private, _no_evidence_profile_payload(NATURAL_DOCUMENT))
+            trace_root = private / "model-traces"
+            artifact_root = private / "artifacts" / "core"
+            with patch(
+                "finauditgate.adapters.ollama._open_no_redirect",
+                side_effect=_route_responses() + _route_responses(),
+            ):
+                outcome = FinAuditGate(
+                    artifact_root=artifact_root,
+                    model=OllamaModelAdapter(trace_root=trace_root),
+                    model_trace_root=trace_root,
+                    private_dev_profile=profile,
+                ).run(task)
+            replay = FinAuditGate(
+                artifact_root=artifact_root,
+                model_trace_root=trace_root,
+            ).replay(outcome.run_ref)
+
+        self.assertIs(Decision.HUMAN_REVIEW, outcome.decision)
+        self.assertEqual(("NO_ADMISSIBLE_EVIDENCE",), outcome.reason_codes)
+        self.assertTrue(replay.consistent, replay.reason)
+        self.assertIs(Decision.HUMAN_REVIEW, replay.decision)
+
+    def test_private_mode_without_a_frozen_profile_cannot_accept(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            private = _workspace(temporary_directory)
+            task = _private_task()
+            trace_root = private / "model-traces"
+            execution = _traced_execution(
+                trace_root,
+                task,
+                _candidate(),
+                response_marker="no-profile",
+            )
+            with self.assertRaisesRegex(
+                RuntimeError,
+                "PRIVATE_DEV_VALIDATION_PROFILE_REQUIRED",
+            ):
+                FinAuditGate(
+                    artifact_root=private / "artifacts" / "core",
+                    model=_TraceSequenceModel((execution,)),
+                    model_trace_root=trace_root,
+                ).run(task)
+
+    def test_private_mode_requires_a_traced_proposal(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            private = _workspace(temporary_directory)
+            task = _private_task()
+            profile = _profile(private, _profile_payload(NATURAL_DOCUMENT))
+
+            class UntracedModel:
+                def propose(self, requested: AuditTask, attempt_index: int = 0):
+                    del requested, attempt_index
+                    return _candidate()
+
+            artifact_root = private / "artifacts" / "core"
+            with self.assertRaisesRegex(RuntimeError, "PRIVATE_DEV_MODEL_TRACE_REQUIRED"):
+                FinAuditGate(
+                    artifact_root=artifact_root,
+                    model=UntracedModel(),
+                    private_dev_profile=profile,
+                ).run(task)
+            self.assertFalse((artifact_root / "runs").exists())
+
+    def test_profile_contract_rejects_unknown_fields_and_boolean_integers(
+        self,
+    ) -> None:
+        base = _profile_payload(NATURAL_DOCUMENT)
+        unknown = {**base, "unreviewed_rule": True}
+        wrong_context = {
+            **base,
+            "calculation": {
+                **base["calculation"],
+                "decimal_context": {
+                    **base["calculation"]["decimal_context"],
+                    "precision": True,
+                },
+            },
+        }
+        empty_with_formula = {**base, "evidence_allowlist": []}
+        for name, payload in (
+            ("unknown", unknown),
+            ("boolean", wrong_context),
+            ("empty-with-formula", empty_with_formula),
+        ):
+            with self.subTest(name=name), self.assertRaisesRegex(
+                ValueError,
+                "PRIVATE_VALIDATION_PROFILE_INVALID",
+            ):
+                PrivateDevValidationProfile.from_bytes(canonical_json_bytes(payload))
+
+    def test_profile_rejects_incompatible_formula_semantics(self) -> None:
+        base = _profile_payload(NATURAL_DOCUMENT)
+        incompatible = json.loads(json.dumps(base))
+        incompatible["evidence_allowlist"][1]["normalized_semantics"]["currency"] = "EUR"
+
+        with self.assertRaisesRegex(ValueError, "PRIVATE_VALIDATION_PROFILE_INVALID"):
+            PrivateDevValidationProfile.from_bytes(canonical_json_bytes(incompatible))
+
+
+if __name__ == "__main__":
+    unittest.main()

@@ -41,12 +41,29 @@ from finauditgate.application.contracts import (
     WorkpaperView,
     _validate_case_ref,
 )
+from finauditgate.contracts import RUN_SCHEMA_VERSION
 from finauditgate.core.artifacts import (
     canonical_json_bytes,
     sha256_hex,
     write_once,
 )
+from finauditgate.core.engine import MANIFEST_SCHEMA_VERSION
+from finauditgate.core.profiles import PrivateDevValidationProfile
 from finauditgate.ports.model import CandidateModel
+from finauditgate.private_storage import (
+    PrivateStorageError,
+    PrivateWorkspaceAnchor,
+    require_private_storage_root,
+    resolve_private_workspace_anchor,
+)
+
+
+WORKPAPER_SCHEMA_VERSION = "finresearchops.workpaper/v3"
+REPLAY_RECORD_SCHEMA_VERSION = "finresearchops.replay-record/v3"
+_VERIFIED_LEDGER_LABELS = {
+    "VERIFIED_FROM_FROZEN_BYTES",
+    "VERIFIED_AGAINST_FROZEN_PRIVATE_ALLOWLIST",
+}
 
 
 @dataclass(frozen=True, slots=True)
@@ -67,16 +84,36 @@ class FinResearchOps:
         *,
         artifact_root: Path,
         model: CandidateModel | None = None,
+        model_trace_root: Path | None = None,
+        private_dev_profile: PrivateDevValidationProfile | None = None,
+        private_workspace_anchor: PrivateWorkspaceAnchor | None = None,
         retry_budget: int = 1,
         clock: Callable[[], datetime] | None = None,
     ) -> None:
         if type(retry_budget) is not int or retry_budget != 1:
             raise ValueError("M2 retry_budget must be exactly 1")
+        self._private_workspace_anchor = private_workspace_anchor
         self._root = Path(artifact_root)
+        if private_workspace_anchor is not None:
+            self._root = require_private_storage_root(
+                self._root,
+                purpose="artifact-root",
+                anchor=private_workspace_anchor,
+            )
         self._application_root = self._root / "application"
         self._core_root = self._root / "core"
-        self._gate = FinAuditGate(artifact_root=self._core_root, model=model)
-        self._offline_gate = FinAuditGate(artifact_root=self._core_root)
+        self._gate = FinAuditGate(
+            artifact_root=self._core_root,
+            model=model,
+            model_trace_root=model_trace_root,
+            private_dev_profile=private_dev_profile,
+            private_workspace_anchor=private_workspace_anchor,
+        )
+        self._offline_gate = FinAuditGate(
+            artifact_root=self._core_root,
+            model_trace_root=model_trace_root,
+            private_workspace_anchor=private_workspace_anchor,
+        )
         self._clock = clock or (lambda: datetime.now(timezone.utc))
 
     def handle(self, command: object) -> ApplicationOutcome:
@@ -121,6 +158,8 @@ class FinResearchOps:
             raise ApplicationError("APPLICATION_STORAGE_FAILED") from exc
 
     def _create_case(self, command: CreateCase) -> ApplicationOutcome:
+        if command.mode == "PRIVATE_DEV":
+            self._require_private_artifact_root()
         document_sha256 = sha256_hex(command.document.document_bytes)
         identity = {
             "schema_version": "finresearchops.case-identity/v1",
@@ -229,13 +268,13 @@ class FinResearchOps:
 
         run_id = outcome.run_ref.run_id
         run_prefix = f"runs/{run_id}/"
-        attempts_artifact_ref = (
-            run_prefix + "attempts.json"
-            if (self._core_root / run_prefix / "attempts.json").is_file()
-            else None
-        )
+        (
+            attempts_artifact_ref,
+            trace_summary_ref,
+            trace_summary_status,
+        ) = self._verified_run_trace_summary(outcome.run_ref)
         workpaper_body = {
-            "schema_version": "finresearchops.workpaper/v1",
+            "schema_version": WORKPAPER_SCHEMA_VERSION,
             "case_ref": command.case_ref,
             "run_ref": {"run_id": run_id},
             "machine_decision": outcome.decision.value,
@@ -246,16 +285,8 @@ class FinResearchOps:
             "formula_ref": run_prefix + "formula.json",
             "candidate_artifact_ref": run_prefix + "candidate.json",
             "attempts_artifact_ref": attempts_artifact_ref,
-            "trace_summary_ref": (
-                attempts_artifact_ref
-                if attempts_artifact_ref is not None
-                else run_prefix + "candidate.json"
-            ),
-            "trace_summary_status": (
-                "ATTEMPTS_RECORDED"
-                if attempts_artifact_ref is not None
-                else "SCRIPTED_CANDIDATE_RECORDED"
-            ),
+            "trace_summary_ref": trace_summary_ref,
+            "trace_summary_status": trace_summary_status,
             "gate_reason_codes": list(outcome.reason_codes),
         }
         workpaper_ref = (
@@ -450,8 +481,9 @@ class FinResearchOps:
             report = self._offline_gate.replay(command.run_ref)
             if not report.consistent:
                 raise ApplicationError("REPLAY_INTEGRITY_FAILED")
+            self._verified_run_trace_summary(command.run_ref)
             body = {
-                "schema_version": "finresearchops.replay-record/v1",
+                "schema_version": REPLAY_RECORD_SCHEMA_VERSION,
                 "case_ref": case_ref,
                 "run_ref": {"run_id": command.run_ref.run_id},
                 "report": self._replay_report_payload(report),
@@ -721,7 +753,30 @@ class FinResearchOps:
         expected_ref = f"case-{sha256_hex(canonical_json_bytes(identity))}"
         if case_ref != expected_ref:
             raise ApplicationError("CASE_IDENTITY_MISMATCH")
+        if payload["mode"] == "PRIVATE_DEV":
+            self._require_private_artifact_root()
         return payload
+
+    def _require_private_artifact_root(self) -> None:
+        try:
+            anchor = self._private_workspace_anchor
+            if anchor is None:
+                anchor = resolve_private_workspace_anchor(
+                    self._root,
+                    purpose="artifact-root",
+                )
+                self._private_workspace_anchor = anchor
+            resolved = require_private_storage_root(
+                self._root,
+                purpose="artifact-root",
+                anchor=anchor,
+            )
+        except PrivateStorageError as exc:
+            raise ApplicationError("PRIVATE_STORAGE_REQUIRED") from exc
+        if resolved != self._root:
+            self._root = resolved
+            self._application_root = self._root / "application"
+            self._core_root = self._root / "core"
 
     def _read_workpaper(
         self,
@@ -750,7 +805,7 @@ class FinResearchOps:
         workpaper_ref: object,
         payload: dict[str, object],
     ) -> WorkpaperView:
-        if set(payload) != {
+        expected_workpaper_fields = {
             "schema_version",
             "case_ref",
             "run_ref",
@@ -766,13 +821,16 @@ class FinResearchOps:
             "trace_summary_status",
             "gate_reason_codes",
             "workpaper_ref",
-        }:
+        }
+        if (
+            payload.get("schema_version") != WORKPAPER_SCHEMA_VERSION
+            or set(payload) != expected_workpaper_fields
+        ):
             raise ApplicationError("WORKPAPER_SHAPE_INVALID")
         body = {key: value for key, value in payload.items() if key != "workpaper_ref"}
         expected_ref = "workpaper-" + sha256_hex(canonical_json_bytes(body))
         if (
-            payload["schema_version"] != "finresearchops.workpaper/v1"
-            or payload["case_ref"] != case_ref
+            payload["case_ref"] != case_ref
             or payload["run_ref"] != {"run_id": run_ref.run_id}
             or workpaper_ref != expected_ref
             or payload["workpaper_ref"] != workpaper_ref
@@ -783,25 +841,21 @@ class FinResearchOps:
             or payload["candidate_artifact_ref"]
             != f"runs/{run_ref.run_id}/candidate.json"
             or payload["attempts_artifact_ref"]
-            not in (None, f"runs/{run_ref.run_id}/attempts.json")
+            != f"runs/{run_ref.run_id}/attempts.json"
         ):
             raise ApplicationError("WORKPAPER_IDENTITY_MISMATCH")
-        expected_trace_ref = (
-            payload["attempts_artifact_ref"]
-            if payload["attempts_artifact_ref"] is not None
-            else payload["candidate_artifact_ref"]
-        )
-        expected_trace_status = (
-            "ATTEMPTS_RECORDED"
-            if payload["attempts_artifact_ref"] is not None
-            else "SCRIPTED_CANDIDATE_RECORDED"
-        )
+        replay = self._offline_gate.replay(run_ref)
+        (
+            expected_attempts_ref,
+            expected_trace_ref,
+            expected_trace_status,
+        ) = self._verified_run_trace_summary(run_ref)
         if (
-            payload["trace_summary_ref"] != expected_trace_ref
+            payload["attempts_artifact_ref"] != expected_attempts_ref
+            or payload["trace_summary_ref"] != expected_trace_ref
             or payload["trace_summary_status"] != expected_trace_status
         ):
             raise ApplicationError("WORKPAPER_TRACE_SUMMARY_INVALID")
-        replay = self._offline_gate.replay(run_ref)
         try:
             decision = Decision(payload["machine_decision"])
         except (TypeError, ValueError) as exc:
@@ -825,19 +879,19 @@ class FinResearchOps:
             f"runs/{run_ref.run_id}/outcome.json",
             "outcome.json",
         )
+        expected_outcome_fields = {
+            "schema_version",
+            "task_id",
+            "decision",
+            "answer",
+            "answer_unit",
+            "reason_codes",
+            "run_ref",
+            "document_sha256",
+        }
         if (
-            set(outcome_payload)
-            != {
-                "schema_version",
-                "task_id",
-                "decision",
-                "answer",
-                "answer_unit",
-                "reason_codes",
-                "run_ref",
-                "document_sha256",
-            }
-            or outcome_payload["schema_version"] != "finauditgate.run/v1"
+            set(outcome_payload) != expected_outcome_fields
+            or outcome_payload["schema_version"] != RUN_SCHEMA_VERSION
             or type(outcome_payload["task_id"]) is not str
             or not outcome_payload["task_id"]
             or outcome_payload["decision"] != decision.value
@@ -864,6 +918,75 @@ class FinResearchOps:
             trace_summary_status=payload["trace_summary_status"],
             gate_reason_codes=tuple(reason_codes),
         )
+
+    def _verified_run_trace_summary(
+        self,
+        run_ref: RunRef,
+    ) -> tuple[str, str, str]:
+        """Return (attempts ref, trace-summary ref, status) from the manifest."""
+
+        run_directory = self._core_root / "runs" / run_ref.run_id
+        manifest = self._read_canonical_object(run_directory / "manifest.json")
+        if (
+            set(manifest)
+            != {
+                "schema_version",
+                "run_id",
+                "document_sha256",
+                "calculation_policy_sha256",
+                "artifacts",
+            }
+            or manifest["schema_version"] != MANIFEST_SCHEMA_VERSION
+            or manifest["run_id"] != run_ref.run_id
+        ):
+            raise ApplicationError("CORE_MANIFEST_INVALID")
+        artifacts = manifest["artifacts"]
+        if type(artifacts) is not dict:
+            raise ApplicationError("CORE_MANIFEST_INVALID")
+        attempts_ref = self._verified_manifest_artifact_ref(
+            run_ref,
+            artifacts,
+            "attempts",
+            "attempts.json",
+        )
+        if "model_trace" in artifacts:
+            trace_ref = self._verified_manifest_artifact_ref(
+                run_ref,
+                artifacts,
+                "model_trace",
+                "model-trace.json",
+            )
+            return attempts_ref, trace_ref, "MODEL_TRACE_BOUND"
+        model_trace_path = run_directory / "model-trace.json"
+        if model_trace_path.is_symlink() or model_trace_path.exists():
+            raise ApplicationError("CORE_ARTIFACT_SET_MISMATCH")
+        return attempts_ref, attempts_ref, "ATTEMPTS_RECORDED"
+
+    def _verified_manifest_artifact_ref(
+        self,
+        run_ref: RunRef,
+        artifacts: dict[str, object],
+        artifact_name: str,
+        filename: str,
+    ) -> str:
+        entry = artifacts.get(artifact_name)
+        if (
+            type(entry) is not dict
+            or set(entry) != {"filename", "sha256"}
+            or entry["filename"] != filename
+            or type(entry["sha256"]) is not str
+        ):
+            raise ApplicationError("CORE_ARTIFACT_SET_MISMATCH")
+        artifact_path = self._core_root / "runs" / run_ref.run_id / filename
+        if artifact_path.is_symlink():
+            raise ApplicationError("CORE_ARTIFACT_PATH_INVALID")
+        try:
+            artifact_bytes = artifact_path.read_bytes()
+        except OSError as exc:
+            raise ApplicationError("CORE_ARTIFACT_READ_FAILED") from exc
+        if sha256_hex(artifact_bytes) != entry["sha256"]:
+            raise ApplicationError("CORE_ARTIFACT_HASH_MISMATCH")
+        return f"runs/{run_ref.run_id}/{filename}"
 
     def _read_review(
         self,
@@ -1096,13 +1219,14 @@ class FinResearchOps:
                 type(replay_ref) is not str
                 or path.name != f"{replay_ref}.json"
                 or replay_ref != expected_ref
-                or payload["schema_version"] != "finresearchops.replay-record/v1"
+                or payload["schema_version"] != REPLAY_RECORD_SCHEMA_VERSION
                 or payload["case_ref"] != case_ref
                 or run_ref not in run_refs
             ):
                 raise ApplicationError("REPLAY_RECORD_IDENTITY_INVALID")
             report = self._replay_report_from_payload(payload["report"])
             live_report = self._offline_gate.replay(run_ref)
+            self._verified_run_trace_summary(run_ref)
             if report != live_report or not report.consistent:
                 raise ApplicationError("REPLAY_RECORD_CORE_MISMATCH")
             records.append(ReplayRecordView(replay_ref=replay_ref, report=report))
@@ -1148,24 +1272,12 @@ class FinResearchOps:
                 raise ApplicationError("LEDGER_NODE_INVALID")
             locator = node.get("locator")
             if (
-                node.get("verification") != "VERIFIED_FROM_FROZEN_BYTES"
+                node.get("verification") not in _VERIFIED_LEDGER_LABELS
                 or not isinstance(locator, dict)
                 or type(locator.get("span_sha256")) is not str
             ):
                 raise ApplicationError("LEDGER_NODE_NOT_VERIFIED")
-            if ledger.get("schema_version") == "finauditgate.ledger/v1":
-                try:
-                    fact = VerifiedFact(
-                        evidence_id=node["evidence_id"],
-                        metric=node["metric"],
-                        period=node["period"],
-                        value=node["value"],
-                        unit=node["unit"],
-                        span_sha256=locator["span_sha256"],
-                    )
-                except (KeyError, TypeError) as exc:
-                    raise ApplicationError("LEDGER_NODE_INVALID") from exc
-            elif ledger.get("schema_version") == "finauditgate.ledger/v2":
+            if ledger.get("schema_version") == "finauditgate.ledger/v2":
                 semantics = node.get("normalized_semantics")
                 if not isinstance(semantics, dict):
                     raise ApplicationError("LEDGER_NODE_INVALID")
@@ -1193,10 +1305,7 @@ class FinResearchOps:
     def _calculation_from_formula(
         formula: dict[str, object],
     ) -> CalculationRecord:
-        if formula.get("schema_version") not in {
-            "finauditgate.formula/v1",
-            "finauditgate.formula/v2",
-        }:
+        if formula.get("schema_version") != "finauditgate.formula/v2":
             raise ApplicationError("FORMULA_SCHEMA_UNSUPPORTED")
         operand_ids = formula.get("operand_ids")
         if (
@@ -1308,7 +1417,9 @@ class FinResearchOps:
 
     @staticmethod
     def _replay_report_from_payload(payload: object) -> ReplayReport:
-        if not isinstance(payload, dict) or set(payload) != {
+        if not isinstance(payload, dict):
+            raise ApplicationError("REPLAY_REPORT_INVALID")
+        expected_fields = {
             "schema_version",
             "run_ref",
             "consistent",
@@ -1317,7 +1428,8 @@ class FinResearchOps:
             "answer_unit",
             "verified_artifact_count",
             "reason",
-        }:
+        }
+        if set(payload) != expected_fields:
             raise ApplicationError("REPLAY_REPORT_INVALID")
         run_ref = FinResearchOps._run_ref_from_payload(payload["run_ref"])
         try:

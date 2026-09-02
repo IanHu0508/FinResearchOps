@@ -1,38 +1,45 @@
 # Project Status
 
-| Area | Status |
-|---|---|
-| FinResearchOps product identity and workflow | `DESIGN_FROZEN` |
-| FinAuditGate architecture and scope | `DESIGN_FROZEN` |
-| M0 scope and product contract | `COMPLETED` — independent completion and privacy/scope audits passed |
-| M1 replayable skeleton and product contracts | `COMPLETED` — initial immutable commit contains the verified core slice, contracts, drafts, demo, and replay evidence |
-| M2 deterministic core and human-review loop | `COMPLETED` — the locally frozen bounded scripted slice passes renewed full-M2 Standards/Spec review, source/clean-wheel verification, and the three reopened-defect re-audits |
-| Repository | `PARTIAL` — immutable M1 commit plus a locally hash-frozen, uncommitted M2-completed candidate; no remote or public release |
-| Deterministic core | `PARTIAL` — two exact content-bound synthetic profiles, registered M2 semantics, bounded retry, lineage, and offline replay exist; real/general filing support does not |
-| Scripted Adapter | `COMPLETED FOR M2` — fixed M1/M2 candidate sequences satisfy the bounded test seam; no real model runtime |
-| Product artifact schemas | `COMPLETED FOR M2 RUNTIME` — formal closed schemas and head-visible transaction semantics pass the M2 Gate |
-| FinResearchOps Application Module | `PARTIAL` overall / `M2 SCRIPTED SLICE COMPLETED` — no real-source/model path or product CLI |
-| M3 real-model and issuer workflow | `NOT_STARTED / REQUIRES_SEPARATE_AUTHORIZATION` |
-| Local-model Adapter | `NOT_STARTED` |
-| Real source acquisition | `NOT_STARTED` |
-| Development dataset | `NOT_STARTED` |
-| Evaluation | `NOT_STARTED` |
-| Public demo | `PARTIAL` — runnable M1 core demo and tested M2 Application journey; no product CLI or real workflow |
-| User interface | `DEFERRED` — v2 UI Entry Gate not satisfied |
-| Resume claim | `NOT_APPROVED_FOR_RESUME` |
+> Updated 2026-09-02. This file is the only public status source; other
+> documents describe mechanisms and link here.
 
-Update this file only when the corresponding artifact or verification exists. Do not use percentage-complete estimates.
+| Area | Status | Evidence |
+|---|---|---|
+| Deterministic core (`FinAuditGate.run` / `replay`) | Implemented for one public synthetic profile and for private validation profiles | 131 offline tests; `scripts/synthetic_demo.py` |
+| Application (`FinResearchOps.handle` / `read_case`) | Implemented: Case, Workpaper, append-only Review, proposal-only Packet, replay records, crash recovery | `tests/test_application.py` |
+| Local model Adapter (shared Ollama, Qwen3-4B) | Implemented: frozen request, bounded raw capture, one content-addressed trace per call, offline verification | `tests/test_ollama_adapter.py`, `tests/test_model_trace_binding.py` (mocked exchanges) |
+| CLI `finresearchops` | Implemented: six thin actions over the Application Interface | `tests/test_cli.py`, installed wheel `--help` |
+| Private validation profiles | Implemented: acceptable answer, post-cutoff document, no admissible evidence | `tests/test_private_dev_profile.py`, `scripts/build_validation_profile.py` |
+| Paired evaluation runner | Framework only, no results | `tests/test_paired_runner.py` |
+| Real issuer document (Tencent 2025 annual report) | Acquired locally under `private/`; text extracted; 12 candidate cases prepared; human QA not run; no model run on real text | private workspace only |
+| Real-model results on real text | None yet | — |
+| Evaluation results | None | — |
+| User interface | None | — |
+| Git | Checkpoint commit made on 2026-09-02 (parent `9c592f1`); working tree clean; no remote | `git log` |
 
-The current normal-path implementation evidence is limited to two original,
-content-bound synthetic core profiles and the M2 scripted Application journey.
-It covers registered semantic normalization, deterministic Decimal lineage,
-many bounded retry/stop, append-only, export, replay, integrity, and local
-concurrency paths. The current repair candidate adds explicit regressions for
-malformed-proposal identity/replay, declared multi-file publication boundaries,
-and foreign Case artifacts. Source and clean-wheel verification, the defect
-re-audits, and renewed full-M2 Standards/Spec review pass and close bounded
-scripted M2. Work hours are planning context and do not form an audit Gate.
-This completion does not establish source
-authenticity, a complete Agent, universal
-or real-filing resolution, a real model, source Adapter, benchmark result, UI,
-public release, or resume-admissible claim.
+## What changed on 2026-09-02
+
+The code was simplified without removing any user-visible capability:
+
+- the experimental isolated llama.cpp route (macOS sandbox, model snapshots,
+  Unix sockets) was archived;
+- the three-level "assurance" taxonomy and the pre/post daemon identity checks
+  were removed; a trace now records what was observed and the verifier checks
+  that the saved request is exactly the frozen route;
+- every persisted artifact has exactly one schema version; read-only
+  compatibility branches for never-released formats were deleted;
+- the retired M1 fixture and its code path were deleted;
+- the Ollama daemon version is recorded in every trace but no longer gates a
+  run (the desktop app auto-updates);
+- two private-profile shapes were added so that post-cutoff and
+  missing-evidence cases can be expressed;
+- a Packet export bug for private-profile ledgers was fixed.
+
+The pre-simplification tree is preserved outside the repository in
+`../archive/2026-09-02-pre-simplification/`.
+
+## Not proven
+
+No number in this repository is an evaluation result. No `ACCEPT` has been
+produced on a real issuer document. Nothing here should be described as a
+completed agent, a benchmark, or a paper reproduction.

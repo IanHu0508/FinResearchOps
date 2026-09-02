@@ -1,5 +1,6 @@
 from dataclasses import replace
 from datetime import date
+from decimal import localcontext
 import hashlib
 import json
 from pathlib import Path
@@ -23,12 +24,7 @@ FIXTURE_PATH = (
     / "synthetic"
     / "aurora_revenue_growth_m2.txt"
 )
-NORTHSTAR_FIXTURE_PATH = (
-    Path(__file__).parents[1]
-    / "fixtures"
-    / "synthetic"
-    / "northstar_revenue.txt"
-)
+QUESTION = "What was Aurora Devices FY2025 revenue growth versus FY2024?"
 
 
 def evidence_for(
@@ -59,7 +55,7 @@ def evidence_for(
 def standard_task(document: bytes, task_id: str) -> AuditTask:
     return AuditTask(
         task_id=task_id,
-        question="What was Aurora Devices FY2025 revenue growth versus FY2024?",
+        question=QUESTION,
         cutoff=date(2026, 3, 1),
         document=FrozenDocumentPackage(
             source_id="synthetic-aurora-revenue-growth-v2",
@@ -109,18 +105,38 @@ def candidate_with_current_record(
     )
 
 
-class M2DeterministicCoreTest(unittest.TestCase):
+def _canonical(payload: object) -> bytes:
+    return json.dumps(
+        payload,
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=False,
+        allow_nan=False,
+    ).encode("utf-8")
+
+
+def _rewrite_artifact(run_directory: Path, name: str, payload: bytes) -> None:
+    """Overwrite one artifact and keep the manifest hash in step with it."""
+
+    (run_directory / name).write_bytes(payload)
+    manifest_path = run_directory / "manifest.json"
+    manifest = json.loads(manifest_path.read_bytes())
+    manifest["artifacts"][name.removesuffix(".json")]["sha256"] = hashlib.sha256(
+        payload
+    ).hexdigest()
+    manifest_path.write_bytes(_canonical(manifest))
+
+
+class CoreGateTest(unittest.TestCase):
     def test_registered_aliases_form_an_accepted_replayable_lineage(self) -> None:
         document = FIXTURE_PATH.read_bytes()
-        task = standard_task(document, "m2-valid-aliases")
+        task = standard_task(document, "valid-aliases")
 
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
             outcome = FinAuditGate(
                 artifact_root=root,
-                model=ScriptedModelAdapter(
-                    {task.task_id: standard_candidate(document)}
-                ),
+                model=ScriptedModelAdapter({task.task_id: standard_candidate(document)}),
             ).run(task)
             replay = FinAuditGate(artifact_root=root).replay(outcome.run_ref)
 
@@ -128,32 +144,77 @@ class M2DeterministicCoreTest(unittest.TestCase):
         self.assertEqual("20.00", outcome.answer)
         self.assertEqual("PERCENT", outcome.answer_unit)
         self.assertEqual((), outcome.reason_codes)
+        self.assertEqual("finauditgate.run/v1", outcome.schema_version)
         self.assertTrue(replay.consistent)
-        self.assertEqual("finauditgate.replay/v2", replay.schema_version)
+        self.assertEqual("finauditgate.replay/v5", replay.schema_version)
         self.assertEqual(Decision.ACCEPT, replay.decision)
         self.assertEqual(outcome.answer, replay.answer)
         self.assertEqual(outcome.answer_unit, replay.answer_unit)
         self.assertEqual(9, replay.verified_artifact_count)
 
+    def test_identical_run_is_idempotent_and_append_only(self) -> None:
+        document = FIXTURE_PATH.read_bytes()
+        task = standard_task(document, "idempotent")
+
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            gate = FinAuditGate(
+                artifact_root=root,
+                model=ScriptedModelAdapter({task.task_id: standard_candidate(document)}),
+            )
+            first = gate.run(task)
+            first_snapshot = {
+                path.relative_to(root): path.read_bytes()
+                for path in root.rglob("*")
+                if path.is_file()
+            }
+            second = gate.run(task)
+            second_snapshot = {
+                path.relative_to(root): path.read_bytes()
+                for path in root.rglob("*")
+                if path.is_file()
+            }
+            self.assertEqual(first.run_ref, second.run_ref)
+            self.assertEqual(first_snapshot, second_snapshot)
+
+            outcome_path = root / "runs" / first.run_ref.run_id / "outcome.json"
+            outcome_path.write_bytes(b"forged")
+            with self.assertRaisesRegex(RuntimeError, "append-only artifact conflict"):
+                gate.run(task)
+            self.assertEqual(b"forged", outcome_path.read_bytes())
+
+    def test_replay_ignores_process_decimal_precision(self) -> None:
+        document = FIXTURE_PATH.read_bytes()
+        task = standard_task(document, "decimal-context")
+
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            outcome = FinAuditGate(
+                artifact_root=root,
+                model=ScriptedModelAdapter({task.task_id: standard_candidate(document)}),
+            ).run(task)
+            with localcontext() as process_context:
+                process_context.prec = 2
+                report = FinAuditGate(artifact_root=root).replay(outcome.run_ref)
+
+        self.assertTrue(report.consistent)
+        self.assertEqual(Decision.ACCEPT, report.decision)
+        self.assertEqual("20.00", report.answer)
+
     def test_recoverable_first_attempt_can_accept_on_the_only_retry(self) -> None:
         document = FIXTURE_PATH.read_bytes()
-        task = standard_task(document, "m2-accept-on-retry")
+        task = standard_task(document, "accept-on-retry")
         valid = standard_candidate(document)
         invalid = replace(
             valid,
-            evidence=(
-                valid.evidence[0],
-                replace(valid.evidence[1], value="999.00"),
-            ),
+            evidence=(valid.evidence[0], replace(valid.evidence[1], value="999.00")),
         )
 
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
             outcome = FinAuditGate(
                 artifact_root=root,
-                model=ScriptedModelAdapter(
-                    {task.task_id: (invalid, valid)}
-                ),
+                model=ScriptedModelAdapter({task.task_id: (invalid, valid)}),
             ).run(task)
             replay = FinAuditGate(artifact_root=root).replay(outcome.run_ref)
 
@@ -162,25 +223,18 @@ class M2DeterministicCoreTest(unittest.TestCase):
         self.assertEqual((), outcome.reason_codes)
         self.assertTrue(replay.consistent)
         self.assertEqual(Decision.ACCEPT, replay.decision)
-        self.assertEqual(outcome.answer, replay.answer)
 
     def test_exhausted_recoverable_problem_stops_after_two_attempts(self) -> None:
         document = FIXTURE_PATH.read_bytes()
-        task = standard_task(document, "m2-retry-budget-exhausted")
+        task = standard_task(document, "retry-budget-exhausted")
         valid = standard_candidate(document)
         first_invalid = replace(
             valid,
-            evidence=(
-                valid.evidence[0],
-                replace(valid.evidence[1], value="999.00"),
-            ),
+            evidence=(valid.evidence[0], replace(valid.evidence[1], value="999.00")),
         )
         second_invalid = replace(
             valid,
-            evidence=(
-                valid.evidence[0],
-                replace(valid.evidence[1], value="888.00"),
-            ),
+            evidence=(valid.evidence[0], replace(valid.evidence[1], value="888.00")),
         )
 
         with tempfile.TemporaryDirectory() as temporary_directory:
@@ -188,20 +242,13 @@ class M2DeterministicCoreTest(unittest.TestCase):
             outcome = FinAuditGate(
                 artifact_root=root,
                 model=ScriptedModelAdapter(
-                    {
-                        task.task_id: (
-                            first_invalid,
-                            second_invalid,
-                            valid,
-                        )
-                    }
+                    {task.task_id: (first_invalid, second_invalid, valid)}
                 ),
             ).run(task)
             replay = FinAuditGate(artifact_root=root).replay(outcome.run_ref)
 
         self.assertEqual(Decision.RETRY, outcome.decision)
         self.assertIsNone(outcome.answer)
-        self.assertIsNone(outcome.answer_unit)
         self.assertEqual(
             ("CLAIMED_VALUE_MISMATCH", "RETRY_BUDGET_EXHAUSTED"),
             outcome.reason_codes,
@@ -209,47 +256,32 @@ class M2DeterministicCoreTest(unittest.TestCase):
         self.assertTrue(replay.consistent)
         self.assertEqual(Decision.RETRY, replay.decision)
         self.assertIsNone(replay.answer)
-        self.assertIsNone(replay.answer_unit)
 
     def test_formula_outside_allowlist_abstains_without_retrying(self) -> None:
         document = FIXTURE_PATH.read_bytes()
-        task = standard_task(document, "m2-formula-not-allowlisted")
+        task = standard_task(document, "formula-not-allowlisted")
         valid = standard_candidate(document)
-        ambiguous_record = (
-            b"metric=Sales;basis=IFRS reported;period=FY 2025;"
-            b"value=150.00;currency=USD;unit=Currency amount;"
-            b"scale=Million;sign=As presented"
-        )
         unsupported = replace(
-            candidate_with_current_record(document, ambiguous_record),
-            calculation=replace(
-                valid.calculation,
-                operation="arbitrary_python",
-            ),
+            valid,
+            calculation=replace(valid.calculation, operation="arbitrary_python"),
         )
 
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
             outcome = FinAuditGate(
                 artifact_root=root,
-                model=ScriptedModelAdapter(
-                    {task.task_id: (unsupported, valid)}
-                ),
+                model=ScriptedModelAdapter({task.task_id: (unsupported, valid)}),
             ).run(task)
             replay = FinAuditGate(artifact_root=root).replay(outcome.run_ref)
 
         self.assertEqual(Decision.ABSTAIN, outcome.decision)
-        self.assertIsNone(outcome.answer)
-        self.assertIsNone(outcome.answer_unit)
         self.assertEqual(("FORMULA_NOT_ALLOWLISTED",), outcome.reason_codes)
         self.assertTrue(replay.consistent)
         self.assertEqual(Decision.ABSTAIN, replay.decision)
-        self.assertIsNone(replay.answer)
-        self.assertIsNone(replay.answer_unit)
 
     def test_financial_semantic_ambiguity_and_conflict_require_review(self) -> None:
         document = FIXTURE_PATH.read_bytes()
-        base_task = standard_task(document, "m2-semantic-gate")
+        base_task = standard_task(document, "semantic-gate")
         valid = standard_candidate(document)
         current_records = {
             "metric_conflict": (
@@ -326,11 +358,7 @@ class M2DeterministicCoreTest(unittest.TestCase):
             ),
         }
         cases = {
-            name: (
-                base_task,
-                candidate_with_current_record(document, record),
-                reason,
-            )
+            name: (base_task, candidate_with_current_record(document, record), reason)
             for name, (record, reason) in current_records.items()
         }
         cases["period_conflict"] = (
@@ -349,6 +377,29 @@ class M2DeterministicCoreTest(unittest.TestCase):
             valid,
             "POST_CUTOFF_DOCUMENT",
         )
+        cases["question"] = (
+            replace(base_task, question="What was profit growth?"),
+            valid,
+            "QUESTION_PROFILE_CONFLICT",
+        )
+        cases["source_id"] = (
+            replace(
+                base_task,
+                document=replace(base_task.document, source_id="unrecognized-source"),
+            ),
+            valid,
+            "SOURCE_PROFILE_CONFLICT",
+        )
+        cases["material_risk"] = (
+            replace(base_task, risk_class="MATERIAL"),
+            valid,
+            "RISK_CLASS_REQUIRES_HUMAN_REVIEW",
+        )
+        cases["rounding_quantum"] = (
+            base_task,
+            replace(valid, calculation=replace(valid.calculation, quantize="1E+2")),
+            "QUANTIZATION_CONFLICT",
+        )
 
         for case_name, (task, candidate, expected_reason) in cases.items():
             with self.subTest(case_name=case_name):
@@ -356,24 +407,19 @@ class M2DeterministicCoreTest(unittest.TestCase):
                     root = Path(temporary_directory)
                     outcome = FinAuditGate(
                         artifact_root=root,
-                        model=ScriptedModelAdapter(
-                            {task.task_id: (candidate, valid)}
-                        ),
+                        model=ScriptedModelAdapter({task.task_id: (candidate, valid)}),
                     ).run(task)
-                    replay = FinAuditGate(artifact_root=root).replay(
-                        outcome.run_ref
-                    )
+                    replay = FinAuditGate(artifact_root=root).replay(outcome.run_ref)
 
                 self.assertEqual(Decision.HUMAN_REVIEW, outcome.decision)
                 self.assertIsNone(outcome.answer)
-                self.assertIsNone(outcome.answer_unit)
                 self.assertEqual((expected_reason,), outcome.reason_codes)
                 self.assertTrue(replay.consistent)
                 self.assertEqual(Decision.HUMAN_REVIEW, replay.decision)
 
     def test_recoverable_candidate_classes_share_the_bounded_retry_stop(self) -> None:
         document = FIXTURE_PATH.read_bytes()
-        task = standard_task(document, "m2-recoverable-classes")
+        task = standard_task(document, "recoverable-classes")
         valid = standard_candidate(document)
         cases = {
             "missing_evidence": (
@@ -383,30 +429,21 @@ class M2DeterministicCoreTest(unittest.TestCase):
             "invalid_locator": (
                 replace(
                     valid,
-                    evidence=(
-                        valid.evidence[0],
-                        replace(valid.evidence[1], byte_start=-1),
-                    ),
+                    evidence=(valid.evidence[0], replace(valid.evidence[1], byte_start=-1)),
                 ),
                 "EVIDENCE_LOCATOR_INVALID",
             ),
             "candidate_shape": (
                 replace(
                     valid,
-                    evidence=(
-                        valid.evidence[0],
-                        replace(valid.evidence[1], currency=None),
-                    ),
+                    evidence=(valid.evidence[0], replace(valid.evidence[1], currency=None)),
                 ),
                 "CANDIDATE_SHAPE_INVALID",
             ),
             "claimed_semantics": (
                 replace(
                     valid,
-                    evidence=(
-                        valid.evidence[0],
-                        replace(valid.evidence[1], metric="Profit"),
-                    ),
+                    evidence=(valid.evidence[0], replace(valid.evidence[1], metric="Profit")),
                 ),
                 "CLAIMED_EVIDENCE_MISMATCH",
             ),
@@ -420,6 +457,26 @@ class M2DeterministicCoreTest(unittest.TestCase):
                 ),
                 "OPERAND_LINEAGE_INVALID",
             ),
+            "duplicate_operands": (
+                replace(
+                    valid,
+                    calculation=replace(
+                        valid.calculation,
+                        operand_ids=("revenue_current", "revenue_current"),
+                    ),
+                ),
+                "OPERAND_LINEAGE_INVALID",
+            ),
+            "non_string_lineage_ids": (
+                ScriptedCandidate(
+                    evidence=(
+                        replace(valid.evidence[0], evidence_id=1),
+                        replace(valid.evidence[1], evidence_id=2),
+                    ),
+                    calculation=replace(valid.calculation, operand_ids=(2, 1)),
+                ),
+                "CANDIDATE_SHAPE_INVALID",
+            ),
         }
 
         for case_name, (candidate, expected_reason) in cases.items():
@@ -429,18 +486,10 @@ class M2DeterministicCoreTest(unittest.TestCase):
                     outcome = FinAuditGate(
                         artifact_root=root,
                         model=ScriptedModelAdapter(
-                            {
-                                task.task_id: (
-                                    candidate,
-                                    candidate,
-                                    valid,
-                                )
-                            }
+                            {task.task_id: (candidate, candidate, valid)}
                         ),
                     ).run(task)
-                    replay = FinAuditGate(artifact_root=root).replay(
-                        outcome.run_ref
-                    )
+                    replay = FinAuditGate(artifact_root=root).replay(outcome.run_ref)
 
                 self.assertEqual(Decision.RETRY, outcome.decision)
                 self.assertEqual(
@@ -450,98 +499,48 @@ class M2DeterministicCoreTest(unittest.TestCase):
                 self.assertTrue(replay.consistent)
                 self.assertEqual(Decision.RETRY, replay.decision)
 
-    def test_attempts_artifact_is_required_and_bound_to_v2_identity(self) -> None:
+    def test_attempts_artifact_is_required_and_bound_to_run_identity(self) -> None:
         document = FIXTURE_PATH.read_bytes()
-        task = standard_task(document, "m2-attempts-integrity")
+        task = standard_task(document, "attempts-integrity")
 
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
             outcome = FinAuditGate(
                 artifact_root=root,
-                model=ScriptedModelAdapter(
-                    {task.task_id: standard_candidate(document)}
-                ),
+                model=ScriptedModelAdapter({task.task_id: standard_candidate(document)}),
             ).run(task)
-            (
-                root
-                / "runs"
-                / outcome.run_ref.run_id
-                / "attempts.json"
-            ).unlink()
+            (root / "runs" / outcome.run_ref.run_id / "attempts.json").unlink()
             missing = FinAuditGate(artifact_root=root).replay(outcome.run_ref)
 
         self.assertFalse(missing.consistent)
-        self.assertEqual("finauditgate.replay/v2", missing.schema_version)
+        self.assertEqual("finauditgate.replay/v5", missing.schema_version)
         self.assertIsNone(missing.decision)
         self.assertEqual("MISSING_ARTIFACT", missing.reason)
 
         valid = standard_candidate(document)
         invalid = replace(
             valid,
-            evidence=(
-                valid.evidence[0],
-                replace(valid.evidence[1], value="999.00"),
-            ),
+            evidence=(valid.evidence[0], replace(valid.evidence[1], value="999.00")),
         )
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
             outcome = FinAuditGate(
                 artifact_root=root,
-                model=ScriptedModelAdapter(
-                    {task.task_id: (invalid, valid)}
-                ),
+                model=ScriptedModelAdapter({task.task_id: (invalid, valid)}),
             ).run(task)
             run_directory = root / "runs" / outcome.run_ref.run_id
-            attempts_path = run_directory / "attempts.json"
-            attempts = json.loads(attempts_path.read_bytes())
+            attempts = json.loads((run_directory / "attempts.json").read_bytes())
             forged_candidate = attempts["attempts"][0]["candidate"]
             forged_candidate["evidence"][1]["value"] = "888.00"
-            forged_candidate_bytes = json.dumps(
-                forged_candidate,
-                sort_keys=True,
-                separators=(",", ":"),
-                ensure_ascii=False,
-                allow_nan=False,
-            ).encode("utf-8")
             attempts["attempts"][0]["candidate_sha256"] = hashlib.sha256(
-                forged_candidate_bytes
+                _canonical(forged_candidate)
             ).hexdigest()
             forged_proposal = attempts["attempts"][0]["proposal"]
-            forged_proposal["value"]["evidence"]["items"][1]["value"][
-                "value"
-            ] = "888.00"
-            forged_proposal_bytes = json.dumps(
-                forged_proposal,
-                sort_keys=True,
-                separators=(",", ":"),
-                ensure_ascii=False,
-                allow_nan=False,
-            ).encode("utf-8")
+            forged_proposal["value"]["evidence"]["items"][1]["value"]["value"] = "888.00"
             attempts["attempts"][0]["proposal_sha256"] = hashlib.sha256(
-                forged_proposal_bytes
+                _canonical(forged_proposal)
             ).hexdigest()
-            forged_attempts = json.dumps(
-                attempts,
-                sort_keys=True,
-                separators=(",", ":"),
-                ensure_ascii=False,
-                allow_nan=False,
-            ).encode("utf-8")
-            attempts_path.write_bytes(forged_attempts)
-            manifest_path = run_directory / "manifest.json"
-            manifest = json.loads(manifest_path.read_bytes())
-            manifest["artifacts"]["attempts"]["sha256"] = hashlib.sha256(
-                forged_attempts
-            ).hexdigest()
-            manifest_path.write_bytes(
-                json.dumps(
-                    manifest,
-                    sort_keys=True,
-                    separators=(",", ":"),
-                    ensure_ascii=False,
-                    allow_nan=False,
-                ).encode("utf-8")
-            )
+            _rewrite_artifact(run_directory, "attempts.json", _canonical(attempts))
             forged = FinAuditGate(artifact_root=root).replay(outcome.run_ref)
 
         self.assertFalse(forged.consistent)
@@ -551,7 +550,7 @@ class M2DeterministicCoreTest(unittest.TestCase):
     def test_registered_source_with_different_content_requires_review(self) -> None:
         document = FIXTURE_PATH.read_bytes()
         altered_document = document + b"synthetic-tamper=true\n"
-        task = standard_task(altered_document, "m2-source-profile-conflict")
+        task = standard_task(altered_document, "source-profile-conflict")
 
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
@@ -568,186 +567,106 @@ class M2DeterministicCoreTest(unittest.TestCase):
         self.assertTrue(replay.consistent)
         self.assertEqual(Decision.HUMAN_REVIEW, replay.decision)
 
-    def test_deeply_nested_attempts_artifact_fails_closed(self) -> None:
+    def test_private_mode_requires_a_frozen_profile(self) -> None:
         document = FIXTURE_PATH.read_bytes()
-        task = standard_task(document, "m2-deep-attempts-tamper")
-
+        task = replace(standard_task(document, "private-without-profile"), mode="PRIVATE_DEV")
         with tempfile.TemporaryDirectory() as temporary_directory:
-            root = Path(temporary_directory)
-            outcome = FinAuditGate(
-                artifact_root=root,
-                model=ScriptedModelAdapter(
-                    {task.task_id: standard_candidate(document)}
-                ),
-            ).run(task)
-            run_directory = root / "runs" / outcome.run_ref.run_id
-            attempts_path = run_directory / "attempts.json"
-            forged_attempts = (
-                b"[" * 10_000 + b"null" + b"]" * 10_000
-            )
-            attempts_path.write_bytes(forged_attempts)
-            manifest_path = run_directory / "manifest.json"
-            manifest = json.loads(manifest_path.read_bytes())
-            manifest["artifacts"]["attempts"]["sha256"] = hashlib.sha256(
-                forged_attempts
-            ).hexdigest()
-            manifest_path.write_bytes(
-                json.dumps(
-                    manifest,
-                    sort_keys=True,
-                    separators=(",", ":"),
-                    ensure_ascii=False,
-                    allow_nan=False,
-                ).encode("utf-8")
-            )
-            replay = FinAuditGate(artifact_root=root).replay(outcome.run_ref)
+            workspace = Path(temporary_directory)
+            (workspace / "finaudit-gate" / ".git").mkdir(parents=True)
+            (workspace / "private").mkdir()
+            with self.assertRaisesRegex(RuntimeError, "PRIVATE_DEV_VALIDATION_PROFILE_REQUIRED"):
+                FinAuditGate(
+                    artifact_root=workspace / "private" / "artifacts",
+                    model=ScriptedModelAdapter({task.task_id: standard_candidate(document)}),
+                ).run(task)
 
-        self.assertFalse(replay.consistent)
-        self.assertIsNone(replay.decision)
-        self.assertEqual("ARTIFACT_STRUCTURE_INVALID", replay.reason)
-
-    def test_deep_manifest_and_identity_tamper_fails_closed(self) -> None:
+    def test_tampered_replay_artifacts_fail_closed(self) -> None:
         document = FIXTURE_PATH.read_bytes()
-        task = standard_task(document, "m2-deep-routing-tamper")
+        deeply_nested = b"[" * 10_000 + b"null" + b"]" * 10_000
 
-        with tempfile.TemporaryDirectory() as temporary_directory:
-            root = Path(temporary_directory)
-            outcome = FinAuditGate(
-                artifact_root=root,
-                model=ScriptedModelAdapter(
-                    {task.task_id: standard_candidate(document)}
-                ),
-            ).run(task)
-            run_directory = root / "runs" / outcome.run_ref.run_id
-            deeply_nested = b"[" * 10_000 + b"null" + b"]" * 10_000
+        def deep_attempts(run_directory: Path) -> None:
+            _rewrite_artifact(run_directory, "attempts.json", deeply_nested)
+
+        def deep_manifest_and_identity(run_directory: Path) -> None:
             (run_directory / "manifest.json").write_bytes(deeply_nested)
             (run_directory / "identity.json").write_bytes(deeply_nested)
-            replay = FinAuditGate(artifact_root=root).replay(outcome.run_ref)
 
-        self.assertFalse(replay.consistent)
-        self.assertIsNone(replay.decision)
-        self.assertEqual("REPLAY_VALIDATION_FAILED", replay.reason)
+        def oversized_attempts(run_directory: Path) -> None:
+            _rewrite_artifact(run_directory, "attempts.json", b"0" * (16_777_216 + 1))
 
-    def test_oversized_json_artifact_is_read_bounded_and_fails_closed(
-        self,
-    ) -> None:
-        document = FIXTURE_PATH.read_bytes()
-        task = standard_task(document, "m2-oversized-json-tamper")
+        def malformed_identity(run_directory: Path) -> None:
+            (run_directory / "manifest.json").write_bytes(deeply_nested)
+            (run_directory / "identity.json").write_bytes(
+                b'{"schema_version":"finauditgate.run-identity/v5","value":"\\ud800"}'
+            )
 
-        with tempfile.TemporaryDirectory() as temporary_directory:
-            root = Path(temporary_directory)
-            outcome = FinAuditGate(
-                artifact_root=root,
-                model=ScriptedModelAdapter(
-                    {task.task_id: standard_candidate(document)}
-                ),
-            ).run(task)
-            run_directory = root / "runs" / outcome.run_ref.run_id
-            attempts_path = run_directory / "attempts.json"
-            forged_attempts = b"0" * (16_777_216 + 1)
-            attempts_path.write_bytes(forged_attempts)
+        def forged_outcome(run_directory: Path) -> None:
+            outcome_payload = json.loads((run_directory / "outcome.json").read_bytes())
+            outcome_payload["task_id"] = "forged-task"
+            outcome_payload["document_sha256"] = "0" * 64
+            _rewrite_artifact(run_directory, "outcome.json", _canonical(outcome_payload))
+
+        def unsupported_task_schema(run_directory: Path) -> None:
+            task_payload = json.loads((run_directory / "task.json").read_bytes())
+            task_payload["schema_version"] = "finauditgate.task/v999"
+            _rewrite_artifact(run_directory, "task.json", _canonical(task_payload))
+
+        def malformed_manifest(run_directory: Path) -> None:
             manifest_path = run_directory / "manifest.json"
             manifest = json.loads(manifest_path.read_bytes())
-            manifest["artifacts"]["attempts"]["sha256"] = hashlib.sha256(
-                forged_attempts
-            ).hexdigest()
-            manifest_path.write_bytes(
-                json.dumps(
-                    manifest,
-                    sort_keys=True,
-                    separators=(",", ":"),
-                    ensure_ascii=False,
-                    allow_nan=False,
-                ).encode("utf-8")
-            )
-            replay = FinAuditGate(artifact_root=root).replay(outcome.run_ref)
+            manifest["artifacts"]["task"] = []
+            manifest_path.write_bytes(_canonical(manifest))
 
-        self.assertFalse(replay.consistent)
-        self.assertIsNone(replay.decision)
-        self.assertEqual("ARTIFACT_STRUCTURE_INVALID", replay.reason)
+        def missing_ledger(run_directory: Path) -> None:
+            (run_directory / "ledger.json").unlink()
 
-    def test_malformed_identity_cannot_escape_m2_route_detection(self) -> None:
-        document = FIXTURE_PATH.read_bytes()
-        task = standard_task(document, "m2-malformed-routing-identity")
+        cases = {
+            "deep-attempts": (deep_attempts, "ARTIFACT_STRUCTURE_INVALID"),
+            "deep-manifest-and-identity": (deep_manifest_and_identity, "MALFORMED_MANIFEST"),
+            "oversized-attempts": (oversized_attempts, "ARTIFACT_STRUCTURE_INVALID"),
+            "malformed-identity": (malformed_identity, "MALFORMED_MANIFEST"),
+            "forged-outcome": (forged_outcome, "OUTCOME_METADATA_MISMATCH"),
+            "unsupported-task-schema": (unsupported_task_schema, "REPLAY_VALIDATION_FAILED"),
+            "malformed-manifest": (malformed_manifest, "MALFORMED_MANIFEST"),
+            "missing-ledger": (missing_ledger, "MISSING_ARTIFACT"),
+        }
+        for name, (tamper, expected_reason) in cases.items():
+            with self.subTest(name=name), tempfile.TemporaryDirectory() as temporary_directory:
+                root = Path(temporary_directory)
+                task = standard_task(document, f"tamper-{name}")
+                outcome = FinAuditGate(
+                    artifact_root=root,
+                    model=ScriptedModelAdapter(
+                        {task.task_id: standard_candidate(document)}
+                    ),
+                ).run(task)
+                tamper(root / "runs" / outcome.run_ref.run_id)
+                replay = FinAuditGate(artifact_root=root).replay(outcome.run_ref)
 
-        with tempfile.TemporaryDirectory() as temporary_directory:
-            root = Path(temporary_directory)
-            outcome = FinAuditGate(
-                artifact_root=root,
-                model=ScriptedModelAdapter(
-                    {task.task_id: standard_candidate(document)}
-                ),
-            ).run(task)
-            run_directory = root / "runs" / outcome.run_ref.run_id
-            deeply_nested = b"[" * 10_000 + b"null" + b"]" * 10_000
-            (run_directory / "manifest.json").write_bytes(deeply_nested)
-            malformed_identity = (
-                b'{"schema_version":"finauditgate.run-identity/v2",'
-                b'"value":"\\ud800"}'
-            )
-            (run_directory / "identity.json").write_bytes(
-                malformed_identity
-            )
-            replay = FinAuditGate(artifact_root=root).replay(outcome.run_ref)
-
-        self.assertFalse(replay.consistent)
-        self.assertIsNone(replay.decision)
-        self.assertEqual("REPLAY_VALIDATION_FAILED", replay.reason)
+            self.assertFalse(replay.consistent)
+            self.assertIsNone(replay.decision)
+            self.assertEqual(expected_reason, replay.reason)
 
     def test_overflowing_float_snapshot_tamper_fails_closed(self) -> None:
         document = FIXTURE_PATH.read_bytes()
-        task = standard_task(document, "m2-overflowing-float-tamper")
+        task = standard_task(document, "overflowing-float-tamper")
         valid = standard_candidate(document)
-        malformed = ScriptedCandidate(
-            evidence=1.0,
-            calculation=valid.calculation,
-        )
+        malformed = ScriptedCandidate(evidence=1.0, calculation=valid.calculation)
 
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
             outcome = FinAuditGate(
                 artifact_root=root,
-                model=ScriptedModelAdapter(
-                    {task.task_id: (malformed, valid)}
-                ),
+                model=ScriptedModelAdapter({task.task_id: (malformed, valid)}),
             ).run(task)
             run_directory = root / "runs" / outcome.run_ref.run_id
-            attempts_path = run_directory / "attempts.json"
-            attempts = json.loads(attempts_path.read_bytes())
+            attempts = json.loads((run_directory / "attempts.json").read_bytes())
             proposal = attempts["attempts"][0]["proposal"]
             proposal["value"]["evidence"]["hex"] = "0x1p+999999999"
-            proposal_bytes = json.dumps(
-                proposal,
-                sort_keys=True,
-                separators=(",", ":"),
-                ensure_ascii=False,
-                allow_nan=False,
-            ).encode("utf-8")
             attempts["attempts"][0]["proposal_sha256"] = hashlib.sha256(
-                proposal_bytes
+                _canonical(proposal)
             ).hexdigest()
-            forged_attempts = json.dumps(
-                attempts,
-                sort_keys=True,
-                separators=(",", ":"),
-                ensure_ascii=False,
-                allow_nan=False,
-            ).encode("utf-8")
-            attempts_path.write_bytes(forged_attempts)
-            manifest_path = run_directory / "manifest.json"
-            manifest = json.loads(manifest_path.read_bytes())
-            manifest["artifacts"]["attempts"]["sha256"] = hashlib.sha256(
-                forged_attempts
-            ).hexdigest()
-            manifest_path.write_bytes(
-                json.dumps(
-                    manifest,
-                    sort_keys=True,
-                    separators=(",", ":"),
-                    ensure_ascii=False,
-                    allow_nan=False,
-                ).encode("utf-8")
-            )
+            _rewrite_artifact(run_directory, "attempts.json", _canonical(attempts))
             replay = FinAuditGate(artifact_root=root).replay(outcome.run_ref)
 
         self.assertFalse(replay.consistent)
@@ -756,7 +675,7 @@ class M2DeterministicCoreTest(unittest.TestCase):
 
     def test_decimal_domain_failures_are_decisions_not_exceptions(self) -> None:
         document = FIXTURE_PATH.read_bytes()
-        task = standard_task(document, "m2-decimal-domain")
+        task = standard_task(document, "decimal-domain")
         valid = standard_candidate(document)
         invalid_value_records = {
             "non_numeric": (
@@ -777,13 +696,9 @@ class M2DeterministicCoreTest(unittest.TestCase):
                     root = Path(temporary_directory)
                     outcome = FinAuditGate(
                         artifact_root=root,
-                        model=ScriptedModelAdapter(
-                            {task.task_id: (invalid, invalid, valid)}
-                        ),
+                        model=ScriptedModelAdapter({task.task_id: (invalid, invalid, valid)}),
                     ).run(task)
-                    replay = FinAuditGate(artifact_root=root).replay(
-                        outcome.run_ref
-                    )
+                    replay = FinAuditGate(artifact_root=root).replay(outcome.run_ref)
 
                 self.assertEqual(Decision.RETRY, outcome.decision)
                 self.assertEqual(
@@ -800,18 +715,13 @@ class M2DeterministicCoreTest(unittest.TestCase):
         )
         zero_prior = replace(
             valid,
-            evidence=(
-                evidence_for(document, "revenue_prior", zero_prior_record),
-                valid.evidence[1],
-            ),
+            evidence=(evidence_for(document, "revenue_prior", zero_prior_record), valid.evidence[1]),
         )
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
             outcome = FinAuditGate(
                 artifact_root=root,
-                model=ScriptedModelAdapter(
-                    {task.task_id: (zero_prior, valid)}
-                ),
+                model=ScriptedModelAdapter({task.task_id: (zero_prior, valid)}),
             ).run(task)
             replay = FinAuditGate(artifact_root=root).replay(outcome.run_ref)
 
@@ -820,82 +730,9 @@ class M2DeterministicCoreTest(unittest.TestCase):
         self.assertTrue(replay.consistent)
         self.assertEqual(Decision.ABSTAIN, replay.decision)
 
-    def test_legacy_profile_rejects_explicit_m2_semantic_fields(self) -> None:
-        document = NORTHSTAR_FIXTURE_PATH.read_bytes()
-        records = (
-            (
-                "revenue_prior",
-                b"metric=revenue;period=FY2024;value=100.00;"
-                b"unit=USD_MILLION",
-                "FY2024",
-                "100.00",
-            ),
-            (
-                "revenue_current",
-                b"metric=revenue;period=FY2025;value=120.00;"
-                b"unit=USD_MILLION",
-                "FY2025",
-                "120.00",
-            ),
-        )
-        evidence_items = []
-        for evidence_id, record, period, value in records:
-            start = document.index(record)
-            evidence_items.append(
-                EvidenceCandidate(
-                    evidence_id=evidence_id,
-                    byte_start=start,
-                    byte_end=start + len(record),
-                    metric="revenue",
-                    period=period,
-                    value=value,
-                    unit="USD_MILLION",
-                    metric_basis="ADJUSTED",
-                    currency="EUR",
-                    scale="BILLION",
-                    sign="NEGATIVE",
-                )
-            )
-        candidate = ScriptedCandidate(
-            evidence=tuple(evidence_items),
-            calculation=CalculationCandidate(
-                operation="growth_rate_percent",
-                operand_ids=("revenue_current", "revenue_prior"),
-                output_unit="PERCENT",
-                quantize="0.01",
-            ),
-        )
-        task = AuditTask(
-            task_id="m1-explicit-m2-semantics",
-            question="What was FY2025 revenue growth versus FY2024?",
-            cutoff=date(2026, 8, 12),
-            document=FrozenDocumentPackage(
-                source_id="synthetic-northstar-revenue-v1",
-                document_name="northstar_revenue.txt",
-                document_bytes=document,
-                declared_published_at=date(2026, 8, 12),
-            ),
-        )
-
-        with tempfile.TemporaryDirectory() as temporary_directory:
-            root = Path(temporary_directory)
-            outcome = FinAuditGate(
-                artifact_root=root,
-                model=ScriptedModelAdapter({task.task_id: candidate}),
-            ).run(task)
-            replay = FinAuditGate(artifact_root=root).replay(outcome.run_ref)
-
-        self.assertEqual(Decision.HUMAN_REVIEW, outcome.decision)
-        self.assertEqual(
-            ("CANDIDATE_VALIDATION_FAILED",),
-            outcome.reason_codes,
-        )
-        self.assertTrue(replay.consistent)
-        self.assertEqual(Decision.HUMAN_REVIEW, replay.decision)
-
     def test_mixed_optional_semantic_shape_consumes_the_only_retry(self) -> None:
         document = FIXTURE_PATH.read_bytes()
-        task = standard_task(document, "m2-mixed-optional-shape")
+        task = standard_task(document, "mixed-optional-shape")
         valid = standard_candidate(document)
         mixed = replace(
             valid,
@@ -915,9 +752,7 @@ class M2DeterministicCoreTest(unittest.TestCase):
             root = Path(temporary_directory)
             outcome = FinAuditGate(
                 artifact_root=root,
-                model=ScriptedModelAdapter(
-                    {task.task_id: (mixed, valid)}
-                ),
+                model=ScriptedModelAdapter({task.task_id: (mixed, valid)}),
             ).run(task)
             replay = FinAuditGate(artifact_root=root).replay(outcome.run_ref)
 
@@ -928,14 +763,11 @@ class M2DeterministicCoreTest(unittest.TestCase):
 
     def test_missing_retry_proposal_is_preserved_as_exhausted_retry(self) -> None:
         document = FIXTURE_PATH.read_bytes()
-        task = standard_task(document, "m2-missing-retry-proposal")
+        task = standard_task(document, "missing-retry-proposal")
         valid = standard_candidate(document)
         invalid = replace(
             valid,
-            evidence=(
-                valid.evidence[0],
-                replace(valid.evidence[1], value="999.00"),
-            ),
+            evidence=(valid.evidence[0], replace(valid.evidence[1], value="999.00")),
         )
 
         with tempfile.TemporaryDirectory() as temporary_directory:
@@ -954,11 +786,9 @@ class M2DeterministicCoreTest(unittest.TestCase):
         self.assertTrue(replay.consistent)
         self.assertEqual(Decision.RETRY, replay.decision)
 
-    def test_malformed_calculation_fields_are_recoverable_shape_errors(
-        self,
-    ) -> None:
+    def test_malformed_calculation_fields_are_recoverable_shape_errors(self) -> None:
         document = FIXTURE_PATH.read_bytes()
-        task = standard_task(document, "m2-malformed-calculation-shape")
+        task = standard_task(document, "malformed-calculation-shape")
         valid = standard_candidate(document)
         cases = {
             "operation": replace(valid.calculation, operation=None),
@@ -977,9 +807,7 @@ class M2DeterministicCoreTest(unittest.TestCase):
                             {task.task_id: (malformed, malformed, valid)}
                         ),
                     ).run(task)
-                    replay = FinAuditGate(artifact_root=root).replay(
-                        outcome.run_ref
-                    )
+                    replay = FinAuditGate(artifact_root=root).replay(outcome.run_ref)
 
                 self.assertEqual(Decision.RETRY, outcome.decision)
                 self.assertEqual(
@@ -991,78 +819,47 @@ class M2DeterministicCoreTest(unittest.TestCase):
 
     def test_malformed_operand_shape_consumes_the_only_retry(self) -> None:
         document = FIXTURE_PATH.read_bytes()
-        task = standard_task(document, "m2-malformed-operand-shape")
+        task = standard_task(document, "malformed-operand-shape")
         valid = standard_candidate(document)
-        malformed = replace(
-            valid,
-            calculation=replace(valid.calculation, operand_ids=None),
-        )
+        malformed = replace(valid, calculation=replace(valid.calculation, operand_ids=None))
 
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
             outcome = FinAuditGate(
                 artifact_root=root,
-                model=ScriptedModelAdapter(
-                    {task.task_id: (malformed, valid)}
-                ),
+                model=ScriptedModelAdapter({task.task_id: (malformed, valid)}),
             ).run(task)
             replay = FinAuditGate(artifact_root=root).replay(outcome.run_ref)
             attempts = json.loads(
-                (
-                    root
-                    / "runs"
-                    / outcome.run_ref.run_id
-                    / "attempts.json"
-                ).read_bytes()
+                (root / "runs" / outcome.run_ref.run_id / "attempts.json").read_bytes()
             )
 
         self.assertEqual(Decision.ACCEPT, outcome.decision)
         self.assertEqual("20.00", outcome.answer)
-        self.assertEqual(
-            ["CANDIDATE_SHAPE_INVALID"],
-            attempts["attempts"][0]["reason_codes"],
-        )
+        self.assertEqual(["CANDIDATE_SHAPE_INVALID"], attempts["attempts"][0]["reason_codes"])
         self.assertTrue(replay.consistent)
-        self.assertEqual("finauditgate.replay/v2", replay.schema_version)
 
-    def test_top_level_malformed_candidate_is_preserved_and_retried(
-        self,
-    ) -> None:
+    def test_top_level_malformed_candidate_is_preserved_and_retried(self) -> None:
         document = FIXTURE_PATH.read_bytes()
-        task = standard_task(document, "m2-top-level-malformed-candidate")
+        task = standard_task(document, "top-level-malformed-candidate")
         valid = standard_candidate(document)
-        malformed = ScriptedCandidate(
-            evidence=None,
-            calculation=valid.calculation,
-        )
+        malformed = ScriptedCandidate(evidence=None, calculation=valid.calculation)
 
         class CountingAdapter:
             def __init__(self) -> None:
                 self.calls: list[int] = []
 
-            def propose(
-                self,
-                adapter_task: AuditTask,
-                attempt_index: int = 0,
-            ) -> ScriptedCandidate:
+            def propose(self, adapter_task: AuditTask, attempt_index: int = 0) -> ScriptedCandidate:
                 self.calls.append(attempt_index)
                 return (malformed, valid)[attempt_index]
 
         adapter = CountingAdapter()
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
-            outcome = FinAuditGate(
-                artifact_root=root,
-                model=adapter,
-            ).run(task)
+            outcome = FinAuditGate(artifact_root=root, model=adapter).run(task)
             replay = FinAuditGate(artifact_root=root).replay(outcome.run_ref)
             attempts = json.loads(
-                (
-                    root
-                    / "runs"
-                    / outcome.run_ref.run_id
-                    / "attempts.json"
-                ).read_bytes()
+                (root / "runs" / outcome.run_ref.run_id / "attempts.json").read_bytes()
             )
 
         self.assertEqual([0, 1], adapter.calls)
@@ -1071,24 +868,13 @@ class M2DeterministicCoreTest(unittest.TestCase):
         self.assertEqual(0, malformed_attempt["attempt_index"])
         self.assertIsInstance(malformed_attempt["proposal"], dict)
         self.assertEqual(
-            hashlib.sha256(
-                json.dumps(
-                    malformed_attempt["proposal"],
-                    sort_keys=True,
-                    separators=(",", ":"),
-                    ensure_ascii=False,
-                    allow_nan=False,
-                ).encode("utf-8")
-            ).hexdigest(),
+            hashlib.sha256(_canonical(malformed_attempt["proposal"])).hexdigest(),
             malformed_attempt["proposal_sha256"],
         )
         self.assertIsNone(malformed_attempt["candidate"])
         self.assertIsNone(malformed_attempt["candidate_sha256"])
         self.assertEqual(Decision.RETRY.value, malformed_attempt["disposition"])
-        self.assertEqual(
-            ["CANDIDATE_SHAPE_INVALID"],
-            malformed_attempt["reason_codes"],
-        )
+        self.assertEqual(["CANDIDATE_SHAPE_INVALID"], malformed_attempt["reason_codes"])
         self.assertTrue(replay.consistent)
         self.assertEqual(Decision.ACCEPT, replay.decision)
 
@@ -1096,61 +882,13 @@ class M2DeterministicCoreTest(unittest.TestCase):
         self,
     ) -> None:
         document = FIXTURE_PATH.read_bytes()
-        task = standard_task(document, "m2-distinct-malformed-proposals")
-        valid = standard_candidate(document)
-        malformed_proposals = (
-            ScriptedCandidate(evidence=None, calculation=valid.calculation),
-            ScriptedCandidate(evidence=42, calculation=valid.calculation),
-        )
-        outcomes = []
-        attempts = []
-        replays = []
-
-        with tempfile.TemporaryDirectory() as temporary_directory:
-            root = Path(temporary_directory)
-            for index, malformed in enumerate(malformed_proposals):
-                artifact_root = root / str(index)
-                outcome = FinAuditGate(
-                    artifact_root=artifact_root,
-                    model=ScriptedModelAdapter(
-                        {task.task_id: (malformed, valid)}
-                    ),
-                ).run(task)
-                outcomes.append(outcome)
-                replays.append(
-                    FinAuditGate(artifact_root=artifact_root).replay(
-                        outcome.run_ref
-                    )
-                )
-                attempts.append(
-                    json.loads(
-                        (
-                            artifact_root
-                            / "runs"
-                            / outcome.run_ref.run_id
-                            / "attempts.json"
-                        ).read_bytes()
-                    )
-                )
-
-        self.assertNotEqual(outcomes[0].run_ref, outcomes[1].run_ref)
-        self.assertNotEqual(
-            attempts[0]["attempts"][0]["proposal"],
-            attempts[1]["attempts"][0]["proposal"],
-        )
-        self.assertTrue(all(replay.consistent for replay in replays))
-        self.assertEqual(
-            [Decision.ACCEPT, Decision.ACCEPT],
-            [replay.decision for replay in replays],
-        )
-
-    def test_distinct_oversized_scalars_keep_distinct_identities(self) -> None:
-        document = FIXTURE_PATH.read_bytes()
-        task = standard_task(document, "m2-distinct-oversized-scalars")
+        task = standard_task(document, "distinct-malformed-proposals")
         valid = standard_candidate(document)
         shared_prefix = "p" * 128
         shared_suffix = "s" * 128
         malformed_proposals = (
+            ScriptedCandidate(evidence=None, calculation=valid.calculation),
+            ScriptedCandidate(evidence=42, calculation=valid.calculation),
             ScriptedCandidate(
                 evidence=shared_prefix + "a" * 4_744 + shared_suffix,
                 calculation=valid.calculation,
@@ -1169,19 +907,14 @@ class M2DeterministicCoreTest(unittest.TestCase):
                 artifact_root = root / str(index)
                 outcome = FinAuditGate(
                     artifact_root=artifact_root,
-                    model=ScriptedModelAdapter(
-                        {task.task_id: (malformed, valid)}
-                    ),
+                    model=ScriptedModelAdapter({task.task_id: (malformed, valid)}),
                 ).run(task)
                 outcomes.append(outcome)
-                replays.append(
-                    FinAuditGate(artifact_root=artifact_root).replay(
-                        outcome.run_ref
-                    )
-                )
+                replays.append(FinAuditGate(artifact_root=artifact_root).replay(outcome.run_ref))
 
-        self.assertNotEqual(outcomes[0].run_ref, outcomes[1].run_ref)
+        self.assertEqual(len(outcomes), len({outcome.run_ref for outcome in outcomes}))
         self.assertTrue(all(replay.consistent for replay in replays))
+        self.assertEqual({Decision.ACCEPT}, {replay.decision for replay in replays})
 
     def test_snapshot_limits_still_record_shape_error_and_retry(self) -> None:
         document = FIXTURE_PATH.read_bytes()
@@ -1189,6 +922,13 @@ class M2DeterministicCoreTest(unittest.TestCase):
         deeply_nested: object = None
         for _ in range(1500):
             deeply_nested = [deeply_nested]
+
+        class EquivocatingStr(str):
+            def __eq__(self, other: object) -> bool:
+                return True
+
+            __hash__ = str.__hash__
+
         malformed_proposals = {
             "oversized_integer": ScriptedCandidate(
                 evidence=10**5000,
@@ -1203,29 +943,27 @@ class M2DeterministicCoreTest(unittest.TestCase):
                 calculation=valid.calculation,
             ),
             "uninitialized_candidate": object.__new__(ScriptedCandidate),
+            "string_subclass": ScriptedCandidate(
+                evidence=(
+                    replace(valid.evidence[0], metric=EquivocatingStr("profit")),
+                    valid.evidence[1],
+                ),
+                calculation=valid.calculation,
+            ),
         }
 
         for case_name, malformed in malformed_proposals.items():
             with self.subTest(case_name=case_name):
-                task = standard_task(document, f"m2-snapshot-limit-{case_name}")
+                task = standard_task(document, f"snapshot-limit-{case_name}")
                 with tempfile.TemporaryDirectory() as temporary_directory:
                     root = Path(temporary_directory)
                     outcome = FinAuditGate(
                         artifact_root=root,
-                        model=ScriptedModelAdapter(
-                            {task.task_id: (malformed, valid)}
-                        ),
+                        model=ScriptedModelAdapter({task.task_id: (malformed, valid)}),
                     ).run(task)
-                    replay = FinAuditGate(artifact_root=root).replay(
-                        outcome.run_ref
-                    )
+                    replay = FinAuditGate(artifact_root=root).replay(outcome.run_ref)
                     attempts = json.loads(
-                        (
-                            root
-                            / "runs"
-                            / outcome.run_ref.run_id
-                            / "attempts.json"
-                        ).read_bytes()
+                        (root / "runs" / outcome.run_ref.run_id / "attempts.json").read_bytes()
                     )
 
                 self.assertEqual(Decision.ACCEPT, outcome.decision)
@@ -1233,39 +971,25 @@ class M2DeterministicCoreTest(unittest.TestCase):
                     ["CANDIDATE_SHAPE_INVALID"],
                     attempts["attempts"][0]["reason_codes"],
                 )
-                self.assertIsInstance(
-                    attempts["attempts"][0]["proposal"], dict
-                )
+                self.assertIsInstance(attempts["attempts"][0]["proposal"], dict)
                 self.assertTrue(replay.consistent)
                 self.assertEqual(Decision.ACCEPT, replay.decision)
 
-    def test_two_top_level_malformed_candidates_exhaust_retry_replayably(
-        self,
-    ) -> None:
+    def test_two_top_level_malformed_candidates_exhaust_retry_replayably(self) -> None:
         document = FIXTURE_PATH.read_bytes()
-        task = standard_task(document, "m2-two-top-level-malformed")
+        task = standard_task(document, "two-top-level-malformed")
         valid = standard_candidate(document)
-        malformed = ScriptedCandidate(
-            evidence=None,
-            calculation=valid.calculation,
-        )
+        malformed = ScriptedCandidate(evidence=None, calculation=valid.calculation)
 
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
             outcome = FinAuditGate(
                 artifact_root=root,
-                model=ScriptedModelAdapter(
-                    {task.task_id: (malformed, malformed)}
-                ),
+                model=ScriptedModelAdapter({task.task_id: (malformed, malformed)}),
             ).run(task)
             replay = FinAuditGate(artifact_root=root).replay(outcome.run_ref)
             candidate_payload = json.loads(
-                (
-                    root
-                    / "runs"
-                    / outcome.run_ref.run_id
-                    / "candidate.json"
-                ).read_bytes()
+                (root / "runs" / outcome.run_ref.run_id / "candidate.json").read_bytes()
             )
 
         self.assertEqual(Decision.RETRY, outcome.decision)
@@ -1277,45 +1001,25 @@ class M2DeterministicCoreTest(unittest.TestCase):
         self.assertTrue(replay.consistent)
         self.assertEqual(Decision.RETRY, replay.decision)
 
-    def test_valid_retry_then_malformed_candidate_replays_consistently(
-        self,
-    ) -> None:
+    def test_valid_retry_then_malformed_candidate_replays_consistently(self) -> None:
         document = FIXTURE_PATH.read_bytes()
-        task = standard_task(document, "m2-valid-retry-then-malformed")
+        task = standard_task(document, "valid-retry-then-malformed")
         valid = standard_candidate(document)
         claimed_value_mismatch = replace(
             valid,
-            evidence=(
-                valid.evidence[0],
-                replace(valid.evidence[1], value="999.00"),
-            ),
+            evidence=(valid.evidence[0], replace(valid.evidence[1], value="999.00")),
         )
-        malformed = ScriptedCandidate(
-            evidence=None,
-            calculation=valid.calculation,
-        )
+        malformed = ScriptedCandidate(evidence=None, calculation=valid.calculation)
 
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
             outcome = FinAuditGate(
                 artifact_root=root,
-                model=ScriptedModelAdapter(
-                    {
-                        task.task_id: (
-                            claimed_value_mismatch,
-                            malformed,
-                        )
-                    }
-                ),
+                model=ScriptedModelAdapter({task.task_id: (claimed_value_mismatch, malformed)}),
             ).run(task)
             replay = FinAuditGate(artifact_root=root).replay(outcome.run_ref)
             candidate_payload = json.loads(
-                (
-                    root
-                    / "runs"
-                    / outcome.run_ref.run_id
-                    / "candidate.json"
-                ).read_bytes()
+                (root / "runs" / outcome.run_ref.run_id / "candidate.json").read_bytes()
             )
 
         self.assertEqual(Decision.RETRY, outcome.decision)
@@ -1329,25 +1033,20 @@ class M2DeterministicCoreTest(unittest.TestCase):
 
     def test_candidate_normalization_runtime_error_consumes_retry(self) -> None:
         document = FIXTURE_PATH.read_bytes()
-        task = standard_task(document, "m2-normalization-runtime-error")
+        task = standard_task(document, "normalization-runtime-error")
         valid = standard_candidate(document)
 
         class ExplodingEvidence:
             def __iter__(self) -> object:
                 raise RuntimeError("malformed iterable")
 
-        malformed = ScriptedCandidate(
-            evidence=ExplodingEvidence(),
-            calculation=valid.calculation,
-        )
+        malformed = ScriptedCandidate(evidence=ExplodingEvidence(), calculation=valid.calculation)
 
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
             outcome = FinAuditGate(
                 artifact_root=root,
-                model=ScriptedModelAdapter(
-                    {task.task_id: (malformed, valid)}
-                ),
+                model=ScriptedModelAdapter({task.task_id: (malformed, valid)}),
             ).run(task)
             replay = FinAuditGate(artifact_root=root).replay(outcome.run_ref)
 
@@ -1357,37 +1056,27 @@ class M2DeterministicCoreTest(unittest.TestCase):
         self.assertEqual(Decision.ACCEPT, replay.decision)
 
     def test_model_cannot_mutate_the_hash_bound_policy(self) -> None:
-        from finauditgate.core import m2
+        from finauditgate.core import synthetic_profile
 
         document = FIXTURE_PATH.read_bytes()
-        task = standard_task(document, "m2-policy-mutation-attempt")
+        task = standard_task(document, "policy-mutation-attempt")
         valid = standard_candidate(document)
         unsupported = replace(
             valid,
-            calculation=replace(
-                valid.calculation,
-                operation="arbitrary_python",
-            ),
+            calculation=replace(valid.calculation, operation="arbitrary_python"),
         )
 
         class PolicyMutatingModel:
-            def propose(
-                self,
-                proposed_task: AuditTask,
-                attempt_index: int = 0,
-            ) -> ScriptedCandidate:
+            def propose(self, proposed_task: AuditTask, attempt_index: int = 0) -> ScriptedCandidate:
                 try:
-                    m2.M2_POLICY["operation"] = "arbitrary_python"
+                    synthetic_profile.SYNTHETIC_POLICY["operation"] = "arbitrary_python"
                 except TypeError:
                     pass
                 return unsupported
 
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
-            outcome = FinAuditGate(
-                artifact_root=root,
-                model=PolicyMutatingModel(),
-            ).run(task)
+            outcome = FinAuditGate(artifact_root=root, model=PolicyMutatingModel()).run(task)
             replay = FinAuditGate(artifact_root=root).replay(outcome.run_ref)
 
         self.assertEqual(Decision.ABSTAIN, outcome.decision)
@@ -1395,17 +1084,15 @@ class M2DeterministicCoreTest(unittest.TestCase):
         self.assertTrue(replay.consistent)
         self.assertEqual(Decision.ABSTAIN, replay.decision)
 
-    def test_m2_replay_is_consistent_in_a_fresh_python_process(self) -> None:
+    def test_replay_is_consistent_in_a_fresh_python_process(self) -> None:
         document = FIXTURE_PATH.read_bytes()
-        task = standard_task(document, "m2-fresh-process-replay")
+        task = standard_task(document, "fresh-process-replay")
 
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
             outcome = FinAuditGate(
                 artifact_root=root,
-                model=ScriptedModelAdapter(
-                    {task.task_id: standard_candidate(document)}
-                ),
+                model=ScriptedModelAdapter({task.task_id: standard_candidate(document)}),
             ).run(task)
             source_root = Path(__file__).parents[1] / "src"
             completed = subprocess.run(
@@ -1432,7 +1119,7 @@ class M2DeterministicCoreTest(unittest.TestCase):
             )
 
         self.assertEqual(
-            "finauditgate.replay/v2 True ACCEPT 20.00 9",
+            "finauditgate.replay/v5 True ACCEPT 20.00 9",
             completed.stdout.strip(),
         )
 

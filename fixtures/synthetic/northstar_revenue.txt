@@ -1,3 +1,0 @@
-issuer=Northstar Components;synthetic=true
-metric=revenue;period=FY2024;value=100.00;unit=USD_MILLION
-metric=revenue;period=FY2025;value=120.00;unit=USD_MILLION

@@ -1,6 +1,8 @@
 # Internal Seams
 
-Only add an Interface here when at least two Adapters genuinely vary. The first planned real Seam is model candidate generation: scripted versus one local-model Adapter.
+`model.py` defines the one internal Seam that genuinely varies: candidate
+generation (`CandidateModel.propose`), with the scripted Adapter and the local
+Ollama Adapter as its two implementations, plus the `ModelTraceReceipt` a
+traced Adapter returns alongside its proposal.
 
-Source and artifact-store Interfaces remain proposals until their second Adapter or test use proves the variation is real.
-
+Add another Seam here only when a second implementation actually exists.

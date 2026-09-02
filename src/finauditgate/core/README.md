@@ -1,14 +1,12 @@
-# Core Implementation
+# Core
 
-Home of the FinAuditGate Module: `run()` / `replay()`, machine-gate validation,
-evidence ledger, deterministic calculation, and artifact invariants. Case,
-Workpaper, human Review, and Change Packet export are owned by the separate
-FinResearchOps Application Module, not this core.
+Home of the FinAuditGate Module: `run()` / `replay()` in `engine.py`, the
+bounded proposal snapshot codec in `proposal_snapshot.py`, the one public
+synthetic profile and its alias registries in `synthetic_profile.py`, private
+validation profiles in `profiles.py` and `private_profile.py`, offline trace
+verification in `model_trace.py`, and canonical serialization plus append-once
+writes in `artifacts.py`.
 
-Current status is `PARTIAL`: two exact content-bound synthetic profiles,
-frozen-byte locators, versioned M2 semantic registries, deterministic Decimal
-lineage, a one-retry/two-attempt ceiling, four machine decisions, append-once
-artifacts, and offline replay/v1 and replay/v2 exist. The registries are bounded
-to the frozen profiles; universal parsing, source authenticity, real-source
-behavior, and a real model remain unimplemented. Internal classes must not
-expand the external Interface.
+Case, Workpaper, human Review, and Change Packet export belong to the separate
+Application Module, not here. Internal classes must not expand the external
+Interface.
