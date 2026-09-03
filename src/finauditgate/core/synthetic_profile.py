@@ -297,27 +297,21 @@ def evaluate_profiled_candidate(
             "scale": evidence.scale,
             "sign": evidence.sign,
         }
-        if record != claims:
-            if (
-                record.get("value") != claims.get("value")
-                and {
-                    key: value
-                    for key, value in record.items()
-                    if key != "value"
-                }
-                == {
-                    key: value
-                    for key, value in claims.items()
-                    if key != "value"
-                }
-            ):
-                raise ValidationFailure(
-                    Decision.RETRY,
-                    "CLAIMED_VALUE_MISMATCH",
-                )
+        # The model speaks the closed tool vocabulary; the document speaks
+        # the issuer's labels.  A claim agrees with the record when both are
+        # the same label or resolve to the same canonical registry entry.
+        if any(
+            not _labels_agree(policy, registry_name, record[key], claims[key])
+            for registry_name, key in _CLAIM_REGISTRIES
+        ):
             raise ValidationFailure(
                 Decision.RETRY,
                 "CLAIMED_EVIDENCE_MISMATCH",
+            )
+        if record["value"] != claims["value"]:
+            raise ValidationFailure(
+                Decision.RETRY,
+                "CLAIMED_VALUE_MISMATCH",
             )
         try:
             value = Decimal(record["value"])
@@ -506,18 +500,53 @@ def _parse_record(record: str) -> dict[str, str]:
     return parsed
 
 
+_CLAIM_REGISTRIES = (
+    ("metric", "metric"),
+    ("metric_basis", "basis"),
+    ("fiscal_period", "period"),
+    ("currency", "currency"),
+    ("unit", "unit"),
+    ("scale", "scale"),
+    ("sign", "sign"),
+)
+
+
+def _matches(
+    policy: dict[str, object],
+    registry_name: str,
+    label: str,
+) -> list[str]:
+    """Every canonical entry the label names, by its own key or an alias."""
+
+    normalized_label = _normalize_label(label)
+    registry: dict[str, list[str]] = policy["registries"][registry_name]
+    return [
+        canonical
+        for canonical, aliases in registry.items()
+        if normalized_label == _normalize_label(canonical)
+        or normalized_label in {_normalize_label(alias) for alias in aliases}
+    ]
+
+
+def _labels_agree(
+    policy: dict[str, object],
+    registry_name: str,
+    record_label: str,
+    claim: str,
+) -> bool:
+    if _normalize_label(record_label) == _normalize_label(claim):
+        return True
+    record_matches = _matches(policy, registry_name, record_label)
+    claim_matches = _matches(policy, registry_name, claim)
+    return len(record_matches) == 1 and record_matches == claim_matches
+
+
 def _resolve(
     policy: dict[str, object],
     registry_name: str,
     label: str,
 ) -> str:
-    normalized_label = _normalize_label(label)
-    registry: dict[str, list[str]] = policy["registries"][registry_name]
-    matches = [
-        canonical
-        for canonical, aliases in registry.items()
-        if normalized_label in {_normalize_label(alias) for alias in aliases}
-    ]
+    matches = _matches(policy, registry_name, label)
     reason_prefix = {
         "fiscal_period": "FISCAL_PERIOD",
         "metric": "METRIC",

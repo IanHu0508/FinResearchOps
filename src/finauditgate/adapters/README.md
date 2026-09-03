@@ -11,6 +11,14 @@ Two implementations of the `CandidateModel.propose` Seam:
    `ollama_contract.py` are shared with the offline verifier, so a saved trace
    can only ever claim the proposal its own bytes produce.
 
+The tool schema is closed: evidence ids are `current` and `comparison`;
+metric, basis, unit, scale and sign are enumerations; `value` is a plain
+decimal string; `period` is `FYyyyy` or `yyyy-mm-dd`; `exact_span` is the
+number as printed or the complete document line that carries it, and must be
+unique in the document. The decoder rejects anything outside that vocabulary
+before the core sees it, so the model and the reviewed profiles speak the same
+words and the gate never has to guess what a label meant.
+
 The Adapter refuses redirects, ignores environment proxies, requires the
 installed tag to carry the frozen digest, and records the daemon version
 without gating on it. A shared daemon cannot prove which model bytes produced a

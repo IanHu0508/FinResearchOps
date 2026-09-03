@@ -1,4 +1,12 @@
-"""Single schema/codec source for the local model's candidate tool."""
+"""Single schema/codec source for the local model's candidate tool.
+
+The tool schema is closed.  Evidence ids, metric, basis, unit, scale and sign
+are enumerations; `value` is a plain decimal string; `period` follows one
+format; `exact_span` is one complete document line.  The model learns this
+vocabulary from the schema itself and the decoder rejects anything outside it,
+so a proposal that reaches the gate already speaks the vocabulary the reviewed
+profiles and the synthetic registries are written in.
+"""
 
 from __future__ import annotations
 
@@ -14,6 +22,26 @@ from finauditgate.ports.model import (
 
 TOOL_NAME = "propose_financial_candidate"
 
+EVIDENCE_IDS = ("current", "comparison")
+METRICS = (
+    "revenue",
+    "gross_profit",
+    "operating_income",
+    "profit_for_the_year",
+    "profit_attributable_to_equity_holders",
+    "basic_eps",
+    "diluted_eps",
+    "total_assets",
+    "total_liabilities",
+    "total_equity",
+    "sales_volume",
+    "other",
+)
+METRIC_BASES = ("REPORTED", "ADJUSTED")
+UNITS = ("MONETARY", "PER_SHARE", "COUNT", "PERCENT")
+SCALES = ("UNIT", "THOUSAND", "MILLION", "BILLION")
+SIGNS = ("POSITIVE", "NEGATIVE")
+
 
 class ToolContractError(ValueError):
     """A closed tool argument failed the shared schema/codec contract."""
@@ -27,7 +55,8 @@ class ToolContractError(ValueError):
 class _StringRule:
     error_code: str
     const: str | None = None
-    const_error_code: str | None = None
+    enum: tuple[str, ...] | None = None
+    description: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -45,34 +74,142 @@ class _ObjectRule:
 
 _Rule: TypeAlias = _StringRule | _ArrayRule | _ObjectRule
 
+_NOT_ALLOWLISTED = "TOOL_ARGUMENT_NOT_ALLOWLISTED"
 
-def _string(error_code: str, *, const: str | None = None) -> _StringRule:
+
+def _string(
+    error_code: str,
+    *,
+    const: str | None = None,
+    enum: tuple[str, ...] | None = None,
+    description: str | None = None,
+) -> _StringRule:
     return _StringRule(
         error_code=error_code,
         const=const,
-        const_error_code=(
-            "TOOL_ARGUMENT_NOT_ALLOWLISTED" if const is not None else None
-        ),
+        enum=enum,
+        description=description,
     )
 
 
 _EVIDENCE_ERROR = "EVIDENCE_ARGUMENT_SHAPE_INVALID"
 _CALCULATION_ERROR = "CALCULATION_ARGUMENT_SHAPE_INVALID"
 _EVIDENCE_RULE = _ObjectRule(
-    fields=tuple(
-        (name, _string(_EVIDENCE_ERROR))
-        for name in (
+    fields=(
+        (
             "evidence_id",
+            _string(
+                _EVIDENCE_ERROR,
+                enum=EVIDENCE_IDS,
+                description=(
+                    "current for the later period named in the question; "
+                    "comparison for the earlier period."
+                ),
+            ),
+        ),
+        (
             "exact_span",
+            _string(
+                _EVIDENCE_ERROR,
+                description=(
+                    "The cited number exactly as printed (751,766), or the "
+                    "complete document line that contains it, copied "
+                    "byte-for-byte. The span must occur exactly once in the "
+                    "document, so copy the complete line when the number "
+                    "alone repeats."
+                ),
+            ),
+        ),
+        (
             "metric",
+            _string(
+                _EVIDENCE_ERROR,
+                enum=METRICS,
+                description=(
+                    "The financial line item; other when none of the names "
+                    "fits."
+                ),
+            ),
+        ),
+        (
             "metric_basis",
+            _string(
+                _EVIDENCE_ERROR,
+                enum=METRIC_BASES,
+                description=(
+                    "REPORTED for IFRS, GAAP or as-reported figures; "
+                    "ADJUSTED for non-IFRS, non-GAAP or adjusted figures."
+                ),
+            ),
+        ),
+        (
             "period",
+            _string(
+                _EVIDENCE_ERROR,
+                description=(
+                    "FYyyyy for a full fiscal-year flow (FY2025 for the year "
+                    "ended 31 December 2025); yyyy-mm-dd for a balance as at "
+                    "a date (2025-12-31)."
+                ),
+            ),
+        ),
+        (
             "value",
+            _string(
+                _EVIDENCE_ERROR,
+                description=(
+                    "The cited number as a plain decimal string: digits, an "
+                    "optional leading minus and an optional decimal point; no "
+                    "thousands separators, currency symbols or spaces "
+                    "(751,766 becomes 751766; (1,234) becomes -1234)."
+                ),
+            ),
+        ),
+        (
             "currency",
+            _string(
+                _EVIDENCE_ERROR,
+                description=(
+                    "The currency abbreviation printed in the document, for "
+                    "example RMB, USD, HKD or EUR."
+                ),
+            ),
+        ),
+        (
             "unit",
+            _string(
+                _EVIDENCE_ERROR,
+                enum=UNITS,
+                description=(
+                    "MONETARY for currency amounts, PER_SHARE for per-share "
+                    "amounts, COUNT for share or unit counts, PERCENT for "
+                    "percentages."
+                ),
+            ),
+        ),
+        (
             "scale",
+            _string(
+                _EVIDENCE_ERROR,
+                enum=SCALES,
+                description=(
+                    "The scale stated in the table heading (RMB million is "
+                    "MILLION); per-share amounts and unscaled figures are "
+                    "UNIT."
+                ),
+            ),
+        ),
+        (
             "sign",
-        )
+            _string(
+                _EVIDENCE_ERROR,
+                enum=SIGNS,
+                description=(
+                    "NEGATIVE when the number is printed with a minus sign "
+                    "or in parentheses."
+                ),
+            ),
+        ),
     ),
     error_code=_EVIDENCE_ERROR,
 )
@@ -85,7 +222,7 @@ _CALCULATION_RULE = _ObjectRule(
         (
             "operand_ids",
             _ArrayRule(
-                item=_string(_CALCULATION_ERROR),
+                item=_string(_CALCULATION_ERROR, enum=EVIDENCE_IDS),
                 length=2,
                 error_code=_CALCULATION_ERROR,
             ),
@@ -220,11 +357,16 @@ class CandidateToolContract:
 
 def _json_schema(rule: _Rule) -> dict[str, object]:
     if isinstance(rule, _StringRule):
-        return (
+        schema: dict[str, object] = (
             {"const": rule.const}
             if rule.const is not None
             else {"type": "string"}
         )
+        if rule.enum is not None:
+            schema["enum"] = list(rule.enum)
+        if rule.description is not None:
+            schema["description"] = rule.description
+        return schema
     if isinstance(rule, _ArrayRule):
         return {
             "type": "array",
@@ -249,9 +391,9 @@ def _decode(rule: _Rule, value: object) -> object:
         if type(value) is not str or not value.strip():
             raise ToolContractError(rule.error_code)
         if rule.const is not None and value != rule.const:
-            raise ToolContractError(
-                rule.const_error_code or rule.error_code
-            )
+            raise ToolContractError(_NOT_ALLOWLISTED)
+        if rule.enum is not None and value not in rule.enum:
+            raise ToolContractError(_NOT_ALLOWLISTED)
         return value
     if isinstance(rule, _ArrayRule):
         if type(value) is not list or len(value) != rule.length:

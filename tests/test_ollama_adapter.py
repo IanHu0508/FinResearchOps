@@ -120,33 +120,33 @@ def _chat_payload(
                         "arguments": {
                             "evidence": [
                                 {
-                                    "evidence_id": "revenue_prior",
+                                    "evidence_id": "comparison",
                                     "exact_span": PRIOR,
-                                    "metric": "Net sales",
-                                    "metric_basis": "Reported",
-                                    "period": "Year ended 2024-12-31",
+                                    "metric": "revenue",
+                                    "metric_basis": "REPORTED",
+                                    "period": "FY2024",
                                     "value": "125.00",
-                                    "currency": "US dollar",
-                                    "unit": "Monetary",
-                                    "scale": "Millions",
-                                    "sign": "Positive",
+                                    "currency": "USD",
+                                    "unit": "MONETARY",
+                                    "scale": "MILLION",
+                                    "sign": "POSITIVE",
                                 },
                                 {
-                                    "evidence_id": "revenue_current",
+                                    "evidence_id": "current",
                                     "exact_span": CURRENT,
-                                    "metric": "Total revenue",
-                                    "metric_basis": "IFRS reported",
-                                    "period": "FY 2025",
+                                    "metric": "revenue",
+                                    "metric_basis": "REPORTED",
+                                    "period": "FY2025",
                                     "value": "150.00",
                                     "currency": "USD",
-                                    "unit": "Currency amount",
-                                    "scale": "Million",
-                                    "sign": "As presented",
+                                    "unit": "MONETARY",
+                                    "scale": "MILLION",
+                                    "sign": "POSITIVE",
                                 },
                             ],
                             "calculation": {
                                 "operation": operation,
-                                "operand_ids": ["revenue_current", "revenue_prior"],
+                                "operand_ids": ["current", "comparison"],
                                 "output_unit": "PERCENT",
                                 "quantize": "0.01",
                             },
@@ -263,11 +263,11 @@ class OllamaModelAdapterTest(unittest.TestCase):
 
         self.assertIsNone(execution.failure_code)
         self.assertEqual(2, len(candidate.evidence))
-        self.assertEqual("revenue_prior", candidate.evidence[0].evidence_id)
+        self.assertEqual("comparison", candidate.evidence[0].evidence_id)
         self.assertEqual(document.index(PRIOR.encode()), candidate.evidence[0].byte_start)
-        self.assertEqual("revenue_current", candidate.evidence[1].evidence_id)
+        self.assertEqual("current", candidate.evidence[1].evidence_id)
         self.assertEqual(
-            ("revenue_current", "revenue_prior"),
+            ("current", "comparison"),
             candidate.calculation.operand_ids,
         )
 

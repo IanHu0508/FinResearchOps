@@ -10,6 +10,8 @@ after the task cutoff, and a question with no admissible evidence at all.
 
 from __future__ import annotations
 
+import re
+
 from decimal import (
     Context,
     Decimal,
@@ -108,19 +110,26 @@ def evaluate_private_candidate(
             )
         seen_ids.add(evidence.evidence_id)
         frozen = frozen_by_id[evidence.evidence_id]
+        # The reviewed locator is the evidence region (typically one table
+        # row).  The model may cite that whole region or the number inside
+        # it; anything outside the region is not the reviewed evidence.
         if (
             type(evidence.byte_start) is not int
             or type(evidence.byte_end) is not int
-            or evidence.byte_start != frozen["byte_start"]
-            or evidence.byte_end != frozen["byte_end"]
             or not 0 <= evidence.byte_start < evidence.byte_end <= len(document)
+            or not (
+                frozen["byte_start"]
+                <= evidence.byte_start
+                < evidence.byte_end
+                <= frozen["byte_end"]
+            )
         ):
             raise ValidationFailure(
                 Decision.RETRY,
                 "EVIDENCE_LOCATOR_INVALID",
             )
-        span = document[evidence.byte_start : evidence.byte_end]
-        if sha256_hex(span) != frozen["span_sha256"]:
+        reviewed = document[frozen["byte_start"] : frozen["byte_end"]]
+        if sha256_hex(reviewed) != frozen["span_sha256"]:
             raise ValidationFailure(
                 Decision.RETRY,
                 "EVIDENCE_SPAN_HASH_MISMATCH",
@@ -129,6 +138,12 @@ def evaluate_private_candidate(
             raise ValidationFailure(
                 Decision.RETRY,
                 "CLAIMED_VALUE_MISMATCH",
+            )
+        span = document[evidence.byte_start : evidence.byte_end]
+        if not _span_carries_value(span, frozen["value"]):
+            raise ValidationFailure(
+                Decision.RETRY,
+                "EVIDENCE_LOCATOR_INVALID",
             )
         semantics = frozen["normalized_semantics"]
         claims = {
@@ -165,6 +180,11 @@ def evaluate_private_candidate(
                 "locator": {
                     "byte_start": evidence.byte_start,
                     "byte_end": evidence.byte_end,
+                    "span_sha256": sha256_hex(span),
+                },
+                "reviewed_locator": {
+                    "byte_start": frozen["byte_start"],
+                    "byte_end": frozen["byte_end"],
                     "span_sha256": frozen["span_sha256"],
                 },
                 "verification": "VERIFIED_AGAINST_FROZEN_PRIVATE_ALLOWLIST",
@@ -265,3 +285,18 @@ def evaluate_private_candidate(
         "result": format(result, "f"),
     }
     return ledger, formula
+
+
+def _span_carries_value(span: bytes, value: str) -> bool:
+    """True when the cited bytes print the reviewed value.
+
+    Thousands separators and spaces are ignored; a leading minus or
+    parentheses are the sign's business, not the locator's.
+    """
+
+    try:
+        printed = span.decode("utf-8")
+    except UnicodeDecodeError:
+        return False
+    digits = re.sub(r"[,\s]", "", printed)
+    return value.lstrip("-") in digits

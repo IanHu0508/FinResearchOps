@@ -2,7 +2,7 @@
   "schema_version": "finauditgate.local-model-route/v3",
   "runtime": {
     "name": "ollama",
-    "smoke_tested_version": "0.32.11",
+    "smoke_tested_version": "0.33.1",
     "version_policy": "OBSERVED_AND_RECORDED_IN_EVERY_TRACE_NOT_A_GATE",
     "transport": "LOOPBACK_HTTP_ONLY",
     "default_endpoint": "http://127.0.0.1:11434",
@@ -35,8 +35,8 @@
     "execution_identity": "SHARED_DAEMON_REQUEST_SCOPED_MODEL_BYTES_NOT_PROVEN",
     "trace_schema": "finauditgate.model-call-trace/v6",
     "receipt_schema": "finauditgate.model-trace-receipt/v3",
-    "prompt_sha256": "2b7087660cad16ea3e6d1d9d43b2b9ecbbb54c864f2f234a8687095d25b2120c",
-    "tool_schema_sha256": "4604bc2e8c382e12af94dfc7e0143cb0234b8afaf254cdbc0147fddfa4f105ca",
+    "prompt_sha256": "4aa56866a464dbfeea27211e24f7cb8263f4120c59406f2508539fb8e9ac9f38",
+    "tool_schema_sha256": "45a96c7dbb1d3228c76fd161ba91371988f3b7f889344aa2915c75c3de0953d2",
     "generation_config_sha256": "7cc9b30d73f8c7d2cf0452296aded88671de2c732c55a6502a1bde07b460d594"
   },
   "budgets": {
@@ -50,13 +50,13 @@
     "seed": 0
   },
   "local_runtime_observation": {
-    "observed_on": "2026-08-14",
+    "observed_on": "2026-09-03",
     "source": "ollama_api_ps",
-    "reported_processor": "100% GPU",
-    "reported_loaded_size_bytes": 3293262642,
-    "reported_size_vram_bytes": 3293262642,
+    "runtime_version": "0.33.1",
+    "reported_loaded_size_bytes": 3298841067,
+    "reported_size_vram_bytes": 3298841067,
     "active_context_length": 4096,
-    "scope": "LOCAL_SYNTHETIC_SMOKE_ONLY"
+    "scope": "LOCAL_PRIVATE_DEV_REAL_TEXT_RUN"
   },
   "private_artifacts": "CONTENT_ADDRESSED_OUTSIDE_PUBLIC_REPOSITORY",
   "weights_in_repository": false,

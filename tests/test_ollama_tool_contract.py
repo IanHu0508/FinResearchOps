@@ -2,6 +2,12 @@ import unittest
 
 from finauditgate.adapters.ollama_contract import (
     CANDIDATE_TOOL_CONTRACT,
+    EVIDENCE_IDS,
+    METRIC_BASES,
+    METRICS,
+    SCALES,
+    SIGNS,
+    UNITS,
     ToolContractError,
 )
 
@@ -18,33 +24,33 @@ def _arguments() -> dict[str, object]:
     return {
         "evidence": [
             {
-                "evidence_id": "prior",
+                "evidence_id": "comparison",
                 "exact_span": DOCUMENT.splitlines()[0].decode("utf-8"),
-                "metric": "Revenue",
-                "metric_basis": "Reported",
+                "metric": "revenue",
+                "metric_basis": "REPORTED",
                 "period": "FY2024",
                 "value": "100",
                 "currency": "USD",
-                "unit": "Monetary",
-                "scale": "Million",
-                "sign": "Positive",
+                "unit": "MONETARY",
+                "scale": "MILLION",
+                "sign": "POSITIVE",
             },
             {
                 "evidence_id": "current",
                 "exact_span": DOCUMENT.splitlines()[1].decode("utf-8"),
-                "metric": "Revenue",
-                "metric_basis": "Reported",
+                "metric": "revenue",
+                "metric_basis": "REPORTED",
                 "period": "FY2025",
                 "value": "120",
                 "currency": "USD",
-                "unit": "Monetary",
-                "scale": "Million",
-                "sign": "Positive",
+                "unit": "MONETARY",
+                "scale": "MILLION",
+                "sign": "POSITIVE",
             },
         ],
         "calculation": {
             "operation": "growth_rate_percent",
-            "operand_ids": ["current", "prior"],
+            "operand_ids": ["current", "comparison"],
             "output_unit": "PERCENT",
             "quantize": "0.01",
         },
@@ -60,7 +66,28 @@ class OllamaToolContractTest(unittest.TestCase):
             tool_schema["function"]["parameters"]["additionalProperties"]
         )
         self.assertEqual(2, len(candidate.evidence))
-        self.assertEqual(("current", "prior"), candidate.calculation.operand_ids)
+        self.assertEqual(
+            ("current", "comparison"),
+            candidate.calculation.operand_ids,
+        )
+
+    def test_schema_publishes_the_closed_vocabulary(self) -> None:
+        parameters = CANDIDATE_TOOL_CONTRACT.tool_schema()["function"]["parameters"]
+        evidence = parameters["properties"]["evidence"]["items"]["properties"]
+        operand_items = parameters["properties"]["calculation"]["properties"][
+            "operand_ids"
+        ]["items"]
+
+        self.assertEqual(list(EVIDENCE_IDS), evidence["evidence_id"]["enum"])
+        self.assertEqual(list(EVIDENCE_IDS), operand_items["enum"])
+        self.assertEqual(list(METRICS), evidence["metric"]["enum"])
+        self.assertEqual(list(METRIC_BASES), evidence["metric_basis"]["enum"])
+        self.assertEqual(list(UNITS), evidence["unit"]["enum"])
+        self.assertEqual(list(SCALES), evidence["scale"]["enum"])
+        self.assertEqual(list(SIGNS), evidence["sign"]["enum"])
+        for free_text in ("exact_span", "period", "value", "currency"):
+            self.assertNotIn("enum", evidence[free_text])
+            self.assertTrue(evidence[free_text]["description"])
 
     def test_unknown_and_missing_fields_fail_closed(self) -> None:
         unknown = _arguments()
@@ -87,6 +114,31 @@ class OllamaToolContractTest(unittest.TestCase):
         with self.assertRaises(ToolContractError) as enumerated:
             CANDIDATE_TOOL_CONTRACT.decode(wrong_enum, DOCUMENT)
         self.assertEqual("TOOL_ARGUMENT_NOT_ALLOWLISTED", enumerated.exception.code)
+
+    def test_vocabulary_outside_the_enumerations_fails_closed(self) -> None:
+        for field_name, label in (
+            ("evidence_id", "revenue_2025"),
+            ("metric", "Revenues"),
+            ("metric_basis", "Year ended 31 December"),
+            ("unit", "RMB’Million"),
+            ("scale", "Million"),
+            ("sign", "+"),
+        ):
+            with self.subTest(field=field_name):
+                arguments = _arguments()
+                arguments["evidence"][1][field_name] = label
+                with self.assertRaises(ToolContractError) as rejected:
+                    CANDIDATE_TOOL_CONTRACT.decode(arguments, DOCUMENT)
+                self.assertEqual(
+                    "TOOL_ARGUMENT_NOT_ALLOWLISTED",
+                    rejected.exception.code,
+                )
+
+        free_ids = _arguments()
+        free_ids["calculation"]["operand_ids"] = ["revenue_2025", "comparison"]
+        with self.assertRaises(ToolContractError) as operand:
+            CANDIDATE_TOOL_CONTRACT.decode(free_ids, DOCUMENT)
+        self.assertEqual("TOOL_ARGUMENT_NOT_ALLOWLISTED", operand.exception.code)
 
 
 if __name__ == "__main__":

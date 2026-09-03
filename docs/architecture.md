@@ -56,6 +56,16 @@ Each artifact has exactly one schema version; see
 tag and digest, system prompt, tool schema, generation config, and budgets.
 Their hashes are part of every trace.
 
+The tool schema is closed (`adapters/ollama_contract.py`): fixed evidence ids
+(`current`, `comparison`), enumerated metric, basis, unit, scale and sign, a
+plain-decimal `value`, one `period` format, and `exact_span` as the number
+as printed or the complete document line that carries it. The synthetic gate
+resolves both the document's label and the model's claim through the same
+alias registry and requires them to agree. The private gate compares the
+claim's semantics and value with the reviewed profile literally, and accepts
+the cited bytes only inside the reviewed line and only if they print the
+value. In both cases the model, not the gate, has to name things correctly.
+
 Per attempt the Adapter (`adapters/ollama.py`):
 
 1. records the daemon version from `/api/version` (observed, never a gate);

@@ -21,7 +21,9 @@ from finauditgate.application import (
 )
 from finauditgate.core.artifacts import canonical_json_bytes
 from finauditgate.core.model_trace import verify_raw_model_trace
+from finauditgate.core.private_profile import evaluate_private_candidate
 from finauditgate.core.profiles import PrivateDevValidationProfile
+from finauditgate.core.synthetic_profile import ValidationFailure
 from finauditgate.ports.model import (
     CalculationCandidate,
     EvidenceCandidate,
@@ -175,7 +177,7 @@ def _profile_payload(
         "accepted_risk_class": "LOW",
         "evidence_allowlist": [
             {
-                "evidence_id": "revenue_prior",
+                "evidence_id": "comparison",
                 "role": "COMPARISON",
                 "byte_start": prior_start,
                 "byte_end": prior_end,
@@ -186,7 +188,7 @@ def _profile_payload(
                 "normalized_semantics": {**semantics, "fiscal_period": "FY2024"},
             },
             {
-                "evidence_id": "revenue_current",
+                "evidence_id": "current",
                 "role": "CURRENT",
                 "byte_start": current_start,
                 "byte_end": current_end,
@@ -197,7 +199,7 @@ def _profile_payload(
         ],
         "calculation": {
             "operation": "growth_rate_percent",
-            "operand_ids": ["revenue_current", "revenue_prior"],
+            "operand_ids": ["current", "comparison"],
             "output_unit": "PERCENT",
             "quantize": "0.01",
             "decimal_context": {
@@ -246,7 +248,7 @@ def _candidate(document: bytes = NATURAL_DOCUMENT) -> ModelCandidate:
     return ModelCandidate(
         evidence=(
             EvidenceCandidate(
-                evidence_id="revenue_prior",
+                evidence_id="comparison",
                 byte_start=prior_start,
                 byte_end=prior_end,
                 metric="revenue",
@@ -259,7 +261,7 @@ def _candidate(document: bytes = NATURAL_DOCUMENT) -> ModelCandidate:
                 sign="POSITIVE",
             ),
             EvidenceCandidate(
-                evidence_id="revenue_current",
+                evidence_id="current",
                 byte_start=current_start,
                 byte_end=current_end,
                 metric="revenue",
@@ -274,7 +276,7 @@ def _candidate(document: bytes = NATURAL_DOCUMENT) -> ModelCandidate:
         ),
         calculation=CalculationCandidate(
             operation="growth_rate_percent",
-            operand_ids=("revenue_current", "revenue_prior"),
+            operand_ids=("current", "comparison"),
             output_unit="PERCENT",
             quantize="0.01",
         ),
@@ -558,7 +560,7 @@ class PrivateDevValidationProfileTest(unittest.TestCase):
                     base,
                     calculation=replace(
                         base.calculation,
-                        operand_ids=("revenue_prior", "revenue_current"),
+                        operand_ids=("comparison", "current"),
                     ),
                 ),
                 None,
@@ -593,6 +595,75 @@ class PrivateDevValidationProfileTest(unittest.TestCase):
 
             self.assertIsNot(Decision.ACCEPT, outcome.decision)
             self.assertIn(expected_reason, attempts["attempts"][0]["reason_codes"])
+
+    def test_citation_inside_the_reviewed_line_is_accepted(self) -> None:
+        """The reviewed span is a region; the model may cite the number in it."""
+
+        profile = PrivateDevValidationProfile.from_bytes(
+            canonical_json_bytes(_profile_payload(NATURAL_DOCUMENT))
+        )
+        evaluate = lambda candidate: evaluate_private_candidate(  # noqa: E731
+            NATURAL_DOCUMENT,
+            candidate,
+            _private_task(),
+            policy=profile.policy,
+            policy_sha256=profile.sha256,
+            semantics_sha256=profile.registries_sha256,
+        )
+        base = _candidate()
+        prior_number = _locator(NATURAL_DOCUMENT, b"125.00")
+        current_number = _locator(NATURAL_DOCUMENT, b"150.00")
+        narrowed = replace(
+            base,
+            evidence=(
+                replace(
+                    base.evidence[0],
+                    byte_start=prior_number[0],
+                    byte_end=prior_number[1],
+                ),
+                replace(
+                    base.evidence[1],
+                    byte_start=current_number[0],
+                    byte_end=current_number[1],
+                ),
+            ),
+        )
+
+        ledger, formula = evaluate(narrowed)
+
+        self.assertEqual("20.00", formula["result"])
+        self.assertEqual(
+            [list(prior_number), list(current_number)],
+            [
+                [node["locator"]["byte_start"], node["locator"]["byte_end"]]
+                for node in ledger["nodes"]
+            ],
+        )
+        for node, span in zip(ledger["nodes"], (b"125.00", b"150.00")):
+            self.assertEqual(
+                hashlib.sha256(span).hexdigest(),
+                node["locator"]["span_sha256"],
+            )
+        self.assertEqual(
+            [hashlib.sha256(PRIOR_SPAN).hexdigest(), hashlib.sha256(CURRENT_SPAN).hexdigest()],
+            [node["reviewed_locator"]["span_sha256"] for node in ledger["nodes"]],
+        )
+
+        label = _locator(NATURAL_DOCUMENT, b"FY2024 | Revenue")
+        label_only = replace(
+            base,
+            evidence=(
+                replace(base.evidence[0], byte_start=label[0], byte_end=label[1]),
+                base.evidence[1],
+            ),
+        )
+        with self.assertRaises(ValidationFailure) as rejected:
+            evaluate(label_only)
+        self.assertEqual(Decision.RETRY, rejected.exception.decision)
+        self.assertEqual(
+            ("EVIDENCE_LOCATOR_INVALID",),
+            rejected.exception.reason_codes,
+        )
 
     def test_post_cutoff_profile_returns_human_review_and_replays(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:

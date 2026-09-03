@@ -62,30 +62,35 @@ def _candidate(document: bytes) -> ModelCandidate:
         b"sign=As presented"
     )
 
-    def evidence(evidence_id: str, record: bytes) -> EvidenceCandidate:
-        values = dict(
-            field.split("=", 1) for field in record.decode("utf-8").split(";")
-        )
+    def evidence(
+        evidence_id: str,
+        record: bytes,
+        period: str,
+        value: str,
+    ) -> EvidenceCandidate:
         start = document.index(record)
         return EvidenceCandidate(
             evidence_id=evidence_id,
             byte_start=start,
             byte_end=start + len(record),
-            metric=values["metric"],
-            metric_basis=values["basis"],
-            period=values["period"],
-            value=values["value"],
-            currency=values["currency"],
-            unit=values["unit"],
-            scale=values["scale"],
-            sign=values["sign"],
+            metric="revenue",
+            metric_basis="REPORTED",
+            period=period,
+            value=value,
+            currency="USD",
+            unit="MONETARY",
+            scale="MILLION",
+            sign="POSITIVE",
         )
 
     return ModelCandidate(
-        evidence=(evidence("revenue_prior", prior), evidence("revenue_current", current)),
+        evidence=(
+            evidence("comparison", prior, "FY2024", "125.00"),
+            evidence("current", current, "FY2025", "150.00"),
+        ),
         calculation=CalculationCandidate(
             operation="growth_rate_percent",
-            operand_ids=("revenue_current", "revenue_prior"),
+            operand_ids=("current", "comparison"),
             output_unit="PERCENT",
             quantize="0.01",
         ),

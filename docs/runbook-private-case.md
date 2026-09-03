@@ -45,19 +45,39 @@ in every artifact.
 The profile is the answer key. Only build it from facts a reviewer has
 confirmed in the PDF.
 
+The model is bound to a closed tool vocabulary (`adapters/ollama_contract.py`),
+and the profile must follow the same conventions:
+
+- the reviewed span is the complete document line that carries the value,
+  without its leading and trailing whitespace: the evidence region. The model
+  may cite that whole line or just the number printed in it; the gate accepts
+  a citation only inside the reviewed region and only if it carries the value.
+  `--current-line` / `--comparison-line` take any unique substring of the line
+  and expand it; when both values sit on one table row, both spans are that
+  row. `--current-span` / `--comparison-span` take a verbatim span instead;
+- `value` is the plain decimal string (`751766`, not `751,766`);
+- `period` is `FY2025` for a fiscal-year flow and `2025-12-31` for a balance
+  as at a date;
+- metric, basis, unit, scale and sign come from the tool-schema enumerations
+  (`revenue`, `REPORTED`, `MONETARY`, `MILLION`, `POSITIVE`, ...); currency is
+  the abbreviation printed in the document (`RMB`).
+
 ```bash
 PYTHONPATH=src .venv/bin/python scripts/build_validation_profile.py \
   --document "$PRIV/datasets/dev/tencent/2025/cases/CASE-05/slice.txt" \
-  --source-id tencent-2025-annual-report \
+  --source-id tencent-holdings-2025-annual-report \
+  --document-name tencent-2025-annual-report__p130__CASE-05.txt \
   --published-at 2026-04-09 --cutoff 2026-05-01 \
   --question "What was Tencent's FY2025 revenue growth versus FY2024?" \
-  --current-span "Revenues 660,257" --current-value 660257 --current-period FY2025 \
-  --comparison-span "Revenues 609,015" --comparison-value 609015 --comparison-period FY2024 \
+  --current-line "751,766" --current-value 751766 --current-period FY2025 \
+  --comparison-line "660,257" --comparison-value 660257 --comparison-period FY2024 \
   --metric revenue --currency RMB --scale MILLION \
   --output "$PRIV/profiles/tencent-2025/CASE-05.json"
 ```
 
-Spans are located by unique byte search; if a span occurs twice, lengthen it.
+Spans are located by unique byte search; if a line occurs twice, use
+`--current-span` with a longer verbatim span. Pass the same `--document-name`
+to `create-case`; the profile and the task must name the document identically.
 
 For a question whose reviewed answer is "this document does not support it",
 build a no-evidence profile instead:
@@ -77,7 +97,8 @@ TRACES="$PRIV/model-traces"
 
 finresearchops --artifact-root "$ROOT" create-case --mode PRIVATE_DEV \
   --document "$PRIV/datasets/dev/tencent/2025/cases/CASE-05/slice.txt" \
-  --source-id tencent-2025-annual-report --published-at 2026-04-09 \
+  --document-name tencent-2025-annual-report__p130__CASE-05.txt \
+  --source-id tencent-holdings-2025-annual-report --published-at 2026-04-09 \
   --cutoff 2026-05-01 --question "What was Tencent's FY2025 revenue growth versus FY2024?"
 # -> {"case_ref":"case-…","status":"CREATED",…}
 
