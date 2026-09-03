@@ -11,11 +11,11 @@
 | CLI `finresearchops` | Implemented: six thin actions over the Application Interface | `tests/test_cli.py`, installed wheel `--help` |
 | Private validation profiles | Implemented: acceptable answer, post-cutoff document, no admissible evidence | `tests/test_private_dev_profile.py`, `scripts/build_validation_profile.py` |
 | Paired evaluation runner | Framework only, no results | `tests/test_paired_runner.py` |
-| Real issuer document (Tencent 2025 annual report) | Acquired locally under `private/`; text extracted; 12 candidate cases prepared; human QA signed for 1 of 12 (INCLUDE); that case run through the full chain | private workspace only |
-| Real-model results on real text | One case (FY2025 vs FY2024 total revenues, one income-statement slice): `ACCEPT` on the first attempt, answer 13.86 %, offline replay consistent, `APPROVE` recorded by the reviewer, proposal-only Packet exported | private workspace only |
-| Evaluation results | None; one case is an observation, not an evaluation | — |
+| Real issuer document (Tencent 2025 annual report) | Acquired locally under `private/`; text extracted; 12 candidate cases across six failure classes; human QA signed for all 12 (all INCLUDE); all 12 run through the full chain, replayed, and closed by the reviewer | private workspace only |
+| Real-model results on real text | Twelve reviewed cases, thirteen runs: at case level `ACCEPT` 5, `HUMAN_REVIEW` 5, `RETRY` 2; unsafe accepts 0; replay consistent 13 of 13; reviewer `APPROVE` 5 (Packets exported), `REJECT` 8, every refusal judged correct. Three of the accepts are one evidence pair on different slices | private workspace only; counts below |
+| Evaluation results | None; twelve reviewed cases are counted observations, not an evaluation, and no ungated baseline has been run | — |
 | User interface | None | — |
-| Git | Checkpoint commit on 2026-09-02 (parent `9c592f1`); route revision committed on 2026-09-03; no remote | `git log` |
+| Git | Checkpoint commit on 2026-09-02 (parent `9c592f1`); route revision and these counts committed on 2026-09-03; no remote | `git log` |
 
 ## What changed on 2026-09-03
 
@@ -63,9 +63,41 @@ The 2026-09-02 simplification (archived isolated route, one schema version per
 artifact, observed-not-gated daemon version) is described in the previous
 revision of this file and in `docs/architecture.md`.
 
+## Twelve reviewed cases on real text (2026-09-03)
+
+Each case is one reviewed slice of the Tencent 2025 annual report, one
+question, and one validation profile built from facts the reviewer signed
+off in the PDF. The local model (Qwen3-4B) is asked once, with one retry.
+
+| Failure class | Case A | Case B |
+|---|---|---|
+| cutoff | `HUMAN_REVIEW / POST_CUTOFF_DOCUMENT` (day-level post-cutoff; the model fabricated a candidate from the cover text) | `ACCEPT` (cutoff after publication) |
+| period | `ACCEPT` (income-statement flow) | `HUMAN_REVIEW / FISCAL_PERIOD_CONFLICT` (a balance-sheet date labelled as a fiscal year) |
+| metric | `ACCEPT` (as-reported figure chosen next to a non-IFRS column) | `RETRY` (the total column cited for a segment question, plus labels outside the vocabulary) |
+| unit | `HUMAN_REVIEW / METRIC_CONFLICT` (per-share figure labelled `other` / `PERCENT`) | `RETRY` (share count labelled with a scale word instead of `COUNT`) |
+| missing evidence | `HUMAN_REVIEW / NO_ADMISSIBLE_EVIDENCE` (a year printed on the cover proposed as a value) | `ACCEPT` (sub-row chosen correctly next to its parent and total) |
+| formula | `ACCEPT` on the reviewer's slice with column headers; `RETRY` on the same numbers without headers (digits invented, periods swapped) | `HUMAN_REVIEW / UNIT_CONFLICT` (per-share figure labelled `PERCENT`) |
+
+What the counts say and do not say:
+
+- no wrong answer passed the gate; every non-`ACCEPT` traces to a real model
+  error, a label outside the closed vocabulary, or a cutoff refusal by design;
+- the same two numbers were read correctly with three header lines in the
+  slice and misread without them; context, not the route, made the difference;
+- labels outside the vocabulary (a free-text metric, a currency or scale word
+  in `unit`) are rejected before the gate and therefore counted as `RETRY`,
+  which hides the financial error behind them; a later route revision should
+  add segment-revenue and share-count metrics, say that `MILLION` is a scale
+  and per-share figures are `PER_SHARE`, and define currency for non-monetary
+  quantities. No such change is made mid-batch;
+- the task cutoff is a date; a workpack cutoff one second before publication
+  can only be represented as the previous day;
+- how many of these the ungated model would have answered wrongly is the
+  paired-baseline question and has not been measured.
+
 ## Not proven
 
-No number in this repository is an evaluation result. One `ACCEPT` on one
-reviewed slice of one real filing, approved by one reviewer, is a single
-observation. Nothing here should be described as a completed agent, a
-benchmark, or a paper reproduction.
+No number in this repository is an evaluation result. Twelve reviewed cases
+on one real filing, judged by one reviewer, are counted observations with no
+baseline. Nothing here should be described as a completed agent, a benchmark,
+or a paper reproduction.
