@@ -20,6 +20,7 @@ import json
 from pathlib import Path
 import re
 
+from finauditgate.contracts import REVIEWED_PROFILE_MODES
 from finauditgate.core.artifacts import canonical_json_bytes, sha256_hex
 from finauditgate.private_storage import (
     PrivateWorkspaceAnchor,
@@ -186,7 +187,7 @@ def validate_profile_payload(payload: object) -> None:
         or Path(payload["document_name"]).name != payload["document_name"]
         or payload["declared_published_at"] != declared_published_at.isoformat()
         or payload["task_cutoff"] != task_cutoff.isoformat()
-        or payload["accepted_mode"] != "PRIVATE_DEV"
+        or payload["accepted_mode"] not in REVIEWED_PROFILE_MODES
         or payload["accepted_risk_class"] != "LOW"
     ):
         raise ValueError("PRIVATE_VALIDATION_PROFILE_INVALID")

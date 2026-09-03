@@ -17,6 +17,7 @@ from pathlib import Path
 
 from finauditgate.adapters.ollama_route import (
     GENERATION_CONFIG_SHA256,
+    MODEL_DIGEST,
     MAX_TRACE_BYTES,
     MODEL_ID,
     PROMPT_SHA256,
@@ -253,6 +254,11 @@ def _request_matches_frozen_route(
     if (
         receipt.provider != PROVIDER
         or receipt.model_id != MODEL_ID
+        # The tag is mutable, so the digest the daemon reported is the only
+        # model identity a saved trace carries.  Checking it here makes "this
+        # run used the frozen weights" a replayable fact rather than a
+        # precondition the online Adapter happened to enforce.
+        or receipt.observed_model_digest != MODEL_DIGEST
         or receipt.prompt_sha256 != PROMPT_SHA256
         or receipt.tool_schema_sha256 != TOOL_SCHEMA_SHA256
         or receipt.generation_config_sha256 != GENERATION_CONFIG_SHA256

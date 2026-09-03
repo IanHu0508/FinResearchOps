@@ -17,6 +17,7 @@ from pathlib import Path
 import re
 
 from finauditgate.contracts import (
+    REVIEWED_PROFILE_MODES,
     AuditOutcome,
     AuditTask,
     Decision,
@@ -173,7 +174,7 @@ class FinAuditGate:
             raise RuntimeError("run() requires a candidate model Adapter")
         if type(task) is not AuditTask:
             raise TypeError("task must be an AuditTask")
-        if task.mode == "PRIVATE_DEV":
+        if task.mode in REVIEWED_PROFILE_MODES:
             anchor = self._ensure_private_artifact_root()
             if (
                 self._private_dev_profile is not None
@@ -201,9 +202,9 @@ class FinAuditGate:
             raise TypeError("task could not be normalized") from exc
 
         profile: PrivateDevValidationProfile | None = None
-        if task.mode == "PRIVATE_DEV":
+        if task.mode in REVIEWED_PROFILE_MODES:
             if self._private_dev_profile is None:
-                raise RuntimeError("PRIVATE_DEV_VALIDATION_PROFILE_REQUIRED")
+                raise RuntimeError("REVIEWED_VALIDATION_PROFILE_REQUIRED")
             profile = self._private_dev_profile
         if profile is None:
             policy = SYNTHETIC_POLICY
@@ -277,7 +278,7 @@ class FinAuditGate:
                     else:
                         proposed = proposed.proposal
                 elif profile is not None:
-                    raise RuntimeError("PRIVATE_DEV_MODEL_TRACE_REQUIRED")
+                    raise RuntimeError("REVIEWED_MODEL_TRACE_REQUIRED")
                 if not attempt_reasons:
                     snapshot = proposal_snapshot(proposed)
                     snapshot_sha256 = sha256_hex(canonical_json_bytes(snapshot))

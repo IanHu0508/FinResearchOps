@@ -30,7 +30,7 @@ from finauditgate.ports.model import (
     ModelCandidate,
     ModelExecution,
 )
-from tests.test_model_trace_binding import _traced_execution
+from tests.test_model_trace_binding import _OneTraceModel, _traced_execution
 
 
 NATURAL_DOCUMENT = (
@@ -219,6 +219,7 @@ def _private_task(
     *,
     published_at: date = date(2026, 2, 15),
     cutoff: date = date(2026, 3, 1),
+    mode: str = "PRIVATE_DEV",
 ) -> AuditTask:
     return AuditTask(
         task_id=SOURCE_ID,
@@ -230,7 +231,7 @@ def _private_task(
             document_bytes=document,
             declared_published_at=published_at,
         ),
-        mode="PRIVATE_DEV",
+        mode=mode,
     )
 
 
@@ -303,6 +304,83 @@ def _profile(private: Path, payload: dict[str, object]) -> PrivateDevValidationP
 
 
 class PrivateDevValidationProfileTest(unittest.TestCase):
+    def test_post_freeze_transfer_runs_get_every_reviewed_guarantee(
+        self,
+    ) -> None:
+        """The transfer split is decided the same way, never more loosely.
+
+        A run on the second filing must require a reviewed profile, require a
+        private artifact root and a model trace, and be verified against the
+        same gate as development runs.  What differs is only that the mode is
+        recorded, so the two splits can never be pooled.
+        """
+
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            private = _workspace(temporary_directory)
+            task = _private_task(mode="POST_FREEZE_EVAL")
+            payload = _profile_payload(NATURAL_DOCUMENT)
+            payload["accepted_mode"] = "POST_FREEZE_EVAL"
+            profile = _profile(private, payload)
+            trace_root = private / "model-traces"
+            artifact_root = private / "artifacts" / "core"
+            execution = _traced_execution(
+                trace_root,
+                task,
+                _candidate(),
+            )
+            outcome = FinAuditGate(
+                artifact_root=artifact_root,
+                model=_OneTraceModel(execution),
+                model_trace_root=trace_root,
+                private_dev_profile=profile,
+            ).run(task)
+            replay = FinAuditGate(
+                artifact_root=artifact_root,
+                model_trace_root=trace_root,
+                private_dev_profile=profile,
+            ).replay(outcome.run_ref)
+            policy = json.loads(
+                (
+                    artifact_root / "runs" / outcome.run_ref.run_id / "policy.json"
+                ).read_bytes()
+            )
+            with self.assertRaisesRegex(
+                RuntimeError,
+                "REVIEWED_VALIDATION_PROFILE_REQUIRED",
+            ):
+                FinAuditGate(
+                    artifact_root=private / "artifacts" / "unprofiled",
+                    model=_OneTraceModel(execution),
+                    model_trace_root=trace_root,
+                ).run(task)
+
+        self.assertIs(Decision.ACCEPT, outcome.decision)
+        self.assertTrue(replay.consistent)
+        # the reviewed profile is the answer key, never the public fixture
+        self.assertEqual("POST_FREEZE_EVAL", policy["accepted_mode"])
+
+    def test_a_development_profile_cannot_decide_a_transfer_run(self) -> None:
+        """The split is content-addressed: profile and task must agree."""
+
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            private = _workspace(temporary_directory)
+            development_profile = _profile(
+                private,
+                _profile_payload(NATURAL_DOCUMENT),
+            )
+            trace_root = private / "model-traces"
+            crossed = _private_task(mode="POST_FREEZE_EVAL")
+            execution = _traced_execution(trace_root, crossed, _candidate())
+            outcome = FinAuditGate(
+                artifact_root=private / "artifacts" / "core",
+                model=_OneTraceModel(execution),
+                model_trace_root=trace_root,
+                private_dev_profile=development_profile,
+            ).run(crossed)
+
+        self.assertIs(Decision.HUMAN_REVIEW, outcome.decision)
+        self.assertEqual(("MODE_CONFLICT",), outcome.reason_codes)
+
     def test_protocol_rejection_verifies_offline(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
             private = _workspace(temporary_directory)
@@ -730,7 +808,7 @@ class PrivateDevValidationProfileTest(unittest.TestCase):
             )
             with self.assertRaisesRegex(
                 RuntimeError,
-                "PRIVATE_DEV_VALIDATION_PROFILE_REQUIRED",
+                "REVIEWED_VALIDATION_PROFILE_REQUIRED",
             ):
                 FinAuditGate(
                     artifact_root=private / "artifacts" / "core",
@@ -750,7 +828,7 @@ class PrivateDevValidationProfileTest(unittest.TestCase):
                     return _candidate()
 
             artifact_root = private / "artifacts" / "core"
-            with self.assertRaisesRegex(RuntimeError, "PRIVATE_DEV_MODEL_TRACE_REQUIRED"):
+            with self.assertRaisesRegex(RuntimeError, "REVIEWED_MODEL_TRACE_REQUIRED"):
                 FinAuditGate(
                     artifact_root=artifact_root,
                     model=UntracedModel(),

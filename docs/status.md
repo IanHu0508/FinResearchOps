@@ -5,7 +5,7 @@
 
 | Area | Status | Evidence |
 |---|---|---|
-| Deterministic core (`FinAuditGate.run` / `replay`) | Implemented for one public synthetic profile and for private validation profiles | 145 offline tests; `scripts/synthetic_demo.py` |
+| Deterministic core (`FinAuditGate.run` / `replay`) | Implemented for one public synthetic profile and for private validation profiles | 148 offline tests; `scripts/synthetic_demo.py` |
 | Application (`FinResearchOps.handle` / `read_case`) | Implemented: Case, Workpaper, append-only Review, proposal-only Packet, replay records, crash recovery | `tests/test_application.py` |
 | Local model Adapter (shared Ollama, Qwen3-4B) | Implemented: frozen request with a closed response schema and five fictional example rows, schema-constrained decoding, whitespace-tolerant span location, bounded raw capture, one content-addressed trace per call, offline verification | `tests/test_ollama_adapter.py`, `tests/test_model_trace_binding.py` (mocked exchanges); four route revisions and two model experiments on real text, 2026-09-03 |
 | CLI `finresearchops` | Implemented: six thin actions over the Application Interface | `tests/test_cli.py`, installed wheel `--help` |
@@ -15,7 +15,7 @@
 | Real-model results on real text | Twelve reviewed cases, thirteen runs, on the frozen route (v3): `ACCEPT` 7, `HUMAN_REVIEW` 2, `RETRY` 4; unsafe accepts 0; every accepted answer equals the reviewed answer; replay consistent 13 of 13. A fourth route revision was run on both model sizes in three forms. As first specified it scored `ACCEPT` 4 / `HUMAN_REVIEW` 5 / `RETRY` 4 on the small model and `ACCEPT` 1 / `HUMAN_REVIEW` 3 / `RETRY` 9 on the larger one; with the schema restated in the prompt, `ACCEPT` 6 / `HUMAN_REVIEW` 2 / `RETRY` 5 and `ACCEPT` 6 / `HUMAN_REVIEW` 3 / `RETRY` 4; with one further worked example added to the numeric field's description, `ACCEPT` 7 / `HUMAN_REVIEW` 1 / `RETRY` 5 and `ACCEPT` 5 / `HUMAN_REVIEW` 4 / `RETRY` 4. Unsafe accepts 0 and replay consistent 13 of 13 in all six. The last of those three was tuned on the development cases and is marked as such below. The earlier route (v1) gave `ACCEPT` 5 / `HUMAN_REVIEW` 5 / `RETRY` 2 with the reviewer's `APPROVE` 5 and `REJECT` 8 recorded; reviewer actions on the v3 runs pending. Three of the accepts are one evidence pair on different slices | private workspace only; counts below |
 | Evaluation results | Paired ungated baselines exist (same model, no tools, no gate): the 4B model gave a wrong percentage on 11 of 11 answerable questions, the 8B model on 10 of 11, while the gate gave 0 wrong answers. Counted observations on one filing, not an evaluation | private workspace only |
 | User interface | None | — |
-| Git | Checkpoint commit on 2026-09-02 (parent `9c592f1`); route revision and these counts committed on 2026-09-03; the fourth route revision is in the working tree and uncommitted; no remote | `git log` |
+| Git | Checkpoint commit on 2026-09-02 (parent `9c592f1`); route revisions and these counts committed on 2026-09-03; no remote | `git log` |
 
 ## What changed on 2026-09-03
 
@@ -177,6 +177,30 @@ not evidence it is better: the two sizes score the same on twelve development ca
 differently, and the larger one costs two to three times the latency. What it settles is that the
 earlier refusal was an artefact of the contract, not a property of the model, and cannot be cited
 against it. The size decision belongs to held-out text.
+
+## Preparing the second filing (2026-09-03)
+
+Nothing has been run on a second issuer. Before anything could be, two defects
+in that path were found and fixed:
+
+- the post-freeze split was declared in the contracts but not implemented. A run
+  in that mode fell through to the public synthetic answer key: it required no
+  reviewed profile, required no model trace, wrote the synthetic fixture as its
+  policy artifact while the document was a real filing, refused every case with
+  one misleading reason code, and *replayed consistently*. A batch would have
+  passed every automated check this repository owns and meant nothing. The split
+  now runs through the same checks as a development run, and the profile and the
+  task must agree on which split they belong to;
+- the private-storage guard was keyed to the development mode alone, so creating
+  a case in the post-freeze mode would have written a second issuer's bytes
+  outside the private tree. It is now keyed to both reviewed modes;
+- separately, the frozen model digest was recorded in every trace but never
+  checked offline, so "this run used the frozen weights" was a precondition the
+  online Adapter enforced rather than something a saved trace proves. Offline
+  verification now binds it.
+
+None of this moves the route: prompt, response schema, generation config, model
+identity and budgets are unchanged, and the development runs still replay.
 
 ## Not proven
 

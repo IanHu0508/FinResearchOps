@@ -49,6 +49,7 @@ import json
 from pathlib import Path
 import sys
 
+from finauditgate.contracts import REVIEWED_PROFILE_MODES
 from finauditgate.adapters.ollama_contract import (
     METRIC_BASES,
     METRICS,
@@ -132,6 +133,15 @@ def main() -> int:
     parser.add_argument("--cutoff", required=True)
     parser.add_argument("--question", required=True)
     parser.add_argument("--profile-name", default="private-dev-profile/v1")
+    parser.add_argument(
+        "--accepted-mode",
+        default="PRIVATE_DEV",
+        choices=REVIEWED_PROFILE_MODES,
+        help=(
+            "the split this profile may decide; a task in the other "
+            "reviewed mode is refused with MODE_CONFLICT."
+        ),
+    )
     parser.add_argument("--no-admissible-evidence", action="store_true")
     parser.add_argument("--current-span")
     parser.add_argument(
@@ -166,7 +176,7 @@ def main() -> int:
         "declared_published_at": arguments.published_at,
         "task_cutoff": arguments.cutoff,
         "task_question": arguments.question,
-        "accepted_mode": "PRIVATE_DEV",
+        "accepted_mode": arguments.accepted_mode,
         "accepted_risk_class": "LOW",
     }
     if arguments.no_admissible_evidence:

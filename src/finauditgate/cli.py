@@ -59,7 +59,7 @@ def _parser() -> argparse.ArgumentParser:
     )
     create.add_argument(
         "--mode",
-        choices=("SYNTHETIC_DEV", "PRIVATE_DEV"),
+        choices=("SYNTHETIC_DEV", "PRIVATE_DEV", "POST_FREEZE_EVAL"),
         default="PRIVATE_DEV",
     )
     create.add_argument(

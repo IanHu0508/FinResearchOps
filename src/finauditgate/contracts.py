@@ -45,6 +45,13 @@ class FrozenDocumentPackage:
             raise TypeError("declared_published_at must be a date")
 
 
+# The two modes decided against a reviewed validation profile on a real filing,
+# as opposed to the public synthetic fixture.  They run through identical
+# checks; the mode is what keeps development runs and post-freeze transfer runs
+# from ever being pooled, in the artifacts and in the profile each one accepts.
+REVIEWED_PROFILE_MODES = ("PRIVATE_DEV", "POST_FREEZE_EVAL")
+
+
 @dataclass(frozen=True, slots=True)
 class AuditTask:
     """One question against one immutable submitted document package."""

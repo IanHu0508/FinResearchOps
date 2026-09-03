@@ -41,7 +41,7 @@ from finauditgate.application.contracts import (
     WorkpaperView,
     _validate_case_ref,
 )
-from finauditgate.contracts import RUN_SCHEMA_VERSION
+from finauditgate.contracts import REVIEWED_PROFILE_MODES, RUN_SCHEMA_VERSION
 from finauditgate.core.artifacts import (
     canonical_json_bytes,
     sha256_hex,
@@ -158,7 +158,7 @@ class FinResearchOps:
             raise ApplicationError("APPLICATION_STORAGE_FAILED") from exc
 
     def _create_case(self, command: CreateCase) -> ApplicationOutcome:
-        if command.mode == "PRIVATE_DEV":
+        if command.mode in REVIEWED_PROFILE_MODES:
             self._require_private_artifact_root()
         document_sha256 = sha256_hex(command.document.document_bytes)
         identity = {
@@ -753,7 +753,7 @@ class FinResearchOps:
         expected_ref = f"case-{sha256_hex(canonical_json_bytes(identity))}"
         if case_ref != expected_ref:
             raise ApplicationError("CASE_IDENTITY_MISMATCH")
-        if payload["mode"] == "PRIVATE_DEV":
+        if payload["mode"] in REVIEWED_PROFILE_MODES:
             self._require_private_artifact_root()
         return payload
 

@@ -63,7 +63,7 @@ def evaluate_private_candidate(
             Decision.HUMAN_REVIEW,
             "CUTOFF_PROFILE_CONFLICT",
         )
-    if task.mode != "PRIVATE_DEV":
+    if task.mode != policy["accepted_mode"]:
         raise ValidationFailure(Decision.HUMAN_REVIEW, "MODE_CONFLICT")
     if task.risk_class != policy["accepted_risk_class"]:
         raise ValidationFailure(

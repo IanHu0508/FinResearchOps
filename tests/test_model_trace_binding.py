@@ -320,6 +320,59 @@ class ModelTraceBindingTest(unittest.TestCase):
         self.assertIsNone(failure)
         self.assertIsNotNone(verified)
 
+    def test_a_trace_from_other_weights_is_refused_offline(self) -> None:
+        """The frozen model must be a replayable fact, not a precondition.
+
+        The daemon tag is mutable, so the digest it reported at run time is the
+        only model identity a saved trace carries.  A trace naming any other
+        weights must not verify, even though every hash in it is internally
+        consistent.
+        """
+
+        document = FIXTURE_PATH.read_bytes()
+        task = _task(document)
+        other_digest = "b" * 64
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            private = _private_workspace(temporary_directory)
+            trace_root = private / "model-traces"
+            execution = _traced_execution(trace_root, task, _candidate(document))
+
+            def swap_weights(payload: dict[str, object]) -> None:
+                payload["observed_model_digest"] = other_digest
+
+            swapped = _rewrite_trace(trace_root, execution, swap_weights)
+            swapped = ModelExecution(
+                proposal=swapped.proposal,
+                trace_receipt=replace(
+                    swapped.trace_receipt,
+                    observed_model_digest=other_digest,
+                ),
+                failure_code=swapped.failure_code,
+            )
+            verified, failure = verify_raw_model_trace(
+                trace_root.resolve(),
+                swapped.trace_receipt,
+                task=task,
+                attempt_index=0,
+                expected_proposal=swapped.proposal,
+                expected_failure_code=None,
+            )
+            intact, intact_failure = verify_raw_model_trace(
+                trace_root.resolve(),
+                execution.trace_receipt,
+                task=task,
+                attempt_index=0,
+                expected_proposal=execution.proposal,
+                expected_failure_code=None,
+            )
+
+        self.assertNotEqual(MODEL_DIGEST, other_digest)
+        self.assertEqual("MODEL_TRACE_REQUEST_MISMATCH", failure)
+        self.assertIsNone(verified)
+        # the untouched trace still verifies, so the refusal is the digest
+        self.assertIsNone(intact_failure)
+        self.assertIsNotNone(intact)
+
     def test_raw_response_must_cause_the_same_proposal_before_accept(
         self,
     ) -> None:

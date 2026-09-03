@@ -574,7 +574,7 @@ class CoreGateTest(unittest.TestCase):
             workspace = Path(temporary_directory)
             (workspace / "finaudit-gate" / ".git").mkdir(parents=True)
             (workspace / "private").mkdir()
-            with self.assertRaisesRegex(RuntimeError, "PRIVATE_DEV_VALIDATION_PROFILE_REQUIRED"):
+            with self.assertRaisesRegex(RuntimeError, "REVIEWED_VALIDATION_PROFILE_REQUIRED"):
                 FinAuditGate(
                     artifact_root=workspace / "private" / "artifacts",
                     model=ScriptedModelAdapter({task.task_id: standard_candidate(document)}),

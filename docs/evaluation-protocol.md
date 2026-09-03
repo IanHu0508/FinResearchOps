@@ -7,8 +7,19 @@
 - `SYNTHETIC_DEV`: public original fixtures for core and adversarial testing.
 - `PRIVATE_DEV`: manually reviewed private cases on a user-acquired official
   filing; each case has a reviewed validation profile.
-- `POST_FREEZE_EVAL`: tasks on a second filing run only after code, prompt,
-  model, schema, budget, and manifest freeze. The CLI does not expose this mode.
+- `POST_FREEZE_EVAL`: tasks on a second filing, run only after code, prompt,
+  model, schema, budget, and manifest freeze. It is decided through exactly the
+  checks `PRIVATE_DEV` uses — a reviewed validation profile is required, the
+  artifact root and the model trace must be private, and the same gate rules
+  apply — so the split changes what a run is *called*, never how strictly it is
+  judged. The profile declares which split it may decide (`accepted_mode`), and
+  a task in the other reviewed mode is refused `MODE_CONFLICT`, so a development
+  answer key can never decide a transfer run or the reverse. Because the mode is
+  recorded in every artifact and in the model's own user message, development
+  and post-freeze results can be told apart afterwards and must never be pooled.
+  One consequence to state when reporting: the mode string is part of the prompt
+  bytes, so a transfer run's user message is not byte-identical to a development
+  run's.
 
 ## Truthful naming
 
