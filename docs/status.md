@@ -202,6 +202,23 @@ in that path were found and fixed:
 None of this moves the route: prompt, response schema, generation config, model
 identity and budgets are unchanged, and the development runs still replay.
 
+The route surface is now frozen at commit `13685b4`, and a freeze declaration with
+a pre-registered protocol and pre-registered predictions was written before any
+second-issuer document was acquired or read. That declaration names the intended
+issuer and case design, so it stays in the private workspace; its SHA-256 is
+recorded here instead, which fixes its content and timestamps it without
+publishing it:
+
+    f8c9a1ebd6ae312eff3c4b472cf8232e7dc44ca1ec05dd2912ddb74e5f5cf375
+
+The pre-registration binds the run in advance: the case list and gold are hashed
+before the first model call and never edited afterwards, a slice is never re-cut
+after seeing a result, every case that starts is reported, both model sizes or
+neither, development and transfer counts are never pooled, and predicted contract
+refusals are declared ahead of time and counted apart from reading errors. Two of
+those rules exist because the development set shows the failure they prevent, and
+both instances are disclosed in the private record.
+
 ## Not proven
 
 No number in this repository is an evaluation result. Twelve reviewed cases
