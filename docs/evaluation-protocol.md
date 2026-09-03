@@ -21,7 +21,7 @@ strict blind held-out or a benchmark.
 - Git commit identity and diff;
 - source and dataset hashes;
 - observed model tag digest and daemon version (from the trace);
-- prompt, tool schema, generation config, and calculation-policy hashes;
+- prompt, response schema, generation config, and calculation-policy hashes;
 - the raw trace, parsed candidate, attempt sequence, final decision, and
   latency;
 - evidence ledger, Workpaper, replay report, and manual QA;

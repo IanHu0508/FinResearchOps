@@ -14,7 +14,7 @@ PYTHONPATH=src .venv/bin/python -W error::ResourceWarning -m unittest discover -
 | `test_core_gate.py` | the deterministic gate: registered aliases, one-retry stop rules, every decision class, malformed proposals, artifact tampering, idempotent append-only runs, fresh-process replay |
 | `test_application.py` | Case lifecycle, human review, proposal-only export, crash recovery at every publication boundary, foreign artifacts, concurrency |
 | `test_cli.py` | thin command dispatch, stable path-free errors, private-path enforcement |
-| `test_ollama_tool_contract.py` | the single tool schema/decoder |
+| `test_ollama_tool_contract.py` | the single response schema/decoder and span location |
 | `test_ollama_adapter.py` | the frozen route on mocked loopback exchanges: one trace per call, negative captures, redirect/proxy refusal, offline verification, frozen-route binding |
 | `test_model_trace_binding.py` | a trace must cause the same proposal before `ACCEPT`; Workpaper/Packet binding; missing, tampered, cross-run traces |
 | `test_private_dev_profile.py` | private profiles: acceptable answer through export, post-cutoff, no admissible evidence, locator/span/value/period/metric/operand attacks |

@@ -1,16 +1,19 @@
-"""Single schema/codec source for the local model's candidate tool.
+"""Single schema/codec source for the local model's candidate response.
 
-The tool schema is closed.  Evidence ids, metric, basis, unit, scale and sign
-are enumerations; `value` is a plain decimal string; `period` follows one
-format; `exact_span` is one complete document line.  The model learns this
-vocabulary from the schema itself and the decoder rejects anything outside it,
-so a proposal that reaches the gate already speaks the vocabulary the reviewed
-profiles and the synthetic registries are written in.
+The schema is closed.  Evidence ids, metric, basis, unit, scale and sign are
+enumerations; `value` is a plain decimal string; `period` follows one format;
+`exact_span` is the number as printed or the complete document line that
+carries it.  The same object is sent to the runtime as the response format, so
+the model is constrained to this vocabulary while it decodes, and the decoder
+rejects anything outside it, so a proposal that reaches the gate already speaks
+the vocabulary the reviewed profiles and the synthetic registries are written
+in.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
+import re
 from typing import TypeAlias
 
 from finauditgate.ports.model import (
@@ -19,8 +22,6 @@ from finauditgate.ports.model import (
     ModelCandidate,
 )
 
-
-TOOL_NAME = "propose_financial_candidate"
 
 EVIDENCE_IDS = ("current", "comparison")
 METRICS = (
@@ -165,8 +166,10 @@ _EVIDENCE_RULE = _ObjectRule(
                 description=(
                     "The cited number as a plain decimal string: digits, an "
                     "optional leading minus and an optional decimal point; no "
-                    "thousands separators, currency symbols or spaces "
-                    "(751,766 becomes 751766; (1,234) becomes -1234)."
+                    "thousands separators, currency symbols or spaces. A "
+                    "decimal point is part of the number and stays "
+                    "(751,766 becomes 751766; (1,234) becomes -1234; 3.21 "
+                    "stays 3.21)."
                 ),
             ),
         ),
@@ -266,19 +269,10 @@ _ARGUMENT_RULE = _ObjectRule(
 class CandidateToolContract:
     """Generate the JSON Schema and decode with the same immutable rules."""
 
-    def tool_schema(self) -> dict[str, object]:
-        return {
-            "type": "function",
-            "function": {
-                "name": TOOL_NAME,
-                "description": (
-                    "Propose two unverified evidence spans and one "
-                    "allowlisted financial calculation. The deterministic "
-                    "gate verifies them."
-                ),
-                "parameters": _json_schema(_ARGUMENT_RULE),
-            },
-        }
+    def response_schema(self) -> dict[str, object]:
+        """The schema the runtime decodes against and the decoder enforces."""
+
+        return _json_schema(_ARGUMENT_RULE)
 
     def decode(
         self,
@@ -308,7 +302,7 @@ class CandidateToolContract:
         candidate: ModelCandidate,
         document: bytes,
     ) -> dict[str, object]:
-        """Reconstruct the one canonical tool argument from a candidate.
+        """Reconstruct the one canonical response object from a candidate.
 
         This inverse is used by the offline trace verifier.  A proposal that
         cannot round-trip to the exact frozen document span is not the same
@@ -419,6 +413,35 @@ def _decode(rule: _Rule, value: object) -> object:
     }
 
 
+def _locate_span(exact_span: bytes, document: bytes) -> tuple[int, int]:
+    """Return the one document region the cited span names, or refuse.
+
+    A byte-exact copy decides on its own: found once it is the answer, found
+    again anywhere it is a refusal.  Only when those bytes appear nowhere is
+    the span matched word by word with any run of whitespace between the
+    words, because a model transcribing a wrapped table row commonly prints
+    one space where the document prints several or a line break.  Either way a
+    second placement is a refusal, and both searches count placements the same
+    overlap-aware way, so tolerance can reach a region the exact bytes could
+    not, but can never disambiguate a citation the exact search called
+    ambiguous.  The offsets returned are always the document's own, so the
+    ledger keeps hashing the bytes the document actually holds.
+    """
+
+    byte_start = document.find(exact_span)
+    if byte_start >= 0:
+        if document.find(exact_span, byte_start + 1) >= 0:
+            raise ToolContractError("EVIDENCE_SPAN_NOT_UNIQUE")
+        return byte_start, byte_start + len(exact_span)
+    pattern = re.compile(
+        rb"\s+".join(re.escape(word) for word in exact_span.split())
+    )
+    match = pattern.search(document)
+    if match is None or pattern.search(document, match.start() + 1) is not None:
+        raise ToolContractError("EVIDENCE_SPAN_NOT_UNIQUE")
+    return match.start(), match.end()
+
+
 def _evidence_candidate(
     raw_evidence: dict[str, str],
     document: bytes,
@@ -427,13 +450,11 @@ def _evidence_candidate(
         exact_span = raw_evidence["exact_span"].encode("utf-8")
     except UnicodeEncodeError as exc:
         raise ToolContractError(_EVIDENCE_ERROR) from exc
-    byte_start = document.find(exact_span)
-    if byte_start < 0 or document.find(exact_span, byte_start + 1) >= 0:
-        raise ToolContractError("EVIDENCE_SPAN_NOT_UNIQUE")
+    byte_start, byte_end = _locate_span(exact_span, document)
     return EvidenceCandidate(
         evidence_id=raw_evidence["evidence_id"],
         byte_start=byte_start,
-        byte_end=byte_start + len(exact_span),
+        byte_end=byte_end,
         metric=raw_evidence["metric"],
         metric_basis=raw_evidence["metric_basis"],
         period=raw_evidence["period"],

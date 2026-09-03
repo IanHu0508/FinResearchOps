@@ -121,15 +121,7 @@ def _route_responses(
             "model": MODEL_ID,
             "message": {
                 "role": "assistant",
-                "content": "",
-                "tool_calls": [
-                    {
-                        "function": {
-                            "name": "propose_financial_candidate",
-                            "arguments": arguments,
-                        }
-                    }
-                ],
+                "content": json.dumps(arguments),
             },
             "done": True,
             "done_reason": "stop",
@@ -735,7 +727,6 @@ class PrivateDevValidationProfileTest(unittest.TestCase):
                 trace_root,
                 task,
                 _candidate(),
-                response_marker="no-profile",
             )
             with self.assertRaisesRegex(
                 RuntimeError,

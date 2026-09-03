@@ -18,7 +18,7 @@ approves; everything replays offline.**
 
 ```text
 frozen text slice (≤ 32 KB)
-   → local model (Qwen3-4B via Ollama, one forced tool call)
+   → local model (Qwen3-4B via Ollama, one schema-constrained JSON answer)
    → FinAuditGate: span/hash check, semantics, Decimal, one retry
    → ACCEPT / RETRY / ABSTAIN / HUMAN_REVIEW
    → FinResearchOps: Case → Workpaper → human review → Change Packet

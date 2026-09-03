@@ -8,7 +8,7 @@ import unittest
 
 from finauditgate import AuditTask, Decision, FinAuditGate, FrozenDocumentPackage
 from finauditgate.adapters.ollama import CapturedExchange, write_model_trace
-from finauditgate.adapters.ollama_contract import CANDIDATE_TOOL_CONTRACT, TOOL_NAME
+from finauditgate.adapters.ollama_contract import CANDIDATE_TOOL_CONTRACT
 from finauditgate.adapters.ollama_route import MODEL_DIGEST, MODEL_ID, chat_request
 from finauditgate.adapters.ollama_trace import inspect_captured_response
 from finauditgate.application import (
@@ -20,6 +20,7 @@ from finauditgate.application import (
     SubmitReview,
 )
 from finauditgate.core.artifacts import canonical_json_bytes, sha256_hex
+from finauditgate.core.model_trace import verify_raw_model_trace
 from finauditgate.ports.model import (
     CalculationCandidate,
     EvidenceCandidate,
@@ -139,7 +140,6 @@ def _traced_execution(
     task: AuditTask,
     candidate: ModelCandidate,
     *,
-    response_marker: str,
     attempt_index: int = 0,
 ) -> ModelExecution:
     """Write a trace exactly as the Adapter would for one frozen-route call."""
@@ -153,10 +153,7 @@ def _traced_execution(
             "model": MODEL_ID,
             "message": {
                 "role": "assistant",
-                "content": response_marker,
-                "tool_calls": [
-                    {"function": {"name": TOOL_NAME, "arguments": arguments}}
-                ],
+                "content": json.dumps(arguments),
             },
             "done": True,
             "done_reason": "stop",
@@ -222,7 +219,107 @@ def _private_workspace(temporary_directory: str) -> Path:
     return private
 
 
+WRAPPED_DOCUMENT = (
+    b"Revenue          FY2025          FY2024\n"
+    b"Revenues\n"
+    b"751,766          660,257\n"
+)
+
+
+def _collapsed_response(current: str, comparison: str) -> bytes:
+    """One answer whose cited spans are spaced as a model transcribes them."""
+
+    def evidence(evidence_id: str, span: str, period: str, value: str) -> dict:
+        return {
+            "evidence_id": evidence_id,
+            "exact_span": span,
+            "metric": "revenue",
+            "metric_basis": "REPORTED",
+            "period": period,
+            "value": value,
+            "currency": "RMB",
+            "unit": "MONETARY",
+            "scale": "MILLION",
+            "sign": "POSITIVE",
+        }
+
+    return canonical_json_bytes(
+        {
+            "model": MODEL_ID,
+            "message": {
+                "role": "assistant",
+                "content": json.dumps(
+                    {
+                        "evidence": [
+                            evidence("current", current, "FY2025", "751766"),
+                            evidence(
+                                "comparison", comparison, "FY2024", "660257"
+                            ),
+                        ],
+                        "calculation": {
+                            "operation": "growth_rate_percent",
+                            "operand_ids": ["current", "comparison"],
+                            "output_unit": "PERCENT",
+                            "quantize": "0.01",
+                        },
+                    }
+                ),
+            },
+            "done": True,
+            "done_reason": "stop",
+        }
+    )
+
+
 class ModelTraceBindingTest(unittest.TestCase):
+    def test_a_whitespace_collapsed_citation_binds_to_its_own_trace(
+        self,
+    ) -> None:
+        """A tolerantly located span must still verify offline.
+
+        The proposal identity has to be the canonical one, rebuilt from the
+        document's bytes, or every run that relies on tolerant location would
+        fail its own trace check.
+        """
+
+        task = _task(WRAPPED_DOCUMENT, task_id="collapsed-citation")
+        response_bytes = _collapsed_response(
+            "Revenues 751,766", "751,766 660,257"
+        )
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            trace_root = _private_workspace(temporary_directory) / "traces"
+            execution = _execution_from_bytes(
+                trace_root,
+                task,
+                0,
+                canonical_json_bytes(chat_request(task, 0)),
+                response_bytes,
+            )
+            verified, failure = verify_raw_model_trace(
+                trace_root.resolve(),
+                execution.trace_receipt,
+                task=task,
+                attempt_index=0,
+                expected_proposal=execution.proposal,
+                expected_failure_code=None,
+            )
+
+        self.assertIsNone(execution.failure_code)
+        self.assertIsNotNone(execution.proposal)
+        current, comparison = execution.proposal.evidence
+        # Both citations were located tolerantly: neither is byte-equal to the
+        # text the model wrote, so this exercises the new path, not `find`.
+        self.assertEqual(
+            b"Revenues\n751,766",
+            WRAPPED_DOCUMENT[current.byte_start:current.byte_end],
+        )
+        self.assertEqual(
+            b"751,766          660,257",
+            WRAPPED_DOCUMENT[comparison.byte_start:comparison.byte_end],
+        )
+        self.assertIsNone(failure)
+        self.assertIsNotNone(verified)
+
     def test_raw_response_must_cause_the_same_proposal_before_accept(
         self,
     ) -> None:
@@ -291,7 +388,6 @@ class ModelTraceBindingTest(unittest.TestCase):
                     trace_root,
                     task,
                     base_candidate,
-                    response_marker="causal-primary",
                 )
                 if isinstance(mutation, ModelCandidate):
                     execution = replace(execution, proposal=mutation)
@@ -322,7 +418,6 @@ class ModelTraceBindingTest(unittest.TestCase):
                 trace_root,
                 task,
                 _candidate(document),
-                response_marker="application",
             )
             application = FinResearchOps(
                 artifact_root=artifact_root,
@@ -381,7 +476,6 @@ class ModelTraceBindingTest(unittest.TestCase):
                 trace_root,
                 task,
                 _candidate(document),
-                response_marker="primary",
             )
             outcome = FinAuditGate(
                 artifact_root=artifact_root,
@@ -419,7 +513,6 @@ class ModelTraceBindingTest(unittest.TestCase):
                     trace_root,
                     task,
                     _candidate(document),
-                    response_marker="primary",
                 )
                 outcome = FinAuditGate(
                     artifact_root=artifact_root,
@@ -438,7 +531,6 @@ class ModelTraceBindingTest(unittest.TestCase):
                         trace_root,
                         _task(document, task_id="other-run"),
                         _candidate(document),
-                        response_marker="other",
                     )
                     raw_path.write_bytes(
                         (trace_root / other.trace_receipt.raw_trace_ref).read_bytes()

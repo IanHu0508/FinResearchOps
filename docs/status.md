@@ -5,17 +5,17 @@
 
 | Area | Status | Evidence |
 |---|---|---|
-| Deterministic core (`FinAuditGate.run` / `replay`) | Implemented for one public synthetic profile and for private validation profiles | 134 offline tests; `scripts/synthetic_demo.py` |
+| Deterministic core (`FinAuditGate.run` / `replay`) | Implemented for one public synthetic profile and for private validation profiles | 145 offline tests; `scripts/synthetic_demo.py` |
 | Application (`FinResearchOps.handle` / `read_case`) | Implemented: Case, Workpaper, append-only Review, proposal-only Packet, replay records, crash recovery | `tests/test_application.py` |
-| Local model Adapter (shared Ollama, Qwen3-4B) | Implemented: frozen request with a closed tool vocabulary and five fictional example rows, bounded raw capture, one content-addressed trace per call, offline verification | `tests/test_ollama_adapter.py`, `tests/test_model_trace_binding.py` (mocked exchanges); three route revisions and one model experiment on real text, 2026-09-03 |
+| Local model Adapter (shared Ollama, Qwen3-4B) | Implemented: frozen request with a closed response schema and five fictional example rows, schema-constrained decoding, whitespace-tolerant span location, bounded raw capture, one content-addressed trace per call, offline verification | `tests/test_ollama_adapter.py`, `tests/test_model_trace_binding.py` (mocked exchanges); four route revisions and two model experiments on real text, 2026-09-03 |
 | CLI `finresearchops` | Implemented: six thin actions over the Application Interface | `tests/test_cli.py`, installed wheel `--help` |
 | Private validation profiles | Implemented: acceptable answer, post-cutoff document, no admissible evidence | `tests/test_private_dev_profile.py`, `scripts/build_validation_profile.py` |
 | Paired evaluation runner | Framework only, no results | `tests/test_paired_runner.py` |
 | Real issuer document (Tencent 2025 annual report) | Acquired locally under `private/`; text extracted; 12 candidate cases across six failure classes; human QA signed for all 12 (all INCLUDE); all 12 run through the full chain, replayed, and closed by the reviewer | private workspace only |
-| Real-model results on real text | Twelve reviewed cases, thirteen runs, on the frozen route (v3): `ACCEPT` 7, `HUMAN_REVIEW` 2, `RETRY` 4; unsafe accepts 0; every accepted answer equals the reviewed answer; replay consistent 13 of 13. The earlier route (v1) gave `ACCEPT` 5 / `HUMAN_REVIEW` 5 / `RETRY` 2 with the reviewer's `APPROVE` 5 and `REJECT` 8 recorded; reviewer actions on the v3 runs pending. Three of the accepts are one evidence pair on different slices | private workspace only; counts below |
+| Real-model results on real text | Twelve reviewed cases, thirteen runs, on the frozen route (v3): `ACCEPT` 7, `HUMAN_REVIEW` 2, `RETRY` 4; unsafe accepts 0; every accepted answer equals the reviewed answer; replay consistent 13 of 13. A fourth route revision was run on both model sizes in three forms. As first specified it scored `ACCEPT` 4 / `HUMAN_REVIEW` 5 / `RETRY` 4 on the small model and `ACCEPT` 1 / `HUMAN_REVIEW` 3 / `RETRY` 9 on the larger one; with the schema restated in the prompt, `ACCEPT` 6 / `HUMAN_REVIEW` 2 / `RETRY` 5 and `ACCEPT` 6 / `HUMAN_REVIEW` 3 / `RETRY` 4; with one further worked example added to the numeric field's description, `ACCEPT` 7 / `HUMAN_REVIEW` 1 / `RETRY` 5 and `ACCEPT` 5 / `HUMAN_REVIEW` 4 / `RETRY` 4. Unsafe accepts 0 and replay consistent 13 of 13 in all six. The last of those three was tuned on the development cases and is marked as such below. The earlier route (v1) gave `ACCEPT` 5 / `HUMAN_REVIEW` 5 / `RETRY` 2 with the reviewer's `APPROVE` 5 and `REJECT` 8 recorded; reviewer actions on the v3 runs pending. Three of the accepts are one evidence pair on different slices | private workspace only; counts below |
 | Evaluation results | Paired ungated baselines exist (same model, no tools, no gate): the 4B model gave a wrong percentage on 11 of 11 answerable questions, the 8B model on 10 of 11, while the gate gave 0 wrong answers. Counted observations on one filing, not an evaluation | private workspace only |
 | User interface | None | — |
-| Git | Checkpoint commit on 2026-09-02 (parent `9c592f1`); route revision and these counts committed on 2026-09-03; no remote | `git log` |
+| Git | Checkpoint commit on 2026-09-02 (parent `9c592f1`); route revision and these counts committed on 2026-09-03; the fourth route revision is in the working tree and uncommitted; no remote | `git log` |
 
 ## What changed on 2026-09-03
 
@@ -116,6 +116,67 @@ inverted pair); the 8B model found the right numbers in every answerable case
 and still divided wrongly ten times out of eleven. Model size bought evidence
 selection, not arithmetic; the deterministic calculation step is what turns
 found evidence into a right answer, at either size.
+
+## The fourth route revision (2026-09-03, not adopted)
+
+Two changes were made to the contract, with the prompt wording otherwise frozen: a cited span is
+located byte-exact first and only otherwise word by word with any run of whitespace between the
+words (a second placement is still a refusal, and the recorded offsets are always the document's
+own), and the schema is sent as the runtime's response format instead of as a callable tool, so
+the answer arrives as one JSON object. One sentence of the system prompt changed with it.
+
+Both changes did what they were meant to do, and the route still lost ground:
+
+- the enumerated fields improved, because the runtime now decodes against the schema. A share-count
+  case that three earlier revisions could not label correctly is finally labelled correctly by both
+  model sizes;
+- the free-text fields regressed. Switching the transport removes the schema's field descriptions
+  from what the model reads — measured at 359 prompt tokens on the same task — and the two fields
+  whose rules lived only in those descriptions started coming back wrong. Three cases that the
+  third revision accepted now stop for human review;
+- the larger model looked far worse under this transport, but that reading did not survive the
+  next step (below).
+
+Two defects in the first cut of the span change were found by an adversarial review of the diff
+before any of these counts were taken, and both are fixed: the tolerant pass could resolve a
+citation the exact search had called ambiguous, and a tolerantly located citation could never
+verify against its own trace because its identity was computed from the model's text online and
+from the document's bytes on replay. The offline suite grew from 134 to 144 tests, including the
+end-to-end case that the second defect had made impossible.
+
+Nothing here says schema-constrained decoding is wrong; it says the field descriptions have to
+reach the model some other way. So the schema is now restated in the system message, in the same
+bytes the route hashes, and the batch was run again on both model sizes.
+
+That recovers two of the three lost cases and lets a no-evidence case reach its designed refusal
+instead of a parse rejection. It also costs one case: shown the description for the numeric field,
+whose two worked examples are both thousands-separator cases, the small model over-generalises and
+strips the decimal point from a per-share figure. That defect is left standing — correcting the
+example would be tuning the prompt on the twelve development cases, which is not allowed here.
+
+One case still failed after that, and its cause was in a description too: the numeric field's two
+worked examples were both thousands-separator removals, so the small model generalised them to
+"remove punctuation" and dropped the decimal point from a per-share figure. A third worked example
+was added in which the decimal point survives, using a fictional figure already present in the
+prompt's example rows. That repaired the case, and the small model's accepted set is then exactly
+the third revision's — nothing that passed before is lost.
+
+**That last step was tuning on the development cases, at the user's explicit instruction, and its
+counts are development-set counts.** The protocol bars tuning on evaluation items after a freeze;
+these cases are the development set and nothing is frozen for evaluation, so it is permitted, but no
+claim of generalisation rests on it. The counts are also fragile at this sample size: changing that
+one example moved the larger model from six accepted to five, because a currency label flipped on
+one slice while the same evidence pair kept its label on another. Temperature and seed are zero, so
+that is sensitivity to prompt bytes, not sampling.
+
+It also corrects the paragraph above. **The earlier finding that the larger model is clearly worse
+was measured on routes that starved it of the field descriptions, and it does not survive.** Given
+the same information as the small model it matches it, and it is the only model in any revision to
+resolve the segment-versus-total case, citing the segment row rather than the group total. That is
+not evidence it is better: the two sizes score the same on twelve development cases and simply fail
+differently, and the larger one costs two to three times the latency. What it settles is that the
+earlier refusal was an artefact of the contract, not a property of the model, and cannot be cited
+against it. The size decision belongs to held-out text.
 
 ## Not proven
 

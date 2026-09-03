@@ -297,7 +297,7 @@ def evaluate_profiled_candidate(
             "scale": evidence.scale,
             "sign": evidence.sign,
         }
-        # The model speaks the closed tool vocabulary; the document speaks
+        # The model speaks the closed schema vocabulary; the document speaks
         # the issuer's labels.  A claim agrees with the record when both are
         # the same label or resolve to the same canonical registry entry.
         if any(

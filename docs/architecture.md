@@ -53,13 +53,35 @@ Each artifact has exactly one schema version; see
 ## The local-model route
 
 `adapters/ollama_route.py` is the single frozen definition of the route: model
-tag and digest, system prompt, tool schema, generation config, and budgets.
-Their hashes are part of every trace.
+tag and digest, system prompt, response schema, generation config, and budgets.
+Their hashes are part of every trace. The trace and receipt field is still
+named `tool_schema_sha256`: the route stopped offering the schema as a callable
+tool and now sends it as the runtime's response `format`, and the field keeps
+its name so no artifact needs a second schema version. It hashes exactly the
+object sent as `format`, which is the object the model decodes against.
 
-The tool schema is closed (`adapters/ollama_contract.py`): fixed evidence ids
-(`current`, `comparison`), enumerated metric, basis, unit, scale and sign, a
-plain-decimal `value`, one `period` format, and `exact_span` as the number
-as printed or the complete document line that carries it. The synthetic gate
+The response schema is closed (`adapters/ollama_contract.py`): fixed evidence
+ids (`current`, `comparison`), enumerated metric, basis, unit, scale and sign,
+a plain-decimal `value`, one `period` format, and `exact_span` as the number
+as printed or the complete document line that carries it. The runtime decodes
+against that schema, so the enumerations constrain generation as well as
+decoding; the answer arrives as one JSON object in the message content and
+`CANDIDATE_CONTENT_NOT_JSON` is the failure code when that content is not one
+JSON value.
+
+`exact_span` is located in the document bytes: first as a byte-exact copy, and
+otherwise word by word with any run of whitespace between the words, because a
+model transcribing a wrapped table row prints one space where the document
+prints several or a line break. Only a single match is accepted, and the
+offsets recorded are always the document's own, so the ledger keeps hashing
+the bytes the document holds. The tolerant pass runs only when the exact bytes
+appear nowhere, and both searches count placements the same overlap-aware way,
+so tolerance can reach a region the exact bytes could not but can never
+disambiguate a citation the exact search called ambiguous
+(`EVIDENCE_SPAN_NOT_UNIQUE`). The proposal's identity is the canonical one,
+rebuilt from the document's bytes, so a tolerantly located citation still
+verifies offline; the model's own text stays bound by the response hash and
+the raw bytes in the trace. The synthetic gate
 resolves both the document's label and the model's claim through the same
 alias registry and requires them to agree. The private gate compares the
 claim's semantics and value with the reviewed profile literally, and accepts

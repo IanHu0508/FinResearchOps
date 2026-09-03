@@ -15,6 +15,7 @@ from urllib import error as urllib_error
 
 from finauditgate import AuditTask, Decision, FinAuditGate, FrozenDocumentPackage
 from finauditgate.adapters import ollama_route
+from finauditgate.adapters.ollama_contract import CANDIDATE_TOOL_CONTRACT
 from finauditgate.adapters.ollama import OllamaAdapterError, OllamaModelAdapter
 from finauditgate.adapters.ollama_route import (
     MAX_RESPONSE_BYTES,
@@ -108,52 +109,45 @@ def _chat_payload(
     operation: str = "growth_rate_percent",
     response_model: str = MODEL_ID,
 ) -> dict[str, object]:
+    candidate_object = {
+        "evidence": [
+            {
+                "evidence_id": "comparison",
+                "exact_span": PRIOR,
+                "metric": "revenue",
+                "metric_basis": "REPORTED",
+                "period": "FY2024",
+                "value": "125.00",
+                "currency": "USD",
+                "unit": "MONETARY",
+                "scale": "MILLION",
+                "sign": "POSITIVE",
+            },
+            {
+                "evidence_id": "current",
+                "exact_span": CURRENT,
+                "metric": "revenue",
+                "metric_basis": "REPORTED",
+                "period": "FY2025",
+                "value": "150.00",
+                "currency": "USD",
+                "unit": "MONETARY",
+                "scale": "MILLION",
+                "sign": "POSITIVE",
+            },
+        ],
+        "calculation": {
+            "operation": operation,
+            "operand_ids": ["current", "comparison"],
+            "output_unit": "PERCENT",
+            "quantize": "0.01",
+        },
+    }
     return {
         "model": response_model,
         "message": {
             "role": "assistant",
-            "content": "",
-            "tool_calls": [
-                {
-                    "function": {
-                        "name": "propose_financial_candidate",
-                        "arguments": {
-                            "evidence": [
-                                {
-                                    "evidence_id": "comparison",
-                                    "exact_span": PRIOR,
-                                    "metric": "revenue",
-                                    "metric_basis": "REPORTED",
-                                    "period": "FY2024",
-                                    "value": "125.00",
-                                    "currency": "USD",
-                                    "unit": "MONETARY",
-                                    "scale": "MILLION",
-                                    "sign": "POSITIVE",
-                                },
-                                {
-                                    "evidence_id": "current",
-                                    "exact_span": CURRENT,
-                                    "metric": "revenue",
-                                    "metric_basis": "REPORTED",
-                                    "period": "FY2025",
-                                    "value": "150.00",
-                                    "currency": "USD",
-                                    "unit": "MONETARY",
-                                    "scale": "MILLION",
-                                    "sign": "POSITIVE",
-                                },
-                            ],
-                            "calculation": {
-                                "operation": operation,
-                                "operand_ids": ["current", "comparison"],
-                                "output_unit": "PERCENT",
-                                "quantize": "0.01",
-                            },
-                        },
-                    }
-                }
-            ],
+            "content": json.dumps(candidate_object),
         },
         "done": True,
         "done_reason": done_reason,
@@ -247,7 +241,45 @@ class OllamaModelAdapterTest(unittest.TestCase):
 
         open_no_redirect.assert_not_called()
 
-    def test_schema_valid_tool_call_becomes_an_untrusted_candidate(self) -> None:
+    def test_the_frozen_request_constrains_decoding_to_the_schema(self) -> None:
+        request = chat_request(_task(FIXTURE_PATH.read_bytes()), 0)
+
+        self.assertEqual(
+            CANDIDATE_TOOL_CONTRACT.response_schema(),
+            request["format"],
+        )
+        self.assertNotIn("tools", request)
+        self.assertEqual(
+            ollama_route.TOOL_SCHEMA_SHA256,
+            sha256_hex(canonical_json_bytes(request["format"])),
+        )
+
+    def test_the_system_message_states_the_schema_the_grammar_hides(
+        self,
+    ) -> None:
+        """The runtime shows the model a grammar, never the descriptions.
+
+        Constrained decoding enforces the enumerations but strips every field
+        `description`, which is the only statement of how to write the
+        free-text fields.  The system message has to carry them instead.
+        """
+
+        request = chat_request(_task(FIXTURE_PATH.read_bytes()), 0)
+        system = request["messages"][0]["content"]
+        schema = CANDIDATE_TOOL_CONTRACT.response_schema()
+
+        self.assertIn(ollama_route.SYSTEM_PROMPT, system)
+        self.assertIn(canonical_json_bytes(schema).decode("utf-8"), system)
+        for described in ("period", "currency", "value", "exact_span"):
+            with self.subTest(field=described):
+                self.assertIn(
+                    schema["properties"]["evidence"]["items"]["properties"][
+                        described
+                    ]["description"],
+                    system,
+                )
+
+    def test_schema_valid_response_becomes_an_untrusted_candidate(self) -> None:
         document = FIXTURE_PATH.read_bytes()
 
         with tempfile.TemporaryDirectory() as temporary_directory:
@@ -354,7 +386,7 @@ class OllamaModelAdapterTest(unittest.TestCase):
         self.assertEqual("finauditgate.replay/v5", replay.schema_version)
         self.assertEqual(10, replay.verified_artifact_count)
 
-    def test_rejected_tool_response_returns_a_bound_failure_receipt(self) -> None:
+    def test_rejected_candidate_response_returns_a_bound_failure_receipt(self) -> None:
         document = FIXTURE_PATH.read_bytes()
         task = _task(document)
         with tempfile.TemporaryDirectory() as temporary_directory:
@@ -383,7 +415,7 @@ class OllamaModelAdapterTest(unittest.TestCase):
         self.assertIsNotNone(verified)
         self.assertIsNone(failure)
 
-    def test_length_terminated_tool_call_fails_closed(self) -> None:
+    def test_length_terminated_response_fails_closed(self) -> None:
         document = FIXTURE_PATH.read_bytes()
         with tempfile.TemporaryDirectory() as temporary_directory:
             with patch(
@@ -469,6 +501,10 @@ class OllamaModelAdapterTest(unittest.TestCase):
         nonfinite["total_duration"] = float("nan")
         invalid_metrics = dict(chat_payload)
         invalid_metrics["total_duration"] = 1.5
+        prose_content = _chat_payload()
+        prose_content["message"]["content"] = "I could not find the figures."
+        array_content = _chat_payload()
+        array_content["message"]["content"] = '["evidence"]'
         oversized = b"x" * (MAX_RESPONSE_BYTES + 10)
         http_error_body = b'{"error":"temporarily unavailable"}'
         attacks = {
@@ -504,6 +540,20 @@ class OllamaModelAdapterTest(unittest.TestCase):
                 _RawResponse(json.dumps(invalid_metrics).encode("utf-8")),
                 json.dumps(invalid_metrics).encode("utf-8"),
                 "OLLAMA_RESPONSE_METRICS_INVALID",
+                200,
+                True,
+            ),
+            "candidate-content-not-json": (
+                _RawResponse(json.dumps(prose_content).encode("utf-8")),
+                json.dumps(prose_content).encode("utf-8"),
+                "CANDIDATE_CONTENT_NOT_JSON",
+                200,
+                True,
+            ),
+            "candidate-content-not-object": (
+                _RawResponse(json.dumps(array_content).encode("utf-8")),
+                json.dumps(array_content).encode("utf-8"),
+                "TOOL_ARGUMENT_SHAPE_INVALID",
                 200,
                 True,
             ),
@@ -617,8 +667,8 @@ class OllamaModelAdapterTest(unittest.TestCase):
         def prompt(payload: dict[str, object]) -> None:
             payload["request"]["messages"][0]["content"] = "attacker system prompt"
 
-        def tool(payload: dict[str, object]) -> None:
-            payload["request"]["tools"][0]["attacker_extension"] = True
+        def response_format(payload: dict[str, object]) -> None:
+            payload["request"]["format"]["attacker_extension"] = True
 
         def generation(payload: dict[str, object]) -> None:
             payload["request"]["options"] = {
@@ -631,7 +681,12 @@ class OllamaModelAdapterTest(unittest.TestCase):
         def model(payload: dict[str, object]) -> None:
             payload["request"]["model"] = "attacker-model"
 
-        attacks = {"prompt": prompt, "tool": tool, "generation": generation, "model": model}
+        attacks = {
+            "prompt": prompt,
+            "format": response_format,
+            "generation": generation,
+            "model": model,
+        }
         with tempfile.TemporaryDirectory() as temporary_directory:
             trace_root = _private_trace_root(temporary_directory)
             with patch(

@@ -14,7 +14,6 @@ import math
 
 from finauditgate.adapters.ollama_contract import (
     CANDIDATE_TOOL_CONTRACT,
-    TOOL_NAME,
     ToolContractError,
 )
 from finauditgate.adapters.ollama_route import MAX_RESPONSE_BYTES
@@ -137,7 +136,7 @@ def _parse_finite_float(value: str) -> float:
     return parsed
 
 
-def decode_ollama_tool_response(
+def decode_ollama_candidate_response(
     response: object,
     document: bytes,
     *,
@@ -156,23 +155,33 @@ def decode_ollama_tool_response(
     message = response.get("message")
     if type(message) is not dict:
         raise OllamaTraceCodecError("OLLAMA_MESSAGE_SHAPE_INVALID")
-    tool_calls = message.get("tool_calls")
-    if type(tool_calls) is not list or len(tool_calls) != 1:
-        raise OllamaTraceCodecError("TOOL_CALL_COUNT_INVALID")
-    tool_call = tool_calls[0]
-    if type(tool_call) is not dict:
-        raise OllamaTraceCodecError("TOOL_CALL_SHAPE_INVALID")
-    function = tool_call.get("function")
-    if type(function) is not dict or function.get("name") != TOOL_NAME:
-        raise OllamaTraceCodecError("TOOL_NAME_NOT_ALLOWLISTED")
-    arguments = function.get("arguments")
+    content = message.get("content")
+    if type(content) is not str:
+        raise OllamaTraceCodecError("OLLAMA_MESSAGE_SHAPE_INVALID")
+    # The runtime decodes against the same schema the contract publishes, so a
+    # well-formed answer is one JSON object in the message content.  Anything
+    # else is a rejection here, before the deterministic core sees it.
+    try:
+        arguments = json.loads(
+            content,
+            parse_constant=_reject_json_constant,
+            parse_float=_parse_finite_float,
+        )
+    except (RecursionError, UnicodeError, ValueError) as exc:
+        raise OllamaTraceCodecError("CANDIDATE_CONTENT_NOT_JSON") from exc
     try:
         candidate = CANDIDATE_TOOL_CONTRACT.decode(arguments, document)
     except ToolContractError as exc:
         raise OllamaTraceCodecError(exc.code) from exc
+    # The identity is the canonical proposal, rebuilt from the document's own
+    # bytes rather than from the model's transcription of them: a cited span
+    # may be spaced differently from the document and still name one region,
+    # and the offline verifier can only ever recompute the canonical form.
+    # The model's literal text stays bound by `response_sha256` and by the raw
+    # bytes the trace keeps.
     return DecodedOllamaProposal(
         candidate=candidate,
-        proposal_sha256=_proposal_sha256(arguments),
+        proposal_sha256=candidate_proposal_sha256(candidate, document),
     )
 
 
@@ -215,7 +224,7 @@ def inspect_captured_response(
         return InspectedResponse(exc.code, None, None, None, "MISSING")
     termination_reason = normalized_termination_reason(decoded.payload)
     try:
-        proposal = decode_ollama_tool_response(
+        proposal = decode_ollama_candidate_response(
             decoded.payload,
             document,
             expected_model_id=expected_model_id,
