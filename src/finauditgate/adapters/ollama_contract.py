@@ -25,6 +25,7 @@ TOOL_NAME = "propose_financial_candidate"
 EVIDENCE_IDS = ("current", "comparison")
 METRICS = (
     "revenue",
+    "segment_revenue",
     "gross_profit",
     "operating_income",
     "profit_for_the_year",
@@ -35,6 +36,7 @@ METRICS = (
     "total_liabilities",
     "total_equity",
     "sales_volume",
+    "share_count",
     "other",
 )
 METRIC_BASES = ("REPORTED", "ADJUSTED")
@@ -126,8 +128,11 @@ _EVIDENCE_RULE = _ObjectRule(
                 _EVIDENCE_ERROR,
                 enum=METRICS,
                 description=(
-                    "The financial line item; other when none of the names "
-                    "fits."
+                    "The financial line item. revenue for total or "
+                    "product-line revenue; segment_revenue for the revenue "
+                    "of one reportable segment in segment information; "
+                    "share_count for a number of shares; other when none of "
+                    "the names fits."
                 ),
             ),
         ),
@@ -170,8 +175,9 @@ _EVIDENCE_RULE = _ObjectRule(
             _string(
                 _EVIDENCE_ERROR,
                 description=(
-                    "The currency abbreviation printed in the document, for "
-                    "example RMB, USD, HKD or EUR."
+                    "The currency abbreviation printed in the document (RMB, "
+                    "USD, HKD, EUR) for monetary and per-share amounts; NONE "
+                    "only for share counts and percentages."
                 ),
             ),
         ),
@@ -181,9 +187,11 @@ _EVIDENCE_RULE = _ObjectRule(
                 _EVIDENCE_ERROR,
                 enum=UNITS,
                 description=(
-                    "MONETARY for currency amounts, PER_SHARE for per-share "
-                    "amounts, COUNT for share or unit counts, PERCENT for "
-                    "percentages."
+                    "MONETARY for currency amounts (a figure in an 'RMB "
+                    "million' table is MONETARY with scale MILLION); "
+                    "PER_SHARE for per-share amounts such as EPS (scale "
+                    "UNIT); COUNT for share or unit counts (scale MILLION "
+                    "when printed in millions); PERCENT for percentages."
                 ),
             ),
         ),
@@ -193,9 +201,10 @@ _EVIDENCE_RULE = _ObjectRule(
                 _EVIDENCE_ERROR,
                 enum=SCALES,
                 description=(
-                    "The scale stated in the table heading (RMB million is "
-                    "MILLION); per-share amounts and unscaled figures are "
-                    "UNIT."
+                    "The scale stated in the heading or row label: MILLION "
+                    "for 'RMB million' or 'million shares', THOUSAND, "
+                    "BILLION; UNIT for per-share amounts and unscaled "
+                    "figures."
                 ),
             ),
         ),

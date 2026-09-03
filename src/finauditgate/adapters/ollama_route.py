@@ -42,7 +42,16 @@ printed, or the complete document line that contains it, copied byte-for-byte;
 it must occur exactly once in the document. value is that number as a plain
 decimal string without thousands separators. Use only the enumerated vocabulary of the tool schema for metric,
 metric_basis, unit, scale and sign; write period as FYyyyy for a fiscal-year
-flow and as yyyy-mm-dd for a balance at a date. Do not verify evidence,
+flow and as yyyy-mm-dd for a balance at a date; write currency NONE only for
+share counts and percentages. Fictional examples: the row "Revenues 8,120
+7,455" in an RMB million table is metric revenue, unit MONETARY, scale MILLION,
+currency RMB; the row "Operating profit 1,930 1,710" is metric
+operating_income, unit MONETARY, scale MILLION, currency RMB; the row "Diluted
+EPS (USD per share) 3.21 2.98" is metric diluted_eps, unit PER_SHARE, scale
+UNIT, currency USD; the row "Weighted average shares (million shares) 1,240
+1,255" is metric share_count, unit COUNT, scale MILLION, currency NONE; the row
+"Cloud 5,120 4,870" under "Segment revenues" is metric segment_revenue, unit
+MONETARY, scale MILLION, currency RMB. Do not verify evidence,
 calculate the final answer, choose a gate decision, approve research, execute
 code, or invent text that is absent from the document. Use
 operation="growth_rate_percent", output_unit="PERCENT", quantize="0.01" and

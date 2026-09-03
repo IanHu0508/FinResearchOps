@@ -35,8 +35,8 @@
     "execution_identity": "SHARED_DAEMON_REQUEST_SCOPED_MODEL_BYTES_NOT_PROVEN",
     "trace_schema": "finauditgate.model-call-trace/v6",
     "receipt_schema": "finauditgate.model-trace-receipt/v3",
-    "prompt_sha256": "4aa56866a464dbfeea27211e24f7cb8263f4120c59406f2508539fb8e9ac9f38",
-    "tool_schema_sha256": "45a96c7dbb1d3228c76fd161ba91371988f3b7f889344aa2915c75c3de0953d2",
+    "prompt_sha256": "f8d51301990e8a7f3ce4fd9196559be9c0b70b8593a94f93041f8fa95df0e096",
+    "tool_schema_sha256": "fb6858392465c2c81db691c964578b7a492dd88a7a8ce9a962ba6e622b7f9b5e",
     "generation_config_sha256": "7cc9b30d73f8c7d2cf0452296aded88671de2c732c55a6502a1bde07b460d594"
   },
   "budgets": {

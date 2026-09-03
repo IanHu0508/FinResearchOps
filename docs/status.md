@@ -7,13 +7,13 @@
 |---|---|---|
 | Deterministic core (`FinAuditGate.run` / `replay`) | Implemented for one public synthetic profile and for private validation profiles | 134 offline tests; `scripts/synthetic_demo.py` |
 | Application (`FinResearchOps.handle` / `read_case`) | Implemented: Case, Workpaper, append-only Review, proposal-only Packet, replay records, crash recovery | `tests/test_application.py` |
-| Local model Adapter (shared Ollama, Qwen3-4B) | Implemented: frozen request with a closed tool vocabulary, bounded raw capture, one content-addressed trace per call, offline verification | `tests/test_ollama_adapter.py`, `tests/test_model_trace_binding.py` (mocked exchanges); one live run on real text, 2026-09-03 |
+| Local model Adapter (shared Ollama, Qwen3-4B) | Implemented: frozen request with a closed tool vocabulary and five fictional example rows, bounded raw capture, one content-addressed trace per call, offline verification | `tests/test_ollama_adapter.py`, `tests/test_model_trace_binding.py` (mocked exchanges); three route revisions and one model experiment on real text, 2026-09-03 |
 | CLI `finresearchops` | Implemented: six thin actions over the Application Interface | `tests/test_cli.py`, installed wheel `--help` |
 | Private validation profiles | Implemented: acceptable answer, post-cutoff document, no admissible evidence | `tests/test_private_dev_profile.py`, `scripts/build_validation_profile.py` |
 | Paired evaluation runner | Framework only, no results | `tests/test_paired_runner.py` |
 | Real issuer document (Tencent 2025 annual report) | Acquired locally under `private/`; text extracted; 12 candidate cases across six failure classes; human QA signed for all 12 (all INCLUDE); all 12 run through the full chain, replayed, and closed by the reviewer | private workspace only |
-| Real-model results on real text | Twelve reviewed cases, thirteen runs: at case level `ACCEPT` 5, `HUMAN_REVIEW` 5, `RETRY` 2; unsafe accepts 0; replay consistent 13 of 13; reviewer `APPROVE` 5 (Packets exported), `REJECT` 8, every refusal judged correct. Three of the accepts are one evidence pair on different slices | private workspace only; counts below |
-| Evaluation results | None; twelve reviewed cases are counted observations, not an evaluation, and no ungated baseline has been run | — |
+| Real-model results on real text | Twelve reviewed cases, thirteen runs, on the frozen route (v3): `ACCEPT` 7, `HUMAN_REVIEW` 2, `RETRY` 4; unsafe accepts 0; every accepted answer equals the reviewed answer; replay consistent 13 of 13. The earlier route (v1) gave `ACCEPT` 5 / `HUMAN_REVIEW` 5 / `RETRY` 2 with the reviewer's `APPROVE` 5 and `REJECT` 8 recorded; reviewer actions on the v3 runs pending. Three of the accepts are one evidence pair on different slices | private workspace only; counts below |
+| Evaluation results | Paired ungated baselines exist (same model, no tools, no gate): the 4B model gave a wrong percentage on 11 of 11 answerable questions, the 8B model on 10 of 11, while the gate gave 0 wrong answers. Counted observations on one filing, not an evaluation | private workspace only |
 | User interface | None | — |
 | Git | Checkpoint commit on 2026-09-02 (parent `9c592f1`); route revision and these counts committed on 2026-09-03; no remote | `git log` |
 
@@ -95,9 +95,31 @@ What the counts say and do not say:
 - how many of these the ungated model would have answered wrongly is the
   paired-baseline question and has not been measured.
 
+## Route revisions and the model experiment (2026-09-03)
+
+The batch above was run three more times on the same day, each time under a
+changed route, every run replayed:
+
+- v2, Qwen3-8B with a wider vocabulary and example rows: `ACCEPT` 1,
+  `RETRY` 11. The larger model collapses whitespace inside cited spans (so the
+  byte-exact copy fails), malforms the fixed calculation block, drops fields,
+  and once changed a digit; calls took two to three times longer. Not adopted;
+- v2 prompt on the 4B model: the per-share cases became `ACCEPT`, but the
+  wording "never a currency code" led the model to write the currency as the
+  unit on plain revenue rows. Not adopted;
+- v3, 4B with positive-form descriptions and five fictional example rows:
+  `ACCEPT` 7, `HUMAN_REVIEW` 2, `RETRY` 4, nothing lost against v1. Frozen.
+
+Ungated baselines on the same thirteen tasks: the 4B model found the two
+numbers in most cases and divided them wrongly every time (one sign error, one
+inverted pair); the 8B model found the right numbers in every answerable case
+and still divided wrongly ten times out of eleven. Model size bought evidence
+selection, not arithmetic; the deterministic calculation step is what turns
+found evidence into a right answer, at either size.
+
 ## Not proven
 
 No number in this repository is an evaluation result. Twelve reviewed cases
-on one real filing, judged by one reviewer, are counted observations with no
-baseline. Nothing here should be described as a completed agent, a benchmark,
-or a paper reproduction.
+on one real filing, judged by one reviewer, with one ungated baseline per
+model, are counted observations. Nothing here should be described as a
+completed agent, a benchmark, or a paper reproduction.
