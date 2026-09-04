@@ -7,7 +7,7 @@
 |---|---|---|
 | Deterministic core (`FinAuditGate.run` / `replay`) | Implemented for one public synthetic profile and for private validation profiles | 172 offline tests; `scripts/synthetic_demo.py` |
 | Application (`FinResearchOps.handle` / `read_case`) | Implemented: Case, Workpaper, append-only Review, proposal-only Packet, replay records, crash recovery | `tests/test_application.py` |
-| Local model Adapter (shared Ollama, Qwen3-4B) | Implemented: frozen request with a closed response schema and five fictional example rows, schema-constrained decoding, whitespace-tolerant span location, bounded raw capture, one content-addressed trace per call, offline verification | `tests/test_ollama_adapter.py`, `tests/test_model_trace_binding.py` (mocked exchanges); four route revisions and two model experiments on real text, 2026-09-03 |
+| Local model Adapter (shared Ollama, Qwen3-8B) | Implemented: frozen request with a closed response schema and five fictional example rows, schema-constrained decoding, whitespace-tolerant span location, bounded raw capture, one content-addressed trace per call, offline verification | `tests/test_ollama_adapter.py`, `tests/test_model_trace_binding.py` (mocked exchanges); four route revisions and two model experiments on real text, 2026-09-03 |
 | CLI `finresearchops` | Implemented: six thin actions over the Application Interface | `tests/test_cli.py`, installed wheel `--help` |
 | Private validation profiles | Implemented: acceptable answer, post-cutoff document, no admissible evidence | `tests/test_private_dev_profile.py`, `scripts/build_validation_profile.py` |
 | Paired evaluation runner | Framework only, no results | `tests/test_paired_runner.py` |
@@ -544,6 +544,30 @@ This does not retract any published count. No wrong answer passed in any of thos
 runs, and refusals stay refusals. What it changes is the reading: a large share of
 them were refusals of questions that could not have been answered from the material
 given, which is a property of the harness and not of the model.
+
+## The route model is now the larger one (2026-09-04)
+
+Four batches have been run on both sizes, and the pattern is not in the totals but in
+where each one wins. On the development filing — the set the prompt wording was tuned
+against — the small model accepts more. On all three filings it had never seen, the
+larger model accepts more, every time:
+
+| batch | small | large |
+|---|---|---|
+| development filing | **7** | 5 |
+| first transfer | 3 | **6** |
+| second transfer | 0 | **2** |
+| third transfer | 0 | **2** |
+
+The small model's advantage exists only where the prompt was fitted to the cases. That
+is the more useful reading of an earlier finding: a claim that the larger model was
+worse came from routes that starved it of information, was retracted, and is now
+inverted on unseen material.
+
+The route is therefore the larger model. Its manifest records the digest and size the
+daemon reports; the weights hash and licence hash are null rather than guessed, because
+they were not independently obtained for this tag. The caveat stands unchanged: the tag
+and its reported digest are frozen, the weights are not independently attested.
 
 ## Not proven
 

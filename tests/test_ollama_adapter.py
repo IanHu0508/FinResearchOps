@@ -38,7 +38,7 @@ MODEL_ROUTE_MANIFEST_PATH = (
     Path(__file__).parents[1]
     / "manifests"
     / "examples"
-    / "qwen3_4b_ollama_route.json"
+    / "qwen3_8b_ollama_route.json"
 )
 PRIOR = (
     "metric=Net sales;basis=Reported;period=Year ended 2024-12-31;"

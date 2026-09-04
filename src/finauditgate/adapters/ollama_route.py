@@ -15,9 +15,9 @@ from finauditgate.core.artifacts import canonical_json_bytes, sha256_hex
 
 
 PROVIDER = "ollama"
-MODEL_ID = "qwen3:4b-q4_K_M"
-MODEL_DIGEST = "2bfd38a7daaf4b1037efe517ccb73d1a3bbd4822cf89f1a82be1569050a114e0"
-MODEL_SIZE_BYTES = 2_620_788_260
+MODEL_ID = "qwen3:8b-q4_K_M"
+MODEL_DIGEST = "500a1f067a9f782620b40bee6f7b0c89e17ae61f686b92c24933e4ca4b2b8b41"
+MODEL_SIZE_BYTES = 5_225_388_164
 MODEL_CONTEXT_LENGTH = 40_960
 
 # The daemon version observed when the route was smoke-tested.  It is recorded

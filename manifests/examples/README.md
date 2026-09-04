@@ -7,7 +7,7 @@ must never include private paths, credentials, hidden gold, or source excerpts.
 acquisition constraints. Its `PLANNED_NOT_ACQUIRED` state means it is not a
 download record, cache manifest, or evaluation artifact.
 
-`qwen3_4b_ollama_route.json` records the one frozen local-model route: model
+`qwen3_8b_ollama_route.json` records the one frozen local-model route: model
 tag and digests, public license/source links, the prompt/tool/generation-config
 hashes the Adapter and the offline verifier share, byte and token budgets, and
 the daemon version observed when the route was smoke-tested. It contains no
