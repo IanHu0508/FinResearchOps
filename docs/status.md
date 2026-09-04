@@ -581,6 +581,12 @@ still the same person's.
 
 What is deliberately not claimed:
 
+- **it covers very little of the benchmark this project was framed against.** On a
+  ten-question development slice of that benchmark's public subset, none fits this
+  system's task shape, and counting the graders' own rubric points rather than questions,
+  16 % of the available credit is for finding a figure and 84 % is for deriving one. This
+  system verifies the finding. Calling it a reproduction would be wrong in kind, not
+  merely premature;
 - **this is not an agent yet.** It executes one fixed task shape over exactly
   two evidence items; it does not decide what to check, retrieve its own
   material, or plan a sequence of steps. There are now two allowlisted
