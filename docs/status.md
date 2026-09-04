@@ -372,8 +372,39 @@ separated from its narrative repeat by any section string, so the reviewer chose
 among the slicer's own candidates, which the protocol permits and which is recorded
 in the pack.
 
-The prediction most likely to fail is the slicing one, and its number will be
-reported whatever it is. No prediction is registered about how many cases are
+It has since been run on both model sizes. On twelve cases the small model accepted
+none and the larger accepted two, **unsafe accepts 0 in both** — both accepts equal
+the sealed gold — with replay consistent 10 of 10 in each arm. Two cases never
+reached a model at all because of errors in how the author wrote their locators;
+they are reported as errors rather than dropped, and the sealed pack was not edited
+to repair them.
+
+Verdicts on the three claims this run existed to test:
+
+- **the depositary-share repair is supported, thinly.** The per-ordinary-share case
+  was accepted with the right answer by the larger model, where on the previous
+  filing every case of that shape failed on both models. Its per-ADS twin failed for
+  a locator reason rather than a labelling one. One accept is evidence, not a
+  demonstration;
+- **the slicing prediction is partly falsified**, exactly as recorded before the run:
+  eight of nine on unseen material, missing one because this filing heads its balance
+  sheet with a bare date. The rule was not changed afterwards;
+- **the transfer conclusion is weakened rather than confirmed.** The gate held again —
+  no wrong answer passed on a third issuer in a third document shape — but accepts
+  fell, and the cause was not predicted.
+
+The dominant failure is one this project has now seen twice. This filing reports in
+thousands where both earlier ones reported in millions; the model reads the figures
+correctly and then labels the scale wrongly, because the scale description's worked
+examples are all of one case. The same shape of defect — a description whose examples
+cover a single situation, over-generalised by the model — was found earlier in the
+numeric field. That is a pattern rather than two coincidences, and it is the next
+thing to fix.
+
+One nuance for reading any of these counts: a growth rate is scale-invariant, so in at
+least one case the gate refused a claim whose derived percentage would have been
+correct. The refusal is right, because the gate checks claims and not only answers,
+but the accept count understates how often the arithmetic would have landed. No prediction is registered about how many cases are
 accepted, because the author also chooses the cases, and a count target would invite
 choosing easy ones.
 

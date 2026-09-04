@@ -16,6 +16,7 @@ import sys
 from typing import Sequence
 
 from finauditgate import FrozenDocumentPackage, RunRef
+from finauditgate.core.operations import ANSWER_CONTRACT_VALUES
 from finauditgate.adapters.ollama import OllamaModelAdapter
 from finauditgate.application import (
     ApplicationError,
@@ -61,6 +62,15 @@ def _parser() -> argparse.ArgumentParser:
         "--mode",
         choices=("SYNTHETIC_DEV", "PRIVATE_DEV", "POST_FREEZE_EVAL"),
         default="PRIVATE_DEV",
+    )
+    create.add_argument(
+        "--answer-contract",
+        choices=ANSWER_CONTRACT_VALUES,
+        default="PERCENTAGE_CHANGE",
+        help=(
+            "what the question asks for. It must match the operation the "
+            "validation profile allows, or the run is refused."
+        ),
     )
     create.add_argument(
         "--risk-class",
@@ -198,6 +208,7 @@ def _execute(arguments: argparse.Namespace) -> int:
                 ),
                 risk_class=arguments.risk_class,
                 mode=arguments.mode,
+                answer_contract=arguments.answer_contract,
             )
         )
     elif arguments.command == "run-analysis":
