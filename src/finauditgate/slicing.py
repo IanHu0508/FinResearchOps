@@ -38,6 +38,15 @@ _HARD_BOUNDARY = re.compile(
 )
 # Two or more four-digit years on one line is a column header.
 _YEAR_ROW = re.compile(r"\b(?:19|20)\d{2}\b")
+# A statement says its units once, above its period header -- "(in thousands)",
+# "(All amounts in thousands…)", "RMB'Million". A slice that starts at the
+# period header cuts it off, and then nothing in the slice says what scale the
+# figures are in. Both filings measured so far put it within a few lines above.
+_UNITS_STATEMENT = re.compile(
+    r"\b(?:in\s+)?(?:thousands?|millions?|billions?)\b|['’]0{3}\b|['’]Million\b",
+    re.IGNORECASE,
+)
+_UNITS_LOOKBACK = 6
 
 MAX_LOOKBACK_LINES = 60
 _SECTION_LOOKBACK = 400
@@ -113,6 +122,7 @@ def locate_slices(
         if section is not None and not _within_section(lines, anchor_index, section):
             continue
         first = header_index if header_index is not None else max(0, anchor_index - 1)
+        first = _include_units_statement(lines, first)
         last = _end_of_table(lines, anchor_index, trailing_lines)
         byte_start = starts[first]
         byte_end = starts[last] + len(lines[last].encode("utf-8"))
@@ -161,6 +171,25 @@ def locate_slice(
             candidates,
         )
     return candidates[0]
+
+
+def _include_units_statement(lines: list[str], first: int) -> int:
+    """Extend the start upward to the statement's units line, if it is there.
+
+    The scale a figure is denominated in is stated once, above the period
+    header, and a slice that begins at the period header does not contain it.
+    A model shown such a slice cannot name the scale from the document, and its
+    answer is then a guess the gate rightly refuses -- which looks like a
+    labelling failure and is really a slicing one.
+    """
+
+    for candidate in range(first - 1, max(-1, first - 1 - _UNITS_LOOKBACK), -1):
+        line = lines[candidate]
+        if _HARD_BOUNDARY.match(line):
+            break
+        if _UNITS_STATEMENT.search(line):
+            return candidate
+    return first
 
 
 def _end_of_table(lines: list[str], index: int, minimum: int) -> int:

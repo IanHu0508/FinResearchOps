@@ -5,7 +5,7 @@
 
 | Area | Status | Evidence |
 |---|---|---|
-| Deterministic core (`FinAuditGate.run` / `replay`) | Implemented for one public synthetic profile and for private validation profiles | 163 offline tests; `scripts/synthetic_demo.py` |
+| Deterministic core (`FinAuditGate.run` / `replay`) | Implemented for one public synthetic profile and for private validation profiles | 167 offline tests; `scripts/synthetic_demo.py` |
 | Application (`FinResearchOps.handle` / `read_case`) | Implemented: Case, Workpaper, append-only Review, proposal-only Packet, replay records, crash recovery | `tests/test_application.py` |
 | Local model Adapter (shared Ollama, Qwen3-4B) | Implemented: frozen request with a closed response schema and five fictional example rows, schema-constrained decoding, whitespace-tolerant span location, bounded raw capture, one content-addressed trace per call, offline verification | `tests/test_ollama_adapter.py`, `tests/test_model_trace_binding.py` (mocked exchanges); four route revisions and two model experiments on real text, 2026-09-03 |
 | CLI `finresearchops` | Implemented: six thin actions over the Application Interface | `tests/test_cli.py`, installed wheel `--help` |
@@ -484,7 +484,35 @@ twice sit in byte-identical rows, and a locator that names a row by its text can
 separate them. Forcing a pair would have been contrived, so corroboration remains without
 a real-text result and the limitation is named instead.
 
-The central prediction is registered at no better than even odds. The same instrument —
+It has since been run on both model sizes: the small model accepted none and the larger
+two, both equal to sealed gold, **unsafe accepts 0**, replay 12 of 12 in each arm. The
+budget repair is confirmed — the largest prompt and answer came to 3,338 tokens against a
+context of 8,192, where the previous run peaked at 4,050 against 4,096.
+
+**And the run overturned the repair it was built to test.** Every scale conflict in this
+and the previous evaluation was caused by the slicing rules, not by the model and not by
+the field description. A statement names its scale once, in a units line, and where that
+line sits relative to the period header differs by filing. The rules began a slice at the
+period header, so a filing that prints its units line above the header lost it. Counting
+every sealed slice: nine of ten stated a scale on the first transfer filing, and **none of
+ten on either of the other two**. In two of three evaluations no slice told the model what
+scale the figures were in, so every scale label those models produced was a guess the gate
+correctly refused. The first filing escaped only because it prints its units line below
+the header, which is luck rather than a working rule.
+
+Three things follow, and they are recorded rather than smoothed over. The description
+repair was made on real evidence — five recorded conflicts — but the evidence did not
+identify the cause, and the input was never checked for the information before the wording
+was changed. The central prediction was therefore not falsified but **untestable as
+constructed**, which is worse than being wrong. And the sufficiency check that should have
+caught it asked for a period header and *currency or scale*, so a slice carrying a currency
+and no scale passed; an "or" between two things that are not interchangeable is not a
+check.
+
+The slicing rules now reach up to the units line, with a page boundary preventing a
+previous statement's units from being captured. That repair is un-evaluated in its turn.
+
+The central prediction was registered at no better than even odds. The same instrument —
 adding a worked example to a field description — has one recorded non-effect: an earlier
 fix appeared to work on the set it was written against and did not hold on new material.
 Whether the scale repair is any different is exactly what this run is for, and the

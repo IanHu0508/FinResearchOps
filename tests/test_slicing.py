@@ -46,6 +46,49 @@ class SlicingTest(unittest.TestCase):
         self.assertIn("400,000", text)
         self.assertEqual("started at the period header", found[0].reason)
 
+    def test_the_slice_reaches_the_statement_units_line(self) -> None:
+        """A statement says its scale once, above the period header.
+
+        A slice that starts at the period header does not contain it, and a
+        model shown such a slice cannot name the scale from the document. Its
+        answer is then a guess, the gate refuses it, and the refusal looks like
+        a labelling failure when it is really a slicing one. Both filings
+        measured so far place the units line a few lines above the header.
+        """
+
+        statement = (
+            b"CONSOLIDATED STATEMENTS OF INCOME\n"
+            b"(All amounts in thousands, except per share data)\n"
+            b"Year Ended December 31,\n"
+            b"2024    2025\n"
+            b"RMB    RMB\n"
+            b"Total net revenues    108,420,832    105,919,546\n"
+        )
+        found = locate_slice(
+            statement, "Total net revenues    108,420,832", max_bytes=6144
+        )
+
+        text = found.text(statement).decode("utf-8")
+        self.assertIn("in thousands", text)
+        self.assertIn("Year Ended December 31,", text)
+        self.assertEqual(2, found.first_line)
+
+    def test_the_units_search_does_not_cross_a_page_boundary(self) -> None:
+        """The previous statement's units line is not this statement's."""
+
+        spanning = (
+            b"(All amounts in millions)\n"
+            b"127\n"
+            b"Year Ended December 31,\n"
+            b"2024    2025\n"
+            b"Total net revenues    108,420,832    105,919,546\n"
+        )
+        found = locate_slice(
+            spanning, "Total net revenues    108,420,832", max_bytes=6144
+        )
+
+        self.assertNotIn("millions", found.text(spanning).decode("utf-8"))
+
     def test_a_repeated_row_yields_one_region_per_place_it_is_printed(
         self,
     ) -> None:
