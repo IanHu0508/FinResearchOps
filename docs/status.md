@@ -663,6 +663,22 @@ its SHA-256 is recorded here, before acquisition:
 
     4d093ddda02beb5137acceaffc3c8d8bc693fa30a2542ccd299ee8b65410db26
 
+**That declaration has been withdrawn and replaced**, because the third operation
+above moved the route it froze. The replacement is recorded here before anything
+is sealed or run:
+
+    3fae10e8edb340b88b1a2657693b3a5954d4528af7eb9abba567909066d8bfdd
+
+The withdrawn file is left byte-identical, so the hash above still verifies. A
+withdrawn declaration that still hashes is better evidence than an edited one.
+The replacement is weaker than the one it replaces, and says so in its own text:
+the filing was acquired under the first declaration's rules, with its accession
+frozen and published before any byte was fetched, but the document has since been
+read to judge whether it can support the cases this evaluation needs. Predictions
+about model behaviour are untested — nothing has been run against it. Predictions
+about what the document contains are no longer blind, and the two that touch on
+document shape are marked as such rather than counted.
+
 That declaration set the criterion and left the issuer to be named. The issuer and
 the frozen accession are named in an addendum, appended rather than edited in so
 the hash above still stands, and its own hash is recorded before any byte of the
