@@ -569,6 +569,34 @@ daemon reports; the weights hash and licence hash are null rather than guessed, 
 they were not independently obtained for this tag. The caveat stands unchanged: the tag
 and its reported digest are frozen, the weights are not independently attested.
 
+## Two capabilities finally exercised on real text (2026-09-04)
+
+The corroboration check and the second operation had been carried through four filings
+without a single real-text result. Both now have one, on the development filing, with the
+larger model on the repaired route.
+
+**Corroboration.** The reason it had never run was diagnosed rather than worked around. A
+figure worth corroborating is printed either far outside any slice, or as an unlabelled
+repeat of the same numbers — a total restated under its own breakdown — whose line carries
+no text that distinguishes it from the first printing. Both defeat a locator that names a
+row by its text, which is what the profile builder offered. The stored profile format was
+never the problem: it holds a byte range. The builder now also accepts *which printing* a
+corroborating figure is, and that resolves to the same byte range the gate already checked.
+
+On the development filing this reaches the intended shape exactly: a profit line, its
+attribution breakdown, and the breakdown's total restated beneath it. The honest pairing is
+accepted and recorded in the evidence ledger as agreeing; a corroboration pointed instead
+at the neighbouring equity-holders line — a real line carrying a different figure, with its
+hash recomputed so only the value is wrong — is refused `CORROBORATION_CONFLICT`.
+
+**The second operation.** `absolute_change` returns 33,334 on the same pair, in the unit of
+the figures rather than in percent, replayed consistently. Every accepted answer before
+this one was a percentage.
+
+Neither result says anything about a second issuer. They were produced on the development
+filing, which is where iteration belongs, and they demonstrate that the two features work
+at all — which until now was untested outside the offline suite.
+
 ## Not proven
 
 No number in this repository is a benchmark result. Twelve reviewed cases on a

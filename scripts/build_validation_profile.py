@@ -103,6 +103,30 @@ def _span_argument(
     return _line_span(document, line, label)
 
 
+def _nth_line_carrying(
+    document: bytes,
+    value: str,
+    occurrence: int,
+    label: str,
+) -> tuple[int, int]:
+    """Byte range of the `occurrence`-th line that prints `value` (1-based)."""
+
+    printed = value if "," in value else f"{int(value):,}" if value.isdigit() else value
+    hits: list[tuple[int, int]] = []
+    start = 0
+    for line in document.split(b"\n"):
+        end = start + len(line)
+        if printed.encode("utf-8") in line or value.encode("utf-8") in line:
+            hits.append((start, end))
+        start = end + 1
+    if not 1 <= occurrence <= len(hits):
+        raise SystemExit(
+            f"{label}: value printed on {len(hits)} lines; "
+            f"occurrence {occurrence} is out of range"
+        )
+    return hits[occurrence - 1]
+
+
 def _evidence(
     document: bytes,
     *,
@@ -113,13 +137,24 @@ def _evidence(
     period: str,
     semantics: dict[str, str],
     corroboration_line: str | None = None,
+    corroboration_occurrence: int | None = None,
 ) -> dict[str, object]:
     start, end = _locate(document, span, evidence_id)
     corroboration = None
-    if corroboration_line is not None:
+    if corroboration_occurrence is not None:
+        # A figure's second printing is often an unlabelled repeat -- a total
+        # restated under its own breakdown -- with no text that distinguishes
+        # its line from the first. Naming it by which printing it is, is the
+        # only locator that works, and it still resolves to a byte range the
+        # gate checks the same way.
+        second_start, second_end = _nth_line_carrying(
+            document, value, corroboration_occurrence, evidence_id
+        )
+    elif corroboration_line is not None:
         second_start, second_end = _line_span(
             document, corroboration_line, f"{evidence_id}-corroboration"
         )
+    if corroboration_occurrence is not None or corroboration_line is not None:
         corroboration = {
             "byte_start": second_start,
             "byte_end": second_end,
@@ -158,6 +193,16 @@ def main() -> int:
     parser.add_argument(
         "--comparison-corroboration-line",
         help="the same, for the comparison value.",
+    )
+    parser.add_argument(
+        "--current-corroboration-occurrence",
+        type=int,
+        help=(
+            "which printing of the current value corroborates it, counting "
+            "lines that carry it from the top of the document. Use this when "
+            "the second printing is an unlabelled repeat that no substring "
+            "can name."
+        ),
     )
     parser.add_argument(
         "--operation",
@@ -259,6 +304,7 @@ def main() -> int:
                 period=arguments.current_period,
                 semantics=semantics,
                 corroboration_line=arguments.current_corroboration_line,
+                corroboration_occurrence=arguments.current_corroboration_occurrence,
             ),
             _evidence(
                 document,
