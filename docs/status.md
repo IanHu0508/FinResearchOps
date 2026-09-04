@@ -593,6 +593,11 @@ hash recomputed so only the value is wrong — is refused `CORROBORATION_CONFLIC
 the figures rather than in percent, replayed consistently. Every accepted answer before
 this one was a percentage.
 
+A five-case development pack exercising both, plus the repaired slicer, accepted
+5 of 5 on the first attempt with every answer equal to the reviewed one and all
+five replays consistent. On a development set that count is a functional check,
+not an evaluation result.
+
 Neither result says anything about a second issuer. They were produced on the development
 filing, which is where iteration belongs, and they demonstrate that the two features work
 at all — which until now was untested outside the offline suite.
