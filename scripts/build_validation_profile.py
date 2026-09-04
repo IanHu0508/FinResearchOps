@@ -50,6 +50,7 @@ from pathlib import Path
 import sys
 
 from finauditgate.contracts import REVIEWED_PROFILE_MODES
+from finauditgate.core.operations import ALLOWLISTED_OPERATIONS, output_unit_for
 from finauditgate.adapters.ollama_contract import (
     METRIC_BASES,
     METRICS,
@@ -133,6 +134,15 @@ def main() -> int:
     parser.add_argument("--cutoff", required=True)
     parser.add_argument("--question", required=True)
     parser.add_argument("--profile-name", default="private-dev-profile/v1")
+    parser.add_argument(
+        "--operation",
+        default="growth_rate_percent",
+        choices=ALLOWLISTED_OPERATIONS,
+        help=(
+            "growth_rate_percent answers in PERCENT; absolute_change answers "
+            "in the unit of the cited figures."
+        ),
+    )
     parser.add_argument(
         "--accepted-mode",
         default="PRIVATE_DEV",
@@ -235,9 +245,9 @@ def main() -> int:
             ),
         ]
         profile["calculation"] = {
-            "operation": "growth_rate_percent",
+            "operation": arguments.operation,
             "operand_ids": ["current", "comparison"],
-            "output_unit": "PERCENT",
+            "output_unit": output_unit_for(arguments.operation, arguments.unit),
             "quantize": "0.01",
             "decimal_context": {
                 "precision": 28,

@@ -16,6 +16,7 @@ from dataclasses import dataclass
 import re
 from typing import TypeAlias
 
+from finauditgate.core.operations import ALLOWLISTED_OPERATIONS
 from finauditgate.ports.model import (
     CalculationCandidate,
     EvidenceCandidate,
@@ -41,9 +42,13 @@ METRICS = (
     "other",
 )
 METRIC_BASES = ("REPORTED", "ADJUSTED")
+# What an answer may be denominated in: a percentage, or whatever the
+# operands were.  PERCENT is already a unit, so the two sets overlap.
+
 UNITS = ("MONETARY", "PER_SHARE", "PER_DEPOSITARY_SHARE", "COUNT", "PERCENT")
 SCALES = ("UNIT", "THOUSAND", "MILLION", "BILLION")
 SIGNS = ("POSITIVE", "NEGATIVE")
+OUTPUT_UNITS = ("PERCENT",) + tuple(u for u in UNITS if u != "PERCENT")
 
 
 class ToolContractError(ValueError):
@@ -234,7 +239,17 @@ _CALCULATION_RULE = _ObjectRule(
     fields=(
         (
             "operation",
-            _string(_CALCULATION_ERROR, const="growth_rate_percent"),
+            _string(
+                _CALCULATION_ERROR,
+                enum=ALLOWLISTED_OPERATIONS,
+                description=(
+                    "growth_rate_percent for a period-on-period growth rate, "
+                    "answered in PERCENT; absolute_change for the difference "
+                    "between the two periods, answered in the same unit and "
+                    "scale as the figures themselves. Use the one the question "
+                    "asks for."
+                ),
+            ),
         ),
         (
             "operand_ids",
@@ -246,7 +261,14 @@ _CALCULATION_RULE = _ObjectRule(
         ),
         (
             "output_unit",
-            _string(_CALCULATION_ERROR, const="PERCENT"),
+            _string(
+                _CALCULATION_ERROR,
+                enum=OUTPUT_UNITS,
+                description=(
+                    "PERCENT for growth_rate_percent; for absolute_change the "
+                    "same unit as the cited figures."
+                ),
+            ),
         ),
         (
             "quantize",

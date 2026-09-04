@@ -60,7 +60,10 @@ class AuditTask:
     question: str
     cutoff: date
     document: FrozenDocumentPackage
-    answer_contract: Literal["PERCENTAGE_CHANGE"] = "PERCENTAGE_CHANGE"
+    answer_contract: Literal[
+        "PERCENTAGE_CHANGE",
+        "ABSOLUTE_CHANGE",
+    ] = "PERCENTAGE_CHANGE"
     risk_class: Literal["LOW", "MEDIUM", "MATERIAL"] = "LOW"
     mode: Literal[
         "SYNTHETIC_DEV",
@@ -83,7 +86,7 @@ class AuditTask:
             raise TypeError("document must be a FrozenDocumentPackage")
         if type(self.answer_contract) is not str:
             raise TypeError("answer_contract must be a string")
-        if self.answer_contract != "PERCENTAGE_CHANGE":
+        if self.answer_contract not in {"PERCENTAGE_CHANGE", "ABSOLUTE_CHANGE"}:
             raise ValueError("unsupported answer_contract")
         if type(self.risk_class) is not str:
             raise TypeError("risk_class must be a string")

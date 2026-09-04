@@ -304,6 +304,75 @@ def _profile(private: Path, payload: dict[str, object]) -> PrivateDevValidationP
 
 
 class PrivateDevValidationProfileTest(unittest.TestCase):
+    def test_absolute_change_answers_in_the_unit_of_the_figures(self) -> None:
+        """The second operation, end to end through the private gate.
+
+        Its answer is not a percentage: subtracting two figures denominated in
+        millions leaves millions, so the answer's unit follows the operands and
+        the task asks for a different contract.
+        """
+
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            private = _workspace(temporary_directory)
+            task = replace(_private_task(), answer_contract="ABSOLUTE_CHANGE")
+            payload = _profile_payload(NATURAL_DOCUMENT)
+            payload["calculation"]["operation"] = "absolute_change"
+            payload["calculation"]["output_unit"] = "MONETARY"
+            profile = _profile(private, payload)
+            candidate = replace(
+                _candidate(),
+                calculation=CalculationCandidate(
+                    operation="absolute_change",
+                    operand_ids=("current", "comparison"),
+                    output_unit="MONETARY",
+                    quantize="0.01",
+                ),
+            )
+            trace_root = private / "model-traces"
+            execution = _traced_execution(trace_root, task, candidate)
+            outcome = FinAuditGate(
+                artifact_root=private / "artifacts" / "core",
+                model=_OneTraceModel(execution),
+                model_trace_root=trace_root,
+                private_dev_profile=profile,
+            ).run(task)
+
+        self.assertIs(Decision.ACCEPT, outcome.decision)
+        # 150.00 - 125.00, in millions, not 20.00 percent
+        self.assertEqual("25.00", outcome.answer)
+        self.assertEqual("MONETARY", outcome.answer_unit)
+
+    def test_a_task_and_its_profile_must_ask_the_same_question(self) -> None:
+        """A percentage task cannot be answered by a difference, or the reverse."""
+
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            private = _workspace(temporary_directory)
+            task = _private_task()  # answer_contract PERCENTAGE_CHANGE
+            payload = _profile_payload(NATURAL_DOCUMENT)
+            payload["calculation"]["operation"] = "absolute_change"
+            payload["calculation"]["output_unit"] = "MONETARY"
+            profile = _profile(private, payload)
+            candidate = replace(
+                _candidate(),
+                calculation=CalculationCandidate(
+                    operation="absolute_change",
+                    operand_ids=("current", "comparison"),
+                    output_unit="MONETARY",
+                    quantize="0.01",
+                ),
+            )
+            trace_root = private / "model-traces"
+            execution = _traced_execution(trace_root, task, candidate)
+            outcome = FinAuditGate(
+                artifact_root=private / "artifacts" / "core",
+                model=_OneTraceModel(execution),
+                model_trace_root=trace_root,
+                private_dev_profile=profile,
+            ).run(task)
+
+        self.assertIs(Decision.HUMAN_REVIEW, outcome.decision)
+        self.assertEqual(("ANSWER_CONTRACT_CONFLICT",), outcome.reason_codes)
+
     def test_post_freeze_transfer_runs_get_every_reviewed_guarantee(
         self,
     ) -> None:

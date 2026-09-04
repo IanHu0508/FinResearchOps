@@ -36,7 +36,7 @@
         "declared_published_at": {"type": "string", "format": "date"}
       }
     },
-    "answer_contract": {"const": "PERCENTAGE_CHANGE"},
+    "answer_contract": {"enum": ["PERCENTAGE_CHANGE", "ABSOLUTE_CHANGE"]},
     "risk_class": {"enum": ["LOW", "MEDIUM", "MATERIAL"]},
     "mode": {"enum": ["SYNTHETIC_DEV", "PRIVATE_DEV", "POST_FREEZE_EVAL"]}
   }

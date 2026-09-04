@@ -8,19 +8,15 @@ metrics, bases, currencies, units, scales, and signs.  It is the only profile a
 
 from __future__ import annotations
 
-from decimal import (
-    Context,
-    Decimal,
-    DivisionByZero,
-    InvalidOperation,
-    Overflow,
-    ROUND_HALF_EVEN,
-    localcontext,
-)
+from decimal import Decimal, InvalidOperation
 import re
 from types import MappingProxyType
 from typing import Any
 
+from finauditgate.core.operations import (
+    OperationDomainError,
+    evaluate as evaluate_operation,
+)
 from finauditgate.contracts import AuditTask, Decision
 from finauditgate.core.artifacts import canonical_json_bytes, sha256_hex
 from finauditgate.ports.model import ModelCandidate
@@ -425,24 +421,23 @@ def evaluate_profiled_candidate(
 
     current_value = Decimal(current["value"])
     prior_value = Decimal(prior["value"])
-    if prior_value == 0:
+    try:
+        result = evaluate_operation(
+            calculation.operation,
+            current=current_value,
+            comparison=prior_value,
+            quantize=policy["quantize"],
+            precision=policy["precision"],
+            emin=policy["emin"],
+            emax=policy["emax"],
+            capitals=policy["capitals"],
+            clamp=policy["clamp"],
+        )
+    except OperationDomainError as exc:
         raise ValidationFailure(
             Decision.ABSTAIN,
             "FORMULA_DOMAIN_ERROR",
-        )
-    context = Context(
-        prec=policy["precision"],
-        rounding=ROUND_HALF_EVEN,
-        Emin=policy["emin"],
-        Emax=policy["emax"],
-        capitals=policy["capitals"],
-        clamp=policy["clamp"],
-        traps=[InvalidOperation, DivisionByZero, Overflow],
-    )
-    with localcontext(context):
-        result = (
-            (current_value - prior_value) / prior_value * Decimal("100")
-        ).quantize(Decimal(policy["quantize"]), rounding=ROUND_HALF_EVEN)
+        ) from exc
 
     ledger = {
         "schema_version": "finauditgate.ledger/v2",

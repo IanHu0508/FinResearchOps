@@ -54,8 +54,11 @@ UNIT, currency USD; the row "Weighted average shares (million shares) 1,240
 MONETARY, scale MILLION, currency RMB. Do not verify evidence,
 calculate the final answer, choose a gate decision, approve research, execute
 code, or invent text that is absent from the document. Use
-operation="growth_rate_percent", output_unit="PERCENT", quantize="0.01" and
-operand_ids=["current","comparison"] literally."""
+operation="growth_rate_percent" with output_unit="PERCENT" when the question asks
+by how much a figure grew or fell in percent, and operation="absolute_change" with
+output_unit set to the unit of the cited figures when it asks for the size of the
+change itself. Use quantize="0.01" and operand_ids=["current","comparison"]
+literally."""
 
 
 # The runtime compiles the response schema into a decoding grammar and never

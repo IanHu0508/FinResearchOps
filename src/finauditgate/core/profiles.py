@@ -20,6 +20,10 @@ import json
 from pathlib import Path
 import re
 
+from finauditgate.core.operations import (
+    ALLOWLISTED_OPERATIONS,
+    output_unit_for,
+)
 from finauditgate.contracts import REVIEWED_PROFILE_MODES
 from finauditgate.core.artifacts import canonical_json_bytes, sha256_hex
 from finauditgate.private_storage import (
@@ -267,9 +271,13 @@ def validate_profile_payload(payload: object) -> None:
 
     if type(calculation) is not dict or set(calculation) != _CALCULATION_FIELDS:
         raise ValueError("PRIVATE_VALIDATION_PROFILE_INVALID")
+    # The answer's unit follows from the operation and from what the operands
+    # are denominated in, so the profile cannot declare a combination the
+    # calculation would not produce.
     if (
-        calculation["operation"] != "growth_rate_percent"
-        or calculation["output_unit"] != "PERCENT"
+        calculation["operation"] not in ALLOWLISTED_OPERATIONS
+        or calculation["output_unit"]
+        != output_unit_for(calculation["operation"], current_semantics["unit"])
         or calculation["quantize"] != "0.01"
         or calculation["operand_ids"]
         != [role_ids["CURRENT"], role_ids["COMPARISON"]]

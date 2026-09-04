@@ -729,7 +729,7 @@ class FinResearchOps:
                 raise ValueError
             date.fromisoformat(payload["cutoff"])
             date.fromisoformat(source["declared_published_at"])
-            if payload["answer_contract"] != "PERCENTAGE_CHANGE":
+            if payload["answer_contract"] not in {"PERCENTAGE_CHANGE", "ABSOLUTE_CHANGE"}:
                 raise ValueError
             if payload["risk_class"] not in {"LOW", "MEDIUM", "MATERIAL"}:
                 raise ValueError

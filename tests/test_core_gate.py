@@ -128,6 +128,67 @@ def _rewrite_artifact(run_directory: Path, name: str, payload: bytes) -> None:
 
 
 class CoreGateTest(unittest.TestCase):
+    def test_the_growth_arithmetic_is_pinned_field_by_field(self) -> None:
+        """Pin the one allowlisted calculation against silent change.
+
+        The formula artifact is the audit record of how an answer was reached,
+        so any change to it -- a different rounding, a different lineage, a
+        renamed field -- has to be a deliberate edit to this expectation, not a
+        side effect of refactoring the arithmetic.
+        """
+
+        document = FIXTURE_PATH.read_bytes()
+        task = standard_task(document, "synthetic-aurora-revenue-growth-v2")
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            artifact_root = Path(temporary_directory) / "core"
+            outcome = FinAuditGate(
+                artifact_root=artifact_root,
+                model=ScriptedModelAdapter(
+                    {task.task_id: standard_candidate(document)}
+                ),
+            ).run(task)
+            formula = json.loads(
+                (
+                    artifact_root / "runs" / outcome.run_ref.run_id / "formula.json"
+                ).read_bytes()
+            )
+
+        self.assertIs(Decision.ACCEPT, outcome.decision)
+        self.assertEqual("20.00", outcome.answer)
+        self.assertEqual("PERCENT", outcome.answer_unit)
+        self.assertEqual(
+            {
+                "schema_version": "finauditgate.formula/v2",
+                "operation": "growth_rate_percent",
+                "operand_ids": ["revenue_current", "revenue_prior"],
+                "operand_lineage": [
+                    {
+                        "role": "CURRENT",
+                        "evidence_id": "revenue_current",
+                        "period": "FY2025",
+                        "value": "150.00",
+                    },
+                    {
+                        "role": "COMPARISON",
+                        "evidence_id": "revenue_prior",
+                        "period": "FY2024",
+                        "value": "125.00",
+                    },
+                ],
+                # the answer's unit is recorded apart from the inputs' unit, so
+                # an operation whose result is not a percentage already fits
+                "input_currency": "USD",
+                "input_unit": "MONETARY",
+                "input_scale": "MILLION",
+                "output_unit": "PERCENT",
+                "quantize": "0.01",
+                "rounding": "ROUND_HALF_EVEN",
+                "result": "20.00",
+                "calculation_policy_sha256": formula["calculation_policy_sha256"],
+            },
+            formula,
+        )
+
     def test_registered_aliases_form_an_accepted_replayable_lineage(self) -> None:
         document = FIXTURE_PATH.read_bytes()
         task = standard_task(document, "valid-aliases")

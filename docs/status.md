@@ -199,8 +199,10 @@ in that path were found and fixed:
   online Adapter enforced rather than something a saved trace proves. Offline
   verification now binds it.
 
-None of this moves the route: prompt, response schema, generation config, model
-identity and budgets are unchanged, and the development runs still replay.
+None of this moved the route at the time: prompt, response schema, generation
+config, model identity and budgets were unchanged, and the development runs still
+replayed. That sentence was true when written and is no longer true of the current
+code — see the note on what "replays" means, below.
 
 The route surface is now frozen at commit `13685b4`, and a freeze declaration with
 a pre-registered protocol and pre-registered predictions was written before any
@@ -224,10 +226,24 @@ post-freeze split. On twelve cases across the same six failure classes: the smal
 model `ACCEPT` 3 / `HUMAN_REVIEW` 3 / `RETRY` 6, the larger model `ACCEPT` 6 /
 `HUMAN_REVIEW` 3 / `RETRY` 3, **unsafe accepts 0 in both** — every accepted answer
 equals the gold that was sealed before the first call, checked mechanically — and
-replay consistent 12 of 12 in both. No human review disposition has been recorded,
-so "no unsafe accept" here means "equals the sealed gold", not "a reviewer signed
-it". These counts are kept apart from the development counts and must not be pooled
-with them.
+replay consistent 12 of 12 in both **at the time they were run, against the route
+they were run on**. No human review disposition has been recorded, so "no unsafe
+accept" here means "equals the sealed gold", not "a reviewer signed it". These
+counts are kept apart from the development counts and must not be pooled with them.
+
+### What "replays" means here, precisely
+
+Offline verification checks a saved trace against **the route the code currently
+ships**, not against the route the run was made on. So changing the route — as the
+depositary-share repair did — makes every earlier run stop verifying under the new
+code, reporting a core mismatch. That is the intended fail-closed behaviour and not
+a corruption: the artifacts are intact, and each batch still verifies under the
+commit that produced it.
+
+It does mean a replay claim is only ever true of a (run, commit) pair. Every "replay
+consistent" count on this page was established at run time against that batch's own
+route, and none of them can be reproduced at the current HEAD. Anyone re-checking
+them must check out the commit named for that batch.
 
 The pre-registration binds the run in advance: the case list and gold are hashed
 before the first model call and never edited afterwards, a slice is never re-cut

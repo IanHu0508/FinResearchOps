@@ -12,16 +12,13 @@ from __future__ import annotations
 
 import re
 
-from decimal import (
-    Context,
-    Decimal,
-    DivisionByZero,
-    InvalidOperation,
-    Overflow,
-    ROUND_HALF_EVEN,
-    localcontext,
-)
+from decimal import Decimal, InvalidOperation
 
+from finauditgate.core.operations import (
+    ANSWER_CONTRACTS,
+    OperationDomainError,
+    evaluate as evaluate_operation,
+)
 from finauditgate.contracts import AuditTask, Decision
 from finauditgate.core.artifacts import sha256_hex
 from finauditgate.core.synthetic_profile import ValidationFailure
@@ -198,6 +195,14 @@ def evaluate_private_candidate(
             Decision.ABSTAIN,
             "FORMULA_NOT_ALLOWLISTED",
         )
+    # The task, the profile and the arithmetic must be asking and answering the
+    # same question.  For every run made before a second operation existed this
+    # is satisfied by construction.
+    if task.answer_contract != ANSWER_CONTRACTS[frozen_calculation["operation"]]:
+        raise ValidationFailure(
+            Decision.HUMAN_REVIEW,
+            "ANSWER_CONTRACT_CONFLICT",
+        )
     if calculation.output_unit != frozen_calculation["output_unit"]:
         raise ValidationFailure(
             Decision.HUMAN_REVIEW,
@@ -230,27 +235,24 @@ def evaluate_private_candidate(
 
     current_value = Decimal(current["value"])
     comparison_value = Decimal(comparison["value"])
-    if comparison_value == 0:
-        raise ValidationFailure(Decision.ABSTAIN, "FORMULA_DOMAIN_ERROR")
     context_policy = frozen_calculation["decimal_context"]
-    context = Context(
-        prec=context_policy["precision"],
-        rounding=ROUND_HALF_EVEN,
-        Emin=context_policy["emin"],
-        Emax=context_policy["emax"],
-        capitals=context_policy["capitals"],
-        clamp=context_policy["clamp"],
-        traps=[InvalidOperation, DivisionByZero, Overflow],
-    )
-    with localcontext(context):
-        result = (
-            (current_value - comparison_value)
-            / comparison_value
-            * Decimal("100")
-        ).quantize(
-            Decimal(frozen_calculation["quantize"]),
-            rounding=ROUND_HALF_EVEN,
+    try:
+        result = evaluate_operation(
+            calculation.operation,
+            current=current_value,
+            comparison=comparison_value,
+            quantize=frozen_calculation["quantize"],
+            precision=context_policy["precision"],
+            emin=context_policy["emin"],
+            emax=context_policy["emax"],
+            capitals=context_policy["capitals"],
+            clamp=context_policy["clamp"],
         )
+    except OperationDomainError as exc:
+        raise ValidationFailure(
+            Decision.ABSTAIN,
+            "FORMULA_DOMAIN_ERROR",
+        ) from exc
 
     ledger = {
         "schema_version": "finauditgate.ledger/v2",

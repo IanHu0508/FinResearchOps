@@ -51,7 +51,7 @@
       "format": "date"
     },
     "answer_contract": {
-      "const": "PERCENTAGE_CHANGE"
+      "enum": ["PERCENTAGE_CHANGE", "ABSOLUTE_CHANGE"]
     },
     "risk_class": {
       "enum": [
