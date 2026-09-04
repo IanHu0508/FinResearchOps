@@ -112,8 +112,21 @@ def _evidence(
     value: str,
     period: str,
     semantics: dict[str, str],
+    corroboration_line: str | None = None,
 ) -> dict[str, object]:
     start, end = _locate(document, span, evidence_id)
+    corroboration = None
+    if corroboration_line is not None:
+        second_start, second_end = _line_span(
+            document, corroboration_line, f"{evidence_id}-corroboration"
+        )
+        corroboration = {
+            "byte_start": second_start,
+            "byte_end": second_end,
+            "span_sha256": hashlib.sha256(
+                document[second_start:second_end]
+            ).hexdigest(),
+        }
     return {
         "evidence_id": evidence_id,
         "role": role,
@@ -122,6 +135,7 @@ def _evidence(
         "span_sha256": hashlib.sha256(document[start:end]).hexdigest(),
         "value": value,
         "normalized_semantics": {**semantics, "fiscal_period": period},
+        "corroboration": corroboration,
     }
 
 
@@ -134,6 +148,17 @@ def main() -> int:
     parser.add_argument("--cutoff", required=True)
     parser.add_argument("--question", required=True)
     parser.add_argument("--profile-name", default="private-dev-profile/v1")
+    parser.add_argument(
+        "--current-corroboration-line",
+        help=(
+            "unique substring of a second line that prints the same current "
+            "value, for example the note that breaks down a statement total."
+        ),
+    )
+    parser.add_argument(
+        "--comparison-corroboration-line",
+        help="the same, for the comparison value.",
+    )
     parser.add_argument(
         "--operation",
         default="growth_rate_percent",
@@ -233,6 +258,7 @@ def main() -> int:
                 value=arguments.current_value,
                 period=arguments.current_period,
                 semantics=semantics,
+                corroboration_line=arguments.current_corroboration_line,
             ),
             _evidence(
                 document,
@@ -242,6 +268,7 @@ def main() -> int:
                 value=arguments.comparison_value,
                 period=arguments.comparison_period,
                 semantics=semantics,
+                corroboration_line=arguments.comparison_corroboration_line,
             ),
         ]
         profile["calculation"] = {

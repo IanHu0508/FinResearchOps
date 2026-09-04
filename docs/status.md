@@ -5,7 +5,7 @@
 
 | Area | Status | Evidence |
 |---|---|---|
-| Deterministic core (`FinAuditGate.run` / `replay`) | Implemented for one public synthetic profile and for private validation profiles | 159 offline tests; `scripts/synthetic_demo.py` |
+| Deterministic core (`FinAuditGate.run` / `replay`) | Implemented for one public synthetic profile and for private validation profiles | 162 offline tests; `scripts/synthetic_demo.py` |
 | Application (`FinResearchOps.handle` / `read_case`) | Implemented: Case, Workpaper, append-only Review, proposal-only Packet, replay records, crash recovery | `tests/test_application.py` |
 | Local model Adapter (shared Ollama, Qwen3-4B) | Implemented: frozen request with a closed response schema and five fictional example rows, schema-constrained decoding, whitespace-tolerant span location, bounded raw capture, one content-addressed trace per call, offline verification | `tests/test_ollama_adapter.py`, `tests/test_model_trace_binding.py` (mocked exchanges); four route revisions and two model experiments on real text, 2026-09-03 |
 | CLI `finresearchops` | Implemented: six thin actions over the Application Interface | `tests/test_cli.py`, installed wheel `--help` |
@@ -311,6 +311,26 @@ quietly lost:
 This is the intended use of an evaluation — it found a real defect — and the cost of
 using it that way is that the next transfer claim needs new material.
 
+## Corroborating a figure against its second printing (2026-09-03)
+
+A filing prints the same figure more than once: a total in the statement and
+again in the note that breaks it down. Every figure reviewed so far on the two
+filings used here is printed between four and ten times.
+
+A validation profile can now record where a figure is printed again, and the
+gate reads that second region from the frozen document and requires it to carry
+the same value. If it does not, the run stops for a person
+(`CORROBORATION_CONFLICT`); if it does, the agreement is recorded in the evidence
+ledger alongside the citation. The check is computed from the document alone —
+the model is never told a second region exists and cannot influence it — which
+keeps it on the deciding side of the line rather than the proposing side.
+
+The reviewer still chooses where the second printing is, so this corroborates a
+citation; it does not go looking for contradictions on its own. The profile
+schema moved to accommodate it, which makes profiles written for the previous
+version unloadable; profiles are rebuilt for every run and replay does not read
+them, so nothing recorded depends on the old shape.
+
 ## Not proven
 
 No number in this repository is a benchmark result. Twelve reviewed cases on a
@@ -323,10 +343,10 @@ still the same person's.
 
 What is deliberately not claimed:
 
-- **this is not an agent yet.** It executes one fixed task shape. There is
-  exactly one allowlisted operation, a year-on-year growth rate over exactly two
-  evidence items; it does not decide what to check, retrieve its own material, or
-  plan a sequence of steps;
+- **this is not an agent yet.** It executes one fixed task shape over exactly
+  two evidence items; it does not decide what to check, retrieve its own
+  material, or plan a sequence of steps. There are now two allowlisted
+  operations rather than one, which is still a very short list;
 - the document slice a run sees is now cut by a rule rather than by hand
   (`finauditgate.slicing`), but a person still has to say which row is meant.
   On the two filings used so far, every reviewed case has a candidate slice

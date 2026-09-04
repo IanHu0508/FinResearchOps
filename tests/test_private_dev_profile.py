@@ -45,6 +45,20 @@ SOURCE_ID = "private-orion-natural-disclosure-v1"
 DOCUMENT_NAME = "orion-natural-disclosure.txt"
 PRIOR_SPAN = b"FY2024 | Revenue | 125.00"
 CURRENT_SPAN = b"FY2025 | Revenue | 150.00"
+# The same figure printed a second time, the way a filing repeats a statement
+# total in the note that breaks it down.
+CORROBORATED_DOCUMENT = (
+    "Orion Components plc — annual results\n"
+    "Revenue by fiscal year (USD millions)\n"
+    "FY2024 | Revenue | 125.00\n"
+    "FY2025 | Revenue | 150.00\n"
+    "Note 4 — Revenue by segment (USD millions)\n"
+    "FY2025 | Components 90.00 | Services 60.00 | Total 150.00\n"
+).encode("utf-8")
+CORROBORATING_LINE = b"FY2025 | Components 90.00 | Services 60.00 | Total 150.00"
+CONTRADICTING_DOCUMENT = CORROBORATED_DOCUMENT.replace(
+    b"Total 150.00", b"Total 151.00"
+)
 
 
 class _JSONResponse:
@@ -157,7 +171,7 @@ def _profile_payload(
         "sign": "POSITIVE",
     }
     return {
-        "schema_version": "finauditgate.private-dev-validation-profile/v2",
+        "schema_version": "finauditgate.private-dev-validation-profile/v3",
         "validation_profile": "private-natural-revenue-growth/v2",
         "source_id": SOURCE_ID,
         "document_name": DOCUMENT_NAME,
@@ -178,6 +192,7 @@ def _profile_payload(
                 ),
                 "value": "125.00",
                 "normalized_semantics": {**semantics, "fiscal_period": "FY2024"},
+                "corroboration": None,
             },
             {
                 "evidence_id": "current",
@@ -187,6 +202,7 @@ def _profile_payload(
                 "span_sha256": hashlib.sha256(CURRENT_SPAN).hexdigest(),
                 "value": "150.00",
                 "normalized_semantics": {**semantics, "fiscal_period": "FY2025"},
+                "corroboration": None,
             },
         ],
         "calculation": {
@@ -304,6 +320,111 @@ def _profile(private: Path, payload: dict[str, object]) -> PrivateDevValidationP
 
 
 class PrivateDevValidationProfileTest(unittest.TestCase):
+    def _corroborated_profile(
+        self,
+        private: Path,
+        document: bytes,
+        corroborating: bytes,
+    ) -> PrivateDevValidationProfile:
+        payload = _profile_payload(document)
+        payload["document_sha256"] = hashlib.sha256(document).hexdigest()
+        start = document.index(corroborating)
+        for item in payload["evidence_allowlist"]:
+            if item["role"] != "CURRENT":
+                continue
+            item["corroboration"] = {
+                "byte_start": start,
+                "byte_end": start + len(corroborating),
+                "span_sha256": hashlib.sha256(corroborating).hexdigest(),
+            }
+        return _profile(private, payload)
+
+    def test_a_second_printing_of_the_figure_is_checked_too(self) -> None:
+        """A total in the statement, and the note that breaks it down.
+
+        The reviewer records where the figure is printed again; the gate reads
+        that region from the frozen document and requires it to carry the same
+        value. The model is not told about it and cannot influence it.
+        """
+
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            private = _workspace(temporary_directory)
+            task = _private_task(CORROBORATED_DOCUMENT)
+            profile = self._corroborated_profile(
+                private, CORROBORATED_DOCUMENT, CORROBORATING_LINE
+            )
+            trace_root = private / "model-traces"
+            execution = _traced_execution(
+                trace_root, task, _candidate(CORROBORATED_DOCUMENT)
+            )
+            outcome = FinAuditGate(
+                artifact_root=private / "artifacts" / "core",
+                model=_OneTraceModel(execution),
+                model_trace_root=trace_root,
+                private_dev_profile=profile,
+            ).run(task)
+            ledger = json.loads(
+                (
+                    private / "artifacts" / "core" / "runs"
+                    / outcome.run_ref.run_id / "ledger.json"
+                ).read_bytes()
+            )
+
+        self.assertIs(Decision.ACCEPT, outcome.decision)
+        current = next(n for n in ledger["nodes"] if n["role"] == "CURRENT")
+        self.assertEqual(
+            "SECOND_PRINTING_CARRIES_THE_SAME_VALUE",
+            current["corroboration"]["agreement"],
+        )
+        comparison = next(
+            n for n in ledger["nodes"] if n["role"] == "COMPARISON"
+        )
+        self.assertIsNone(comparison["corroboration"])
+
+    def test_a_second_printing_that_disagrees_stops_the_run(self) -> None:
+        """The note says 151.00 where the statement says 150.00."""
+
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            private = _workspace(temporary_directory)
+            task = _private_task(CONTRADICTING_DOCUMENT)
+            profile = self._corroborated_profile(
+                private,
+                CONTRADICTING_DOCUMENT,
+                CORROBORATING_LINE.replace(b"Total 150.00", b"Total 151.00"),
+            )
+            trace_root = private / "model-traces"
+            execution = _traced_execution(
+                trace_root, task, _candidate(CONTRADICTING_DOCUMENT)
+            )
+            outcome = FinAuditGate(
+                artifact_root=private / "artifacts" / "core",
+                model=_OneTraceModel(execution),
+                model_trace_root=trace_root,
+                private_dev_profile=profile,
+            ).run(task)
+
+        self.assertIs(Decision.HUMAN_REVIEW, outcome.decision)
+        self.assertEqual(("CORROBORATION_CONFLICT",), outcome.reason_codes)
+
+    def test_a_corroboration_may_not_overlap_the_span_it_corroborates(
+        self,
+    ) -> None:
+        """Citing the same bytes twice would corroborate nothing."""
+
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            private = _workspace(temporary_directory)
+            payload = _profile_payload(NATURAL_DOCUMENT)
+            for item in payload["evidence_allowlist"]:
+                if item["role"] != "CURRENT":
+                    continue
+                item["corroboration"] = {
+                    "byte_start": item["byte_start"],
+                    "byte_end": item["byte_end"],
+                    "span_sha256": item["span_sha256"],
+                }
+            with self.assertRaises(ValueError):
+                _profile(private, payload)
+
     def test_absolute_change_answers_in_the_unit_of_the_figures(self) -> None:
         """The second operation, end to end through the private gate.
 

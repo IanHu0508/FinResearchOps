@@ -142,6 +142,7 @@ def evaluate_private_candidate(
                 Decision.RETRY,
                 "EVIDENCE_LOCATOR_INVALID",
             )
+        corroboration = _corroborating_locator(document, frozen)
         semantics = frozen["normalized_semantics"]
         claims = {
             "metric": evidence.metric,
@@ -184,6 +185,7 @@ def evaluate_private_candidate(
                     "byte_end": frozen["byte_end"],
                     "span_sha256": frozen["span_sha256"],
                 },
+                "corroboration": corroboration,
                 "verification": "VERIFIED_AGAINST_FROZEN_PRIVATE_ALLOWLIST",
             }
         )
@@ -287,6 +289,35 @@ def evaluate_private_candidate(
         "result": format(result, "f"),
     }
     return ledger, formula
+
+
+def _corroborating_locator(
+    document: bytes,
+    frozen: dict[str, object],
+) -> dict[str, object] | None:
+    """Check the reviewed second printing of a figure, if there is one.
+
+    A filing prints the same figure in more than one place -- a total in the
+    statement and again in the note that breaks it down.  Where the reviewer
+    recorded that second printing, the gate reads it too: the bytes must hash
+    as reviewed and must print the same value.  This is checked from the frozen
+    document alone, so the model neither knows about it nor can influence it.
+    """
+
+    reviewed = frozen["corroboration"]
+    if reviewed is None:
+        return None
+    span = document[reviewed["byte_start"] : reviewed["byte_end"]]
+    if sha256_hex(span) != reviewed["span_sha256"]:
+        raise ValidationFailure(Decision.HUMAN_REVIEW, "CORROBORATION_CONFLICT")
+    if not _span_carries_value(span, frozen["value"]):
+        raise ValidationFailure(Decision.HUMAN_REVIEW, "CORROBORATION_CONFLICT")
+    return {
+        "byte_start": reviewed["byte_start"],
+        "byte_end": reviewed["byte_end"],
+        "span_sha256": reviewed["span_sha256"],
+        "agreement": "SECOND_PRINTING_CARRIES_THE_SAME_VALUE",
+    }
 
 
 def _span_carries_value(span: bytes, value: str) -> bool:

@@ -33,7 +33,7 @@ from finauditgate.private_storage import (
 )
 
 
-PROFILE_SCHEMA_VERSION = "finauditgate.private-dev-validation-profile/v2"
+PROFILE_SCHEMA_VERSION = "finauditgate.private-dev-validation-profile/v3"
 _SHA256_HEX = re.compile(r"[0-9a-f]{64}")
 _MAX_PROFILE_BYTES = 1_048_576
 _PROFILE_FIELDS = {
@@ -50,6 +50,7 @@ _PROFILE_FIELDS = {
     "evidence_allowlist",
     "calculation",
 }
+_CORROBORATION_FIELDS = {"byte_start", "byte_end", "span_sha256"}
 _EVIDENCE_FIELDS = {
     "evidence_id",
     "role",
@@ -58,6 +59,7 @@ _EVIDENCE_FIELDS = {
     "span_sha256",
     "value",
     "normalized_semantics",
+    "corroboration",
 }
 _SEMANTIC_FIELDS = {
     "metric",
@@ -227,6 +229,25 @@ def validate_profile_payload(payload: object) -> None:
             or not item["value"].strip()
         ):
             raise ValueError("PRIVATE_VALIDATION_PROFILE_INVALID")
+        # A figure that a filing prints twice can be corroborated against its
+        # second printing.  The reviewer decides where that is; `null` means
+        # this case has no second printing to check.
+        corroboration = item["corroboration"]
+        if corroboration is not None:
+            if (
+                type(corroboration) is not dict
+                or set(corroboration) != _CORROBORATION_FIELDS
+                or type(corroboration["byte_start"]) is not int
+                or type(corroboration["byte_end"]) is not int
+                or not 0 <= corroboration["byte_start"] < corroboration["byte_end"]
+                or type(corroboration["span_sha256"]) is not str
+                or not _SHA256_HEX.fullmatch(corroboration["span_sha256"])
+                or not (
+                    corroboration["byte_end"] <= item["byte_start"]
+                    or corroboration["byte_start"] >= item["byte_end"]
+                )
+            ):
+                raise ValueError("PRIVATE_VALIDATION_PROFILE_INVALID")
         try:
             value = Decimal(item["value"])
         except InvalidOperation as exc:
