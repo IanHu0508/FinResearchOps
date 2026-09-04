@@ -464,6 +464,26 @@ be provably buildable before it is sealed, because two cases last time never rea
 model owing to locators the author wrote badly; and the maximum prompt and answer of every
 batch is reported against the context, so the budget repair is checked rather than assumed.
 
+A fourth filing has since been acquired, chosen against the declared criterion and
+verified to meet it: it reports at thousands scale, which is what makes the scale repair
+testable. Its sealed pack — twelve cases, slices cut by the slicing rules, every locator
+resolved at seal time — was built and hashed before the first model call:
+
+    d47b324349d86b5c6dc98a03294c1e4a673262cc287fdc574db532f37a1e86d1
+
+The new rule earned itself immediately: seven of the twelve cases could not be sealed on
+the first attempt, and were repaired before sealing rather than discovered at run time as
+they were last time. Two further things are recorded in the pack before any model ran.
+The depositary-share repair cannot be tested here, because this filing's statements carry
+per-ordinary-share figures only. And the bare-date slicing repair cannot be tested either,
+because this filing uses the worded form the rules already handled — so that prediction is
+marked untested rather than counted as passed.
+
+No corroboration case is included, for a reason worth stating: the figures a filing prints
+twice sit in byte-identical rows, and a locator that names a row by its text cannot
+separate them. Forcing a pair would have been contrived, so corroboration remains without
+a real-text result and the limitation is named instead.
+
 The central prediction is registered at no better than even odds. The same instrument —
 adding a worked example to a field description — has one recorded non-effect: an earlier
 fix appeared to work on the set it was written against and did not hold on new material.
