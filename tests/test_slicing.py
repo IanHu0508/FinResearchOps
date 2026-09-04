@@ -2,6 +2,7 @@ import unittest
 
 from finauditgate.slicing import (
     DocumentSlice,
+    missing_semantics,
     SliceNotUnique,
     locate_slice,
     locate_slices,
@@ -212,6 +213,77 @@ class SlicingTest(unittest.TestCase):
         self.assertEqual(
             STATEMENT[found.byte_start : found.byte_end],
             found.text(STATEMENT),
+        )
+
+
+class SliceSufficiencyTest(unittest.TestCase):
+    """A slice must state everything the claim about it will be judged on."""
+
+    COMPLETE = (
+        b"(All amounts in thousands)\n"
+        b"Year Ended December 31,\n"
+        b"2024    2025\n"
+        b"RMB    RMB\n"
+        b"Total net revenues    108,420,832    105,919,546\n"
+    )
+
+    def test_a_complete_slice_is_missing_nothing(self) -> None:
+        self.assertEqual(
+            (),
+            missing_semantics(self.COMPLETE, currency="RMB", scale="THOUSAND"),
+        )
+
+    def test_a_currency_does_not_stand_in_for_a_scale(self) -> None:
+        """The bug this exists to prevent, stated as a test.
+
+        The check that shipped before asked for a period header and currency
+        *or* scale, so a slice naming RMB and no scale passed. Fifteen of
+        thirty evidence-bearing cases across three sealed packs were
+        unanswerable because of it.
+        """
+
+        no_scale = self.COMPLETE.replace(b"(All amounts in thousands)\n", b"")
+
+        self.assertEqual(
+            ("scale",),
+            missing_semantics(no_scale, currency="RMB", scale="THOUSAND"),
+        )
+
+    def test_each_requirement_is_reported_separately(self) -> None:
+        bare = b"Total net revenues    108,420,832    105,919,546\n"
+
+        self.assertEqual(
+            ("period", "currency", "scale"),
+            missing_semantics(bare, currency="RMB", scale="THOUSAND"),
+        )
+
+    def test_only_what_the_claim_depends_on_is_required(self) -> None:
+        """A share count declares no currency; a per-share amount is unscaled."""
+
+        counts = (
+            b"Year Ended December 31,\n"
+            b"2024    2025\n"
+            b"Weighted average shares    106,074,914    100,072,178\n"
+        )
+        self.assertEqual(
+            (), missing_semantics(counts, currency="NONE", scale="UNIT")
+        )
+        # the same slice would be incomplete for a monetary claim
+        self.assertEqual(
+            ("currency", "scale"),
+            missing_semantics(counts, currency="RMB", scale="THOUSAND"),
+        )
+
+    def test_a_currency_symbol_counts_as_a_currency(self) -> None:
+        symbols = (
+            b"Year Ended December 31,\n"
+            b"US$    US$\n"
+            b"(in millions)\n"
+            b"Revenue    1    2\n"
+        )
+
+        self.assertEqual(
+            (), missing_semantics(symbols, currency="USD", scale="MILLION")
         )
 
 

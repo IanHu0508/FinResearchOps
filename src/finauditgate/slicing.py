@@ -55,6 +55,16 @@ _DRY_LINES = 2
 TRAILING_LINES = 2
 
 
+_CURRENCY_TOKEN = re.compile(
+    r"\b(?:RMB|USD|HKD|EUR|GBP|JPY|CNY|SGD|AUD|CAD|CHF|KRW|TWD|INR)\b"
+    r"|US\$|HK\$|S\$|A\$|C\$|NT\$|[$€£¥₩₹]",
+)
+_SCALE_TOKEN = re.compile(
+    r"\b(?:thousands?|millions?|billions?)\b|['’]0{3}\b|['’](?:Million|Thousand|Billion)\b",
+    re.IGNORECASE,
+)
+
+
 @dataclass(frozen=True, slots=True)
 class DocumentSlice:
     """One byte range of a document, and why it starts where it does."""
@@ -238,6 +248,38 @@ def _within_section(lines: list[str], index: int, section: str) -> bool:
         if folded in line.casefold():
             return True
     return False
+
+
+def missing_semantics(
+    body: bytes,
+    *,
+    currency: str,
+    scale: str,
+) -> tuple[str, ...]:
+    """What a slice fails to state, of the things its claim will be judged on.
+
+    A model can only name what the document it was shown says. A slice that
+    omits the scale produces a guessed scale, the gate refuses the claim, and
+    the refusal reads as a labelling failure when it is really a slicing one.
+    That happened across two evaluations before anyone checked, because the
+    check that should have caught it asked for a period header and *currency or
+    scale* -- an `or` between two things that are not interchangeable, which
+    let a slice carrying only a currency pass.
+
+    Each requirement is therefore reported separately, and only the ones the
+    reviewed claim actually depends on are required: a share count declares no
+    currency, and a per-share amount is unscaled.
+    """
+
+    text = body.decode("utf-8", errors="replace")
+    missing = []
+    if not _PERIOD_HEADER.search(text) and not _YEAR_ROW.search(text):
+        missing.append("period")
+    if currency != "NONE" and not _CURRENCY_TOKEN.search(text):
+        missing.append("currency")
+    if scale != "UNIT" and not _SCALE_TOKEN.search(text):
+        missing.append("scale")
+    return tuple(missing)
 
 
 def describes_a_year_column(line: str) -> bool:

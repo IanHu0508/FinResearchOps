@@ -5,7 +5,7 @@
 
 | Area | Status | Evidence |
 |---|---|---|
-| Deterministic core (`FinAuditGate.run` / `replay`) | Implemented for one public synthetic profile and for private validation profiles | 167 offline tests; `scripts/synthetic_demo.py` |
+| Deterministic core (`FinAuditGate.run` / `replay`) | Implemented for one public synthetic profile and for private validation profiles | 172 offline tests; `scripts/synthetic_demo.py` |
 | Application (`FinResearchOps.handle` / `read_case`) | Implemented: Case, Workpaper, append-only Review, proposal-only Packet, replay records, crash recovery | `tests/test_application.py` |
 | Local model Adapter (shared Ollama, Qwen3-4B) | Implemented: frozen request with a closed response schema and five fictional example rows, schema-constrained decoding, whitespace-tolerant span location, bounded raw capture, one content-addressed trace per call, offline verification | `tests/test_ollama_adapter.py`, `tests/test_model_trace_binding.py` (mocked exchanges); four route revisions and two model experiments on real text, 2026-09-03 |
 | CLI `finresearchops` | Implemented: six thin actions over the Application Interface | `tests/test_cli.py`, installed wheel `--help` |
@@ -517,6 +517,33 @@ adding a worked example to a field description — has one recorded non-effect: 
 fix appeared to work on the set it was written against and did not hold on new material.
 Whether the scale repair is any different is exactly what this run is for, and the
 prediction that it may fail is written down in advance rather than after.
+
+## Checking the input as strictly as the claim (2026-09-04)
+
+Twice now a run completed, replayed, and meant nothing because the input was
+defective rather than the model: once when a declared-but-unimplemented mode fell
+through to the public answer key, and once when slices omitted the scale the claim
+would be judged on. Both looked like model failures in the counts.
+
+The preparation side now carries a check with the same shape as the gate's. A slice
+is audited against what the reviewed claim actually depends on — the period, the
+currency unless the claim declares none, the scale unless the amount is per-share —
+and each requirement is reported separately rather than being satisfied by any one
+of them. The `or` in the previous version is what hid the defect, so the test suite
+pins that specific case: a slice naming a currency and no scale must be reported as
+missing a scale.
+
+Applied to the sealed packs already run, the check finds that **fifteen of thirty
+evidence-bearing cases across three filings were unanswerable as constructed** — the
+model was asked to name something the document it was shown did not state. One of
+those is a deliberate contrast case that was always meant to lack its headers; the
+rest were not deliberate. Re-cut with the repaired slicing rules, the affected cases
+are complete.
+
+This does not retract any published count. No wrong answer passed in any of those
+runs, and refusals stay refusals. What it changes is the reading: a large share of
+them were refusals of questions that could not have been answered from the material
+given, which is a property of the harness and not of the model.
 
 ## Not proven
 
