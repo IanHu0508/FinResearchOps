@@ -22,6 +22,7 @@ import re
 
 from finauditgate.core.operations import (
     ALLOWLISTED_OPERATIONS,
+    PAIRINGS,
     output_unit_for,
 )
 from finauditgate.contracts import REVIEWED_PROFILE_MODES
@@ -272,32 +273,29 @@ def validate_profile_payload(payload: object) -> None:
         raise ValueError("PRIVATE_VALIDATION_PROFILE_INVALID")
     current_semantics = role_items["CURRENT"]["normalized_semantics"]
     comparison_semantics = role_items["COMPARISON"]["normalized_semantics"]
-    shared_formula_semantics = {
-        "metric",
-        "metric_basis",
-        "currency",
-        "unit",
-        "scale",
-        "sign",
-    }
-    if (
-        any(
-            current_semantics[name] != comparison_semantics[name]
-            for name in shared_formula_semantics
-        )
-        or current_semantics["fiscal_period"]
-        == comparison_semantics["fiscal_period"]
-    ):
-        raise ValueError("PRIVATE_VALIDATION_PROFILE_INVALID")
-
     if type(calculation) is not dict or set(calculation) != _CALCULATION_FIELDS:
+        raise ValueError("PRIVATE_VALIDATION_PROFILE_INVALID")
+    if calculation["operation"] not in ALLOWLISTED_OPERATIONS:
+        raise ValueError("PRIVATE_VALIDATION_PROFILE_INVALID")
+    # Which two figures may be combined belongs to the operation, so the rule
+    # is read from the operation rather than fixed here. A growth rate reads
+    # one metric in two periods; a ratio reads two metrics in one period. The
+    # second shape does not loosen the first -- a ratio's profile still names
+    # both metrics, and both are still checked against what the model claimed.
+    pairing = PAIRINGS[calculation["operation"]]
+    if any(
+        current_semantics[name] != comparison_semantics[name]
+        for name in pairing.same
+    ) or any(
+        current_semantics[name] == comparison_semantics[name]
+        for name in pairing.differ
+    ):
         raise ValueError("PRIVATE_VALIDATION_PROFILE_INVALID")
     # The answer's unit follows from the operation and from what the operands
     # are denominated in, so the profile cannot declare a combination the
     # calculation would not produce.
     if (
-        calculation["operation"] not in ALLOWLISTED_OPERATIONS
-        or calculation["output_unit"]
+        calculation["output_unit"]
         != output_unit_for(calculation["operation"], current_semantics["unit"])
         or calculation["quantize"] != "0.01"
         or calculation["operand_ids"]

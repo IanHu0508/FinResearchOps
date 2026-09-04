@@ -244,6 +244,10 @@ def main() -> int:
     parser.add_argument("--comparison-value")
     parser.add_argument("--comparison-period")
     parser.add_argument("--metric", default="revenue", choices=METRICS)
+    # A ratio reads two different metrics in one period, so the denominator
+    # needs a name of its own. It defaults to the numerator's, which is what
+    # every operation that compares one metric across two periods wants.
+    parser.add_argument("--comparison-metric", default=None, choices=METRICS)
     parser.add_argument("--metric-basis", default="REPORTED", choices=METRIC_BASES)
     parser.add_argument("--currency", default="USD")
     parser.add_argument("--unit", default="MONETARY", choices=UNITS)
@@ -292,14 +296,25 @@ def main() -> int:
             span=arguments.comparison_span,
             line=arguments.comparison_line,
         )
-        semantics = {
-            "metric": arguments.metric,
-            "metric_basis": arguments.metric_basis,
-            "currency": arguments.currency,
-            "unit": arguments.unit,
-            "scale": arguments.scale,
-            "sign": arguments.sign,
-        }
+        # `sign` records whether a figure is printed in parentheses or with a
+        # minus. It is a property of each figure, so it is read from each
+        # figure rather than declared once for the pair -- a company that swung
+        # from profit to loss prints one of them each way, and `--sign` applied
+        # to both could not describe that.
+        def _semantics(metric: str, value: str) -> dict[str, str]:
+            return {
+                "metric": metric,
+                "metric_basis": arguments.metric_basis,
+                "currency": arguments.currency,
+                "unit": arguments.unit,
+                "scale": arguments.scale,
+                "sign": "NEGATIVE" if value.lstrip().startswith("-") else arguments.sign,
+            }
+
+        semantics = _semantics(arguments.metric, arguments.current_value)
+        comparison_semantics = _semantics(
+            arguments.comparison_metric or arguments.metric, arguments.comparison_value
+        )
         profile["evidence_allowlist"] = [
             _evidence(
                 document,
@@ -319,7 +334,7 @@ def main() -> int:
                 span=comparison_span,
                 value=arguments.comparison_value,
                 period=arguments.comparison_period,
-                semantics=semantics,
+                semantics=comparison_semantics,
                 corroboration_line=arguments.comparison_corroboration_line,
             ),
         ]

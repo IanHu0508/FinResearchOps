@@ -120,3 +120,109 @@ class ProfileBuilderCorroboration(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+RATIO_DOCUMENT = b"""(in millions)
+                                        2025        2024
+Total net revenues                   105,919     108,420
+Cost of revenues                     (81,429)    (82,951)
+Gross profit                          24,490      25,469
+Operating income (loss)               (5,823)     21,270
+"""
+
+RATIO_BASE = [
+    "--source-id", "test-issuer",
+    "--document-name", "test-issuer__statement.txt",
+    "--published-at", "2026-04-09", "--cutoff", "2026-05-01",
+    "--profile-name", "test-issuer-ratio/v1",
+    "--currency", "RMB", "--unit", "MONETARY", "--scale", "MILLION",
+]
+
+
+class RatioAndSignFlip(unittest.TestCase):
+    """The two shapes the pairing rule used to make unbuildable.
+
+    A ratio reads two metrics in one period, which is the inverse of what a
+    growth rate reads, and the rule was written for growth rates alone. And
+    `sign` sat in the must-match set, which refused every question about a
+    company that swung from profit to loss -- while protecting nothing, since
+    each figure's sign is already checked against its own span.
+    """
+
+    def _build(self, *extra: str) -> subprocess.CompletedProcess[str]:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp)
+            document = root / "statement.txt"
+            document.write_bytes(RATIO_DOCUMENT)
+            output = root / "profile.json"
+            done = subprocess.run(
+                [sys.executable, str(BUILDER), "--document", str(document),
+                 *RATIO_BASE, *extra, "--output", str(output)],
+                capture_output=True, text=True,
+                env={"PYTHONPATH": str(REPO / "src"), "PATH": "/usr/bin:/bin"},
+            )
+            done.profile = json.loads(output.read_text()) if output.exists() else None
+            return done
+
+    def test_a_margin_builds(self) -> None:
+        """Gross profit over revenue, one period, two metrics."""
+
+        done = self._build(
+            "--question", "What was the issuer's gross margin in FY2025?",
+            "--current-line", "Gross profit", "--current-value", "24490",
+            "--current-period", "FY2025",
+            "--comparison-line", "Total net revenues", "--comparison-value", "105919",
+            "--comparison-period", "FY2025",
+            "--metric", "gross_profit", "--comparison-metric", "revenue",
+            "--operation", "ratio_percent",
+        )
+        self.assertEqual(done.returncode, 0, done.stderr)
+        self.assertEqual(done.profile["calculation"]["operation"], "ratio_percent")
+        metrics = [e["normalized_semantics"]["metric"]
+                   for e in done.profile["evidence_allowlist"]]
+        self.assertEqual(sorted(metrics), ["gross_profit", "revenue"])
+        self.assertEqual(done.profile["calculation"]["output_unit"], "PERCENT")
+
+    def test_a_ratio_across_two_periods_is_refused(self) -> None:
+        """A ratio of one metric in two periods is a growth rate wearing a hat."""
+
+        done = self._build(
+            "--question", "What was the issuer's gross margin in FY2025?",
+            "--current-line", "Gross profit", "--current-value", "24490",
+            "--current-period", "FY2025",
+            "--comparison-line", "Total net revenues", "--comparison-value", "105919",
+            "--comparison-period", "FY2024",
+            "--metric", "gross_profit", "--comparison-metric", "revenue",
+            "--operation", "ratio_percent",
+        )
+        self.assertNotEqual(done.returncode, 0)
+
+    def test_a_growth_rate_within_one_period_is_still_refused(self) -> None:
+        """The first shape is not loosened by the second existing."""
+
+        done = self._build(
+            "--question", "What was the growth in the issuer's gross profit?",
+            "--current-line", "Gross profit", "--current-value", "24490",
+            "--current-period", "FY2025",
+            "--comparison-line", "Total net revenues", "--comparison-value", "105919",
+            "--comparison-period", "FY2025",
+            "--metric", "gross_profit", "--comparison-metric", "revenue",
+            "--operation", "growth_rate_percent",
+        )
+        self.assertNotEqual(done.returncode, 0)
+
+    def test_a_swing_from_profit_to_loss_builds(self) -> None:
+        """The figure is printed in parentheses in one period and not the other."""
+
+        done = self._build(
+            "--question", "By how much did the issuer's operating result change in FY2025?",
+            "--current-line", "Operating income (loss)", "--current-value", "-5823",
+            "--current-period", "FY2025",
+            "--comparison-line", "Operating income (loss)", "--comparison-value", "21270",
+            "--comparison-period", "FY2024",
+            "--metric", "operating_income", "--operation", "absolute_change",
+        )
+        self.assertEqual(done.returncode, 0, done.stderr)
+        signs = {e["normalized_semantics"]["sign"]
+                 for e in done.profile["evidence_allowlist"]}
+        self.assertEqual(signs, {"NEGATIVE", "POSITIVE"})

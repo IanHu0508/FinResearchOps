@@ -110,8 +110,13 @@ _EVIDENCE_RULE = _ObjectRule(
                 _EVIDENCE_ERROR,
                 enum=EVIDENCE_IDS,
                 description=(
-                    "current for the later period named in the question; "
-                    "comparison for the earlier period."
+                    "When the question compares two periods, current is the "
+                    "later period named in the question and comparison the "
+                    "earlier one. When the question asks what share or "
+                    "percentage one figure is of another, both are the same "
+                    "period: current is the figure being expressed as a "
+                    "percentage, and comparison is the figure it is a "
+                    "percentage of."
                 ),
             ),
         ),
@@ -248,8 +253,10 @@ _CALCULATION_RULE = _ObjectRule(
                     "growth_rate_percent for a period-on-period growth rate, "
                     "answered in PERCENT; absolute_change for the difference "
                     "between the two periods, answered in the same unit and "
-                    "scale as the figures themselves. Use the one the question "
-                    "asks for."
+                    "scale as the figures themselves; ratio_percent for one "
+                    "figure expressed as a percentage of another in the same "
+                    "period, such as a margin or a share of a total, answered "
+                    "in PERCENT. Use the one the question asks for."
                 ),
             ),
         ),

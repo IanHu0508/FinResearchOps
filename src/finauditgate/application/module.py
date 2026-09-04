@@ -50,6 +50,7 @@ from finauditgate.core.artifacts import (
 from finauditgate.core.engine import MANIFEST_SCHEMA_VERSION
 from finauditgate.core.profiles import PrivateDevValidationProfile
 from finauditgate.ports.model import CandidateModel
+from finauditgate.core.operations import ANSWER_CONTRACT_VALUES
 from finauditgate.private_storage import (
     PrivateStorageError,
     PrivateWorkspaceAnchor,
@@ -729,7 +730,7 @@ class FinResearchOps:
                 raise ValueError
             date.fromisoformat(payload["cutoff"])
             date.fromisoformat(source["declared_published_at"])
-            if payload["answer_contract"] not in {"PERCENTAGE_CHANGE", "ABSOLUTE_CHANGE"}:
+            if payload["answer_contract"] not in ANSWER_CONTRACT_VALUES:
                 raise ValueError
             if payload["risk_class"] not in {"LOW", "MEDIUM", "MATERIAL"}:
                 raise ValueError

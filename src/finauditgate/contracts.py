@@ -5,6 +5,7 @@ from datetime import date
 from enum import Enum
 import re
 from typing import Literal
+from finauditgate.core.operations import ANSWER_CONTRACT_VALUES
 
 
 RUN_SCHEMA_VERSION = "finauditgate.run/v1"
@@ -63,6 +64,7 @@ class AuditTask:
     answer_contract: Literal[
         "PERCENTAGE_CHANGE",
         "ABSOLUTE_CHANGE",
+        "RATIO_PERCENT",
     ] = "PERCENTAGE_CHANGE"
     risk_class: Literal["LOW", "MEDIUM", "MATERIAL"] = "LOW"
     mode: Literal[
@@ -86,7 +88,7 @@ class AuditTask:
             raise TypeError("document must be a FrozenDocumentPackage")
         if type(self.answer_contract) is not str:
             raise TypeError("answer_contract must be a string")
-        if self.answer_contract not in {"PERCENTAGE_CHANGE", "ABSOLUTE_CHANGE"}:
+        if self.answer_contract not in ANSWER_CONTRACT_VALUES:
             raise ValueError("unsupported answer_contract")
         if type(self.risk_class) is not str:
             raise TypeError("risk_class must be a string")
