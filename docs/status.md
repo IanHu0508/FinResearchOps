@@ -602,6 +602,41 @@ Neither result says anything about a second issuer. They were produced on the de
 filing, which is where iteration belongs, and they demonstrate that the two features work
 at all — which until now was untested outside the offline suite.
 
+## The slicer repair, measured against a control (2026-09-04)
+
+A repair had been made to the way a slice is cut — the start now extends upward to
+the line where a statement says what units its figures are in — and it had never
+been run. Two earlier evaluations were re-cut with it and re-run, changing nothing
+else: same questions, same reviewed answers, same prompt, schema, generation
+config and model. A third arm ran the *original* slices on the current route, to
+separate the route from the slice; it reproduced the earlier result on all ten
+cases, so the comparison rests on the slice alone.
+
+Measured offline, with no model: slices that state everything their reviewed claim
+is judged on went from 6 of 20 to 17 of 20. Every one of the eleven repairs is a
+restored scale.
+
+Measured on the model, the honest number is smaller than the decisions suggest.
+Two of the questions name the scale themselves and cannot test anything. One case
+stopped reporting a scale conflict only because it now fails an earlier check
+while still claiming the wrong scale. On the four cases where the question is
+silent and the units line is present, the model got the scale right twice and
+wrong twice. **The units line is necessary and not sufficient**: before the repair
+the answer could only be a guess, and afterwards it is right about half the time
+on these two filings. Reporting the decisions alone would have made a partial
+result look like a solved problem, which is the same mistake an earlier
+wording-level repair already made once.
+
+Across the three arms — 32 runs — every accepted answer equals the reviewed one,
+nothing wrong was accepted, and all 32 replays are consistent offline. Both
+wrong-scale claims were refused. Accepted counts rose from 2 to 3 on each of the
+two filings, and one previously accepted case regressed to a refusal; that cost is
+recorded rather than netted away.
+
+These filings were run, analysed, and only then repaired, so this measures whether
+the repair does what it claims — not whether it generalizes. That still needs a
+filing nobody has looked at.
+
 ## Not proven
 
 No number in this repository is a benchmark result. Twelve reviewed cases on a

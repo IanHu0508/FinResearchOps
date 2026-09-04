@@ -75,18 +75,24 @@ def _locate(document: bytes, span: str, label: str) -> tuple[int, int]:
     return start, start + len(needle)
 
 
-def _line_span(document: bytes, needle: str, label: str) -> str:
-    """The stripped document line that uniquely contains `needle`."""
+def _line_range(document: bytes, needle: str, label: str) -> tuple[int, int]:
+    """Byte range of the whole line that uniquely contains `needle`."""
 
     start, end = _locate(document, needle, label)
     line_start = document.rfind(b"\n", 0, start) + 1
     line_end = document.find(b"\n", end)
     if line_end < 0:
         line_end = len(document)
-    line = document[line_start:line_end].strip()
-    if not line:
+    if not document[line_start:line_end].strip():
         raise SystemExit(f"{label}: the matched line is blank")
-    return line.decode("utf-8")
+    return line_start, line_end
+
+
+def _line_span(document: bytes, needle: str, label: str) -> str:
+    """The stripped document line that uniquely contains `needle`."""
+
+    line_start, line_end = _line_range(document, needle, label)
+    return document[line_start:line_end].strip().decode("utf-8")
 
 
 def _span_argument(
@@ -151,7 +157,7 @@ def _evidence(
             document, value, corroboration_occurrence, evidence_id
         )
     elif corroboration_line is not None:
-        second_start, second_end = _line_span(
+        second_start, second_end = _line_range(
             document, corroboration_line, f"{evidence_id}-corroboration"
         )
     if corroboration_occurrence is not None or corroboration_line is not None:
