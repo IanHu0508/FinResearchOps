@@ -720,6 +720,45 @@ Two observations were twice mistaken for a rule here — first the six-line cap,
 that counted a heading's year row as a second statement and stopped one line short of the
 caption. Both were found by measuring rather than by reasoning about the code.
 
+## A third operation, and what the local model did with it (2026-09-04)
+
+The gate could express a growth rate and a difference and no ratio at all — no
+margin, no share of a total, which is most of what anyone asks of an income
+statement. The shape a ratio needs is the inverse of the one that was hard-coded:
+two metrics in one period rather than one metric in two.
+
+The pairing rule now belongs to the operation rather than to the loader that
+happened to check it, which is what lets the second shape exist without loosening
+the first. A ratio's profile still names both metrics and both are still checked
+against what the model claimed; a growth rate within one period is still refused.
+One field left the must-match set: whether a figure is printed in parentheses is a
+property of that figure, already checked against its own span, and requiring the
+two to agree protected nothing while refusing every question about a company that
+swung from profit to loss.
+
+**The operation works. This model cannot yet drive it, and the gate said so
+rather than guessing.** Asked for a gross margin, the model first chose the wrong
+operation; told in the contract that the operation exists, it chose the right one
+and still cited one metric in two periods; asked the same question in plainer
+words, it selected the right two figures — correct values, correct metrics, one
+table — and mislabelled the denominator's period. Every one of the three was
+refused, the last one naming the exact field that was wrong. **The ratio has no
+accepted result on real text and is not reported as having one.**
+
+The likely cause of that last error is a name rather than a capability: the
+contract calls the second evidence item *comparison*, and told the model for two
+years that it means the earlier period. For a ratio that is simply wrong, and the
+model followed the name over the corrected description. Renaming the roles moves
+every artifact in the system, so it is written down and deferred rather than done
+in the same breath.
+
+One smaller thing is worth recording because it cuts against a rule this project
+had been applying: naming the new operation in its field's description **did**
+change what the model chose. Three earlier attempts to fix behaviour by adding
+prose had no effect at all. One effect in four is not a licence to reach for prose
+again — but it does suggest the enumerated fields respond to their own
+descriptions in a way the free-text ones did not.
+
 ## Not proven
 
 No number in this repository is a benchmark result. Twelve reviewed cases on a
