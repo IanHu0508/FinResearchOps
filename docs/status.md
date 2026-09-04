@@ -593,6 +593,19 @@ hash recomputed so only the value is wrong — is refused `CORROBORATION_CONFLIC
 the figures rather than in percent, replayed consistently. Every accepted answer before
 this one was a percentage.
 
+**Qualified on 2026-09-04, after counting something that should have been counted first.**
+Every one of the six `absolute_change` cases run to date asks its question in a form that
+names the scale — "by how much did X change, in RMB millions?" — and none of the thirteen
+percentage cases does. That is not carelessness in six places. A difference is a raw
+number, so the question has to say what unit the answer is wanted in; a percentage is
+unitless and never needs it. The asymmetry is a property of the two operations.
+
+The consequence is specific and it narrows a claim made above: the second operation has
+been accepted with the correct value every time, but **never once on a question that left
+the model to read the scale from the document.** Its acceptances are evidence that the
+operation and its output unit work. They are not evidence about reading a filing's scale,
+and the scale-labelling counts elsewhere in this document exclude them.
+
 A five-case development pack exercising both, plus the repaired slicer, accepted
 5 of 5 on the first attempt with every answer equal to the reviewed one and all
 five replays consistent. On a development set that count is a functional check,
@@ -681,6 +694,31 @@ Chinese-language statement text, all four of the slicer's period, units, scale a
 currency patterns fail to match, and every case would be refused before a model
 was called. A Chinese filing is not a harder instance of this evaluation; it is a
 different system, and it belongs on its own route so these evaluations stay valid.
+
+## A pre-seal check, built out of every defect that got past one (2026-09-04)
+
+Three evaluations each surfaced a defect only after the run: cases whose slice could not
+answer their own question, cases whose locator was the bare printed figure and so failed to
+resolve when that figure appeared twice, and questions that named a field the run was
+measuring. Each was found by hand, late, and after the pack was sealed.
+
+They are now one check that runs before a pack may be sealed, and it fails the pack rather
+than warning. Run against the three historical packs it flags, retroactively, every defect
+that took three evaluations to find — including the two cases that never reached a model at
+all, and all three questions that named the scale. Run against the current development pack
+it flagged four more, in material written days ago.
+
+The slicing repair that motivated it also got its second correction. Extending a slice
+upward to its units caption was capped at six lines, because the two filings measured at the
+time printed it within a few lines of the heading; a third prints it thirteen lines up, on
+the same page, and those cases stayed unanswerable after the repair meant to fix exactly
+them. The walk now runs to the page boundary, stopping at a second period header so it
+cannot take the caption of the table above. Slices stating everything their reviewed claim
+is judged on: **6 of 20 before the repair, 17 of 20 after the first version, 20 of 20 now.**
+
+Two observations were twice mistaken for a rule here — first the six-line cap, then a guard
+that counted a heading's year row as a second statement and stopped one line short of the
+caption. Both were found by measuring rather than by reasoning about the code.
 
 ## Not proven
 

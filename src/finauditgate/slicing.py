@@ -41,12 +41,26 @@ _YEAR_ROW = re.compile(r"\b(?:19|20)\d{2}\b")
 # A statement says its units once, above its period header -- "(in thousands)",
 # "(All amounts in thousands…)", "RMB'Million". A slice that starts at the
 # period header cuts it off, and then nothing in the slice says what scale the
-# figures are in. Both filings measured so far put it within a few lines above.
+# figures are in.
 _UNITS_STATEMENT = re.compile(
     r"\b(?:in\s+)?(?:thousands?|millions?|billions?)\b|['’]0{3}\b|['’]Million\b",
     re.IGNORECASE,
 )
-_UNITS_LOOKBACK = 6
+# How far above the start to look for it. This was 6, chosen because the two
+# filings measured at the time both printed the caption within a few lines of
+# the header -- and two observations are not a rule. A third filing prints it
+# thirteen lines above, still on the same page, and those cases stayed
+# unanswerable after the repair that was supposed to fix exactly them.
+#
+# The page is the real limit, because a caption governs the page it heads, so
+# the walk now runs to the page boundary. What it must not do is walk out of
+# this table into the one above and take that table's caption, and the guard
+# for that is the period header -- but only the second one. A slice does not
+# always start at the top of its table: when it starts at a figure row partway
+# down, the first period header above is its own, and stopping there strands
+# the caption one line further up, which is exactly the case that stayed
+# unanswerable after the first attempt at this repair.
+_UNITS_LOOKBACK = 60
 
 MAX_LOOKBACK_LINES = 60
 _SECTION_LOOKBACK = 400
@@ -193,12 +207,23 @@ def _include_units_statement(lines: list[str], first: int) -> int:
     labelling failure and is really a slicing one.
     """
 
+    headers_above = 0
     for candidate in range(first - 1, max(-1, first - 1 - _UNITS_LOOKBACK), -1):
         line = lines[candidate]
         if _HARD_BOUNDARY.match(line):
             break
         if _UNITS_STATEMENT.search(line):
             return candidate
+        if _PERIOD_HEADER.search(line):
+            # A statement's heading is a block, not a line: "Year Ended
+            # December 31," on one line and "2023 2024 2025" on the next are
+            # one heading, so only the period header is counted. Counting the
+            # year row too stopped the walk one line short of the caption.
+            headers_above += 1
+            if headers_above > 1:
+                # The second one: a different statement begins here, and the
+                # caption above it heads that statement rather than this one.
+                break
     return first
 
 

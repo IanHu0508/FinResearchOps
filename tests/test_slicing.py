@@ -1,6 +1,7 @@
 import unittest
 
 from finauditgate.slicing import (
+    _include_units_statement,
     DocumentSlice,
     missing_semantics,
     SliceNotUnique,
@@ -289,3 +290,78 @@ class SliceSufficiencyTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class UnitsCaptionAboveTheTable(unittest.TestCase):
+    """Reaching the caption when the slice starts partway down its table.
+
+    The first version of this looked six lines up, because the two filings
+    measured at the time printed the caption within a few lines of the header.
+    A third filing prints it thirteen lines up, on the same page, and those
+    cases stayed unanswerable after the repair meant to fix exactly them.
+    """
+
+    HEADING = [
+        "Table of Contents",
+        "ACME LIMITED",
+        "CONSOLIDATED STATEMENTS OF INCOME",
+        "(All amounts in thousands, except per share data)",
+        "",
+        "Year Ended December 31,",
+        "        2023      2024      2025",
+        "        RMB       RMB       RMB",
+    ]
+    ROWS = [
+        "Net revenues:",
+        "Product revenues     105,613     100,734      97,398",
+        "Other revenues         7,242       7,686       8,520",
+        "Total net revenues   112,856     108,420     105,919",
+        "Cost of revenues     (87,135)    (82,951)    (81,429)",
+        "Gross profit          25,720      25,469      24,490",
+        "Operating expenses:",
+        "Fulfillment expenses   6,900       7,100       7,300",
+    ]
+
+    def _document(self, *blocks: list[str]) -> tuple[bytes, list[str]]:
+        lines = [line for block in blocks for line in block]
+        return "\n".join(lines).encode("utf-8"), lines
+
+    def test_caption_is_reached_past_the_tables_own_heading(self) -> None:
+        document, lines = self._document(self.HEADING, self.ROWS)
+        start = lines.index("Fulfillment expenses   6,900       7,100       7,300")
+        reached = _include_units_statement(lines, start)
+        self.assertEqual(lines[reached],
+                         "(All amounts in thousands, except per share data)")
+
+    def test_a_second_statements_caption_is_not_taken(self) -> None:
+        """Walking out of this table into the one above must stop."""
+
+        upper = [
+            "(All amounts in millions)",
+            "",
+            "Year Ended December 31,",
+            "        2023      2024      2025",
+            "Revenue              10        11        12",
+        ]
+        lower = [
+            "Year Ended December 31,",
+            "        2023      2024      2025",
+            "Segment revenue       4         5         6",
+        ]
+        document, lines = self._document(upper, lower)
+        start = lines.index("Segment revenue       4         5         6")
+        reached = _include_units_statement(lines, start)
+        # The millions caption belongs to the table above, not to this one.
+        self.assertNotEqual(lines[reached], "(All amounts in millions)")
+        self.assertEqual(reached, start)
+
+    def test_the_page_boundary_stops_the_walk(self) -> None:
+        previous_page = ["(All amounts in thousands)", "Table of Contents"]
+        document, lines = self._document(previous_page, ["Revenue   10   11"])
+        start = lines.index("Revenue   10   11")
+        self.assertEqual(_include_units_statement(lines, start), start)
+
+    def test_a_caption_directly_above_is_still_found(self) -> None:
+        document, lines = self._document(["(in thousands)", "Revenue   10   11"])
+        start = lines.index("Revenue   10   11")
+        self.assertEqual(lines[_include_units_statement(lines, start)], "(in thousands)")
