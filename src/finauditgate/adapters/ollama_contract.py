@@ -214,10 +214,12 @@ _EVIDENCE_RULE = _ObjectRule(
                 _EVIDENCE_ERROR,
                 enum=SCALES,
                 description=(
-                    "The scale stated in the heading or row label: MILLION "
-                    "for 'RMB million' or 'million shares', THOUSAND, "
-                    "BILLION; UNIT for per-share amounts and unscaled "
-                    "figures."
+                    "The scale stated in this table's own heading, which "
+                    "differs between filings and must be read each time "
+                    "rather than assumed: THOUSAND for a heading saying 'in "
+                    "thousands'; MILLION for 'RMB million' or 'million "
+                    "shares'; BILLION likewise; UNIT for per-share amounts "
+                    "and unscaled figures."
                 ),
             ),
         ),

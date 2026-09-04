@@ -32,6 +32,37 @@ FIXTURE_PATH = (
 DEMO_SCRIPT = Path(__file__).parents[1] / "scripts" / "synthetic_demo.py"
 
 
+class GenerationBudgetTest(unittest.TestCase):
+    def test_the_prompt_and_the_answer_both_fit_the_generation_context(
+        self,
+    ) -> None:
+        """Overflowing the context is silent, so it must be impossible.
+
+        The runtime does not refuse a prompt longer than the context: it
+        discards the front of it, which is where the system message and the
+        schema are, and answers anyway. Such a run completes and replays, so
+        nothing downstream can notice. These three constants are what prevent
+        it, and they are only safe together.
+        """
+
+        from finauditgate.adapters import ollama_route as route
+
+        worst_case = (
+            route.SYSTEM_PROMPT_TOKEN_ALLOWANCE
+            + route.MAX_DOCUMENT_BYTES // route.DOCUMENT_BYTES_PER_TOKEN
+            + route.GENERATION_BUDGET
+        )
+
+        self.assertLessEqual(worst_case, route.GENERATION_CONTEXT)
+        # The allowance has to cover the system message the route actually
+        # sends, measured the same way the budget assumes.
+        system_bytes = len(route.system_message().encode("utf-8"))
+        self.assertLessEqual(
+            system_bytes // route.DOCUMENT_BYTES_PER_TOKEN,
+            route.SYSTEM_PROMPT_TOKEN_ALLOWANCE,
+        )
+
+
 class PublicContractTest(unittest.TestCase):
     def test_public_core_interface_is_frozen_at_root_exports(self) -> None:
         self.assertEqual(

@@ -5,7 +5,7 @@
 
 | Area | Status | Evidence |
 |---|---|---|
-| Deterministic core (`FinAuditGate.run` / `replay`) | Implemented for one public synthetic profile and for private validation profiles | 162 offline tests; `scripts/synthetic_demo.py` |
+| Deterministic core (`FinAuditGate.run` / `replay`) | Implemented for one public synthetic profile and for private validation profiles | 163 offline tests; `scripts/synthetic_demo.py` |
 | Application (`FinResearchOps.handle` / `read_case`) | Implemented: Case, Workpaper, append-only Review, proposal-only Packet, replay records, crash recovery | `tests/test_application.py` |
 | Local model Adapter (shared Ollama, Qwen3-4B) | Implemented: frozen request with a closed response schema and five fictional example rows, schema-constrained decoding, whitespace-tolerant span location, bounded raw capture, one content-addressed trace per call, offline verification | `tests/test_ollama_adapter.py`, `tests/test_model_trace_binding.py` (mocked exchanges); four route revisions and two model experiments on real text, 2026-09-03 |
 | CLI `finresearchops` | Implemented: six thin actions over the Application Interface | `tests/test_cli.py`, installed wheel `--help` |
@@ -407,6 +407,40 @@ correct. The refusal is right, because the gate checks claims and not only answe
 but the accept count understates how often the arithmetic would have landed. No prediction is registered about how many cases are
 accepted, because the author also chooses the cases, and a count target would invite
 choosing easy ones.
+
+## Two repairs after the second transfer run, and one idea abandoned (2026-09-03)
+
+**A live defect, found while sizing a different change.** The generation context has to
+hold the prompt and the answer together, and overflowing it is not an error: the runtime
+discards the front of the prompt — where the system message and the schema are — and
+answers normally. A run built that way completes, replays, and means nothing. This was
+confirmed by direct probe, not inferred. Nothing guarded it, and the document budget
+permitted a slice several times larger than the context could hold. The second transfer
+evaluation ran 46 tokens below the ceiling; its prompts did fit, so its results stand,
+but that was luck. The three constants are now sized so overflow cannot happen, and the
+arithmetic relating them is pinned by a test — which immediately caught an error in the
+first version of the sizing.
+
+**One description repaired, on evidence.** Counting every conflict the gate has ever
+raised, across both filings and the development set: currency 24, period 10, scale 5,
+metric 3, unit 1, and **zero** for sign and basis. The scale description named one scale
+with worked examples and the others in passing, and the third filing reports in a scale
+the earlier two did not use. It now says that the scale differs between filings and must
+be read from the table's own heading each time.
+
+**And an idea abandoned, which matters more than the repair.** The plan had been a general
+rule — every enumerated value gets a worked example — applied to four fields. The
+repository refutes it. The `unit` description already exemplifies all five of its values
+and still misfires; the numeric field carries three worked examples, added as an earlier
+fix that appeared to work, and on the third filing the model still returned figures with
+thousands separators intact. Adding worked examples is therefore a weak instrument with a
+recorded non-effect, and two of the four proposed edits targeted fields that have never
+produced a single conflict. A future failure must not be answered reflexively with more
+prose.
+
+Both changes move the route, so the second transfer evaluation is closed against the route
+it ran on, and the repaired route has been evaluated on nothing. Whether the scale change
+helps is a prediction to be registered before a fourth filing, not a claim to be made now.
 
 ## Not proven
 

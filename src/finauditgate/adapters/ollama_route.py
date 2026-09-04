@@ -24,9 +24,24 @@ MODEL_CONTEXT_LENGTH = 40_960
 # in every trace but never used as a gate: the desktop app auto-updates.
 SMOKE_TESTED_RUNTIME_VERSION = "0.33.1"
 
-GENERATION_CONTEXT = 4_096
+# The generation context has to hold the whole prompt AND the answer. Exceeding
+# it is not an error: the runtime silently discards the front of the prompt,
+# which is where the system message and the schema are, and returns a normal
+# reply. A run built that way would complete, replay and mean nothing, so the
+# budgets below are sized so it cannot happen rather than detected afterwards.
+#
+# Measured on real filings, financial-table text costs about two bytes per
+# token. English prose costs nearer four, but the same conservative ratio is
+# applied to the system message as well, so the allowance can only be too
+# generous, never too tight. `test_public_contracts` pins the arithmetic
+# SYSTEM_PROMPT_TOKEN_ALLOWANCE + MAX_DOCUMENT_BYTES / DOCUMENT_BYTES_PER_TOKEN
+# + GENERATION_BUDGET <= GENERATION_CONTEXT, so the constants cannot drift
+# apart again, and pins the allowance against the system message actually sent.
+GENERATION_CONTEXT = 8_192
 GENERATION_BUDGET = 1_024
-MAX_DOCUMENT_BYTES = 32_768
+SYSTEM_PROMPT_TOKEN_ALLOWANCE = 3_600
+DOCUMENT_BYTES_PER_TOKEN = 2
+MAX_DOCUMENT_BYTES = 6_144
 MAX_REQUEST_BYTES = 262_144
 MAX_RESPONSE_BYTES = 1_048_576
 MAX_TRACE_BYTES = 2_097_152
