@@ -331,6 +331,33 @@ schema moved to accommodate it, which makes profiles written for the previous
 version unloadable; profiles are rebuilt for every run and replay does not read
 them, so nothing recorded depends on the old shape.
 
+## A second transfer evaluation, pre-registered (2026-09-03)
+
+Repairing the defect the first transfer evaluation found changed the route, so the
+repaired contract has been evaluated on nothing. Three claims are unsupported and a
+second run on a third issuer exists to test them: that the depositary-share repair
+works; that the slicing rules generalise rather than fitting the two documents they
+were written against; and that the transfer result is a property of the contract
+rather than of one issuer. Two capabilities have also never run on real text — the
+second operation, and the corroboration check.
+
+The route is frozen at commit `e8051fe`, and a freeze declaration with the
+pre-registered protocol and predictions was written before any third-issuer document
+was acquired or read. It names the intended issuer, so it stays private; its SHA-256
+is recorded here instead, which fixes its content and timestamps it:
+
+    f0570a4bbfe7036cd3d18a51a0dd9f0d2f537d8fcf2fdc54f516caa693fec4e9
+
+The binding rules are the same as the first run, with one addition: slices are cut by
+the slicing rules rather than by hand, and where several candidate regions match, the
+choice is recorded before the run. Hand-editing a produced slice is a deviation and
+is logged as one.
+
+The prediction most likely to fail is the slicing one, and its number will be
+reported whatever it is. No prediction is registered about how many cases are
+accepted, because the author also chooses the cases, and a count target would invite
+choosing easy ones.
+
 ## Not proven
 
 No number in this repository is a benchmark result. Twelve reviewed cases on a
