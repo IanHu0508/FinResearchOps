@@ -9,15 +9,17 @@
   "official_filing_index_url": "https://www.sec.gov/Archives/edgar/data/1577552/000119312526231755/0001193125-26-231755-index.htm",
   "planned_retrieval_url": "https://www.sec.gov/Archives/edgar/data/1577552/000119312526231755/baba-20260331.htm",
   "retrieval_method": "SEC_EDGAR",
-  "acquisition_status": "PLANNED_NOT_ACQUIRED",
+  "acquisition_status": "ACQUIRED_LOCAL_PRIVATE",
   "terms_url": "https://www.sec.gov/about/webmaster-frequently-asked-questions",
   "terms_checked_at": "2026-08-12",
   "redistribution": "SEC_REUSABLE_WITH_ATTRIBUTION",
   "network_allowed_during_replay": false,
   "maximum_requests_per_second": 1,
   "requires_declared_user_agent": true,
-  "raw_sha256": null,
-  "byte_size": null,
-  "mime_type": null,
-  "retrieved_at": null
+  "raw_sha256": "7be73cb49925934f89e0a9f4bb1f91c64474a2695c6f357735b39609401e02da",
+  "byte_size": 11745163,
+  "mime_type": "text/html",
+  "retrieved_at": "2026-09-04T00:46:15.442103+00:00",
+  "observed_last_modified": "Wed, 20 May 2026 11:57:17 GMT",
+  "stored": "PRIVATE_WORKSPACE_ONLY_NOT_IN_THIS_REPOSITORY"
 }

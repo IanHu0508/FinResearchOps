@@ -211,6 +211,16 @@ publishing it:
 
     f8c9a1ebd6ae312eff3c4b472cf8232e7dc44ca1ec05dd2912ddb74e5f5cf375
 
+A second filing has since been acquired as a frozen accession and extracted with a
+deterministic, dependency-free extractor whose script hash is recorded with its
+outputs. The sealed case pack — twelve cases across the same six failure classes,
+each with its slice and its complete gold record — was built and hashed **before
+the first model call**, and that hash is recorded here for the same reason:
+
+    ea8200e94896a00186f4f49b618ebcbd47b4d321a9a9f0f866029288a1fb6e97
+
+No model has been run on it at the time of writing.
+
 The pre-registration binds the run in advance: the case list and gold are hashed
 before the first model call and never edited afterwards, a slice is never re-cut
 after seeing a result, every case that starts is reported, both model sizes or
