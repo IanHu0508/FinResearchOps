@@ -297,7 +297,23 @@ using it that way is that the next transfer claim needs new material.
 
 ## Not proven
 
-No number in this repository is an evaluation result. Twelve reviewed cases
-on one real filing, judged by one reviewer, with one ungated baseline per
-model, are counted observations. Nothing here should be described as a
-completed agent, a benchmark, or a paper reproduction.
+No number in this repository is a benchmark result. Twelve reviewed cases on a
+development filing and twelve pre-registered cases on a second filing, all
+authored and judged by one person, with one ungated baseline per model, are
+counted observations on two documents. The second run was pre-registered and
+sealed before it was run, which makes it harder to fool yourself; it does not
+make it independent, because the questions, the answer key and the review are
+still the same person's.
+
+What is deliberately not claimed:
+
+- **this is not an agent yet.** It executes one fixed task shape. There is
+  exactly one allowlisted operation, a year-on-year growth rate over exactly two
+  evidence items; it does not decide what to check, retrieve its own material, or
+  plan a sequence of steps;
+- the document slice a run sees is still chosen by a person. There is no
+  automatic slicing, so nothing here runs end to end on a filing unattended;
+- roughly half the cases on a new filing need a human, and that is the design
+  working, not a hidden cost that has been measured away;
+- no reviewer disposition has been recorded for the second filing at all;
+- the repaired route has not been evaluated on anything.
