@@ -24,8 +24,13 @@ import re
 _PERIOD_HEADER = re.compile(
     r"\b(?:for\s+the\s+)?"
     r"(?:years?|quarter|three\s+months|six\s+months|nine\s+months)\s+ended\b"
-    r"|\bas\s+(?:of|at)\b",
-    re.IGNORECASE,
+    r"|\bas\s+(?:of|at)\b"
+    # A balance sheet may head its columns with the date alone -- "December 31,"
+    # over the year row -- where another filing writes "As of December 31,".
+    # A month and day with no year is a column heading, not prose.
+    r"|\b(?:January|February|March|April|May|June|July|August|September"
+    r"|October|November|December)\s+\d{1,2}\s*,\s*$",
+    re.IGNORECASE | re.MULTILINE,
 )
 # A line that is only a page number, or a running header, ends the table above.
 _HARD_BOUNDARY = re.compile(

@@ -82,6 +82,43 @@ class SlicingTest(unittest.TestCase):
         )
         self.assertEqual(3, income_statement.first_line)
 
+    def test_a_bare_date_heads_a_table_just_as_a_worded_one_does(self) -> None:
+        """One filing writes "As of December 31,", another just the date.
+
+        Both are the heading of a balance sheet's columns, and a slice that
+        loses it loses the period the figures belong to.
+        """
+
+        bare = (
+            b"CONSOLIDATED BALANCE SHEETS\n"
+            b"December 31,\n"
+            b"2024    2025\n"
+            b"RMB    RMB\n"
+            b"Total assets    195,991,550    221,415,060\n"
+        )
+        found = locate_slice(
+            bare, "Total assets    195,991,550", max_bytes=6144
+        )
+
+        text = found.text(bare).decode("utf-8")
+        self.assertEqual(2, found.header_line)
+        self.assertIn("December 31,", text)
+        self.assertIn("RMB", text)
+
+    def test_a_date_inside_a_sentence_does_not_head_a_table(self) -> None:
+        """Prose mentioning a date is not a column heading."""
+
+        prose = (
+            b"As described above, on December 31, 2025 the group completed a\n"
+            b"reorganisation of its subsidiaries.\n"
+            b"Total assets    195,991,550    221,415,060\n"
+        )
+        found = locate_slice(
+            prose, "Total assets    195,991,550", max_bytes=6144
+        )
+
+        self.assertIsNone(found.header_line)
+
     def test_a_header_is_never_taken_from_the_table_before_it(self) -> None:
         """A page boundary stops the search, so a slice cannot span statements."""
 
