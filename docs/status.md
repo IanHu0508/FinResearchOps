@@ -265,6 +265,36 @@ source format changed at the same time, from a PDF whose table rows wrap across 
 to HTML whose rows survive intact. Rows are easier to cite in the second, so improvement
 cannot be credited to the contract alone.
 
+## The vocabulary repair, and why it is not re-scored (2026-09-03)
+
+The transfer evaluation found one defect that is the contract's, not the model's: a
+filing may print an amount per ordinary share and the same amount per depositary
+share in two blocks whose row labels are character-identical, and the schema had no
+term for the difference. No reviewer could write an answer key the model could
+reliably hit, and three cases failed on both model sizes for that reason alone.
+
+The repair adds the missing term to the unit enumeration — `PER_DEPOSITARY_SHARE`
+alongside `PER_SHARE` — and says in the field description to choose by the block
+heading rather than the row label. The metric is unchanged; the unit now carries the
+distinction, so citing the wrong block is a unit conflict the gate can state instead
+of an ambiguity nobody could express.
+
+**That repair changes the response schema, and the schema is restated in the prompt,
+so it changes the route.** Three consequences are recorded here so they are not
+quietly lost:
+
+1. the transfer evaluation is **closed** against the route it was run on, and its
+   counts belong to that route and that commit permanently;
+2. the repaired route is **un-evaluated**. Nothing has been run on it beyond the
+   offline suite;
+3. re-running the sealed case pack on the repaired route would be changing the rules
+   after seeing the evaluation and then scoring on the same items. It is not done, and
+   any future number from those twelve cases would not be a transfer result. Testing
+   this repair honestly needs a fresh sealed pack, on a filing that has not been used.
+
+This is the intended use of an evaluation — it found a real defect — and the cost of
+using it that way is that the next transfer claim needs new material.
+
 ## Not proven
 
 No number in this repository is an evaluation result. Twelve reviewed cases

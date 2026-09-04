@@ -41,7 +41,7 @@ METRICS = (
     "other",
 )
 METRIC_BASES = ("REPORTED", "ADJUSTED")
-UNITS = ("MONETARY", "PER_SHARE", "COUNT", "PERCENT")
+UNITS = ("MONETARY", "PER_SHARE", "PER_DEPOSITARY_SHARE", "COUNT", "PERCENT")
 SCALES = ("UNIT", "THOUSAND", "MILLION", "BILLION")
 SIGNS = ("POSITIVE", "NEGATIVE")
 
@@ -192,9 +192,14 @@ _EVIDENCE_RULE = _ObjectRule(
                 description=(
                     "MONETARY for currency amounts (a figure in an 'RMB "
                     "million' table is MONETARY with scale MILLION); "
-                    "PER_SHARE for per-share amounts such as EPS (scale "
-                    "UNIT); COUNT for share or unit counts (scale MILLION "
-                    "when printed in millions); PERCENT for percentages."
+                    "PER_SHARE for an amount per ordinary share, such as EPS "
+                    "(scale UNIT); PER_DEPOSITARY_SHARE for an amount per "
+                    "depositary share (ADS, ADR or GDR), which a filing may "
+                    "print in its own block whose row labels repeat those of "
+                    "the per-share block, so choose by the block heading, not "
+                    "the row label; COUNT for share or unit counts (scale "
+                    "MILLION when printed in millions); PERCENT for "
+                    "percentages."
                 ),
             ),
         ),

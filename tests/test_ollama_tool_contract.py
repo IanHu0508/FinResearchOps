@@ -115,6 +115,32 @@ class OllamaToolContractTest(unittest.TestCase):
             CANDIDATE_TOOL_CONTRACT.decode(wrong_enum, DOCUMENT)
         self.assertEqual("TOOL_ARGUMENT_NOT_ALLOWLISTED", enumerated.exception.code)
 
+    def test_per_share_and_per_depositary_share_are_distinguishable(self) -> None:
+        """A filing may print the two blocks with identical row labels.
+
+        Without a separate term the vocabulary cannot say which block a figure
+        came from, so no reviewer can write an answer key the model could hit.
+        The unit carries the distinction; the metric stays the same.
+        """
+
+        self.assertIn("PER_SHARE", UNITS)
+        self.assertIn("PER_DEPOSITARY_SHARE", UNITS)
+
+        for unit in ("PER_SHARE", "PER_DEPOSITARY_SHARE"):
+            with self.subTest(unit=unit):
+                arguments = _arguments()
+                for evidence in arguments["evidence"]:
+                    evidence["metric"] = "basic_eps"
+                    evidence["unit"] = unit
+                    evidence["scale"] = "UNIT"
+                candidate = CANDIDATE_TOOL_CONTRACT.decode(arguments, DOCUMENT)
+                self.assertEqual(unit, candidate.evidence[0].unit)
+
+        description = CANDIDATE_TOOL_CONTRACT.response_schema()["properties"][
+            "evidence"
+        ]["items"]["properties"]["unit"]["description"]
+        self.assertIn("depositary share", description)
+
     def test_vocabulary_outside_the_enumerations_fails_closed(self) -> None:
         for field_name, label in (
             ("evidence_id", "revenue_2025"),
