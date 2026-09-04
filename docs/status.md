@@ -637,6 +637,40 @@ These filings were run, analysed, and only then repaired, so this measures wheth
 the repair does what it claims — not whether it generalizes. That still needs a
 filing nobody has looked at.
 
+## A fifth filing, declared before it is acquired (2026-09-04)
+
+Three things have never been measured on a document nobody has looked at: the
+slicing repair above, the input-sufficiency check, and the corroboration check.
+`absolute_change` is in better shape — accepted on the development filing and on
+both re-cut arms, always at the reviewed value — but likewise never on a filing
+acquired after a freeze. A fourth transfer evaluation is declared for that.
+
+The declaration names the intended issuer and case design, so it stays private;
+its SHA-256 is recorded here, before acquisition:
+
+    4d093ddda02beb5137acceaffc3c8d8bc693fa30a2542ccd299ee8b65410db26
+
+The freeze now also pins three files that are *preparation* rather than route —
+the slicer, the operations table, and the profile builder. They change what the
+model is shown without changing the route hash, which is precisely how the
+slicing repair slipped between two evaluations unmeasured. Pinning them makes the
+next such change visible instead of silent.
+
+Two rules are added from this session's own mistakes. **A prediction about what a
+model writes has to be written against the field the model writes, not against the
+gate's reason code** — the slicing A/B was pre-registered against reason codes,
+scored four of five, and the honest count against the claimed field was two of
+four; the error flattered the repair. And **a flag with no test has not been run**:
+one locator flag raised an exception on every call it had ever received, and
+survived because nothing tested that script at all.
+
+The selection criterion is declared in advance and excludes mainland-listed
+issuers, on a measurement rather than a preference: against representative
+Chinese-language statement text, all four of the slicer's period, units, scale and
+currency patterns fail to match, and every case would be refused before a model
+was called. A Chinese filing is not a harder instance of this evaluation; it is a
+different system, and it belongs on its own route so these evaluations stay valid.
+
 ## Not proven
 
 No number in this repository is a benchmark result. Twelve reviewed cases on a
