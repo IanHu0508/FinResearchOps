@@ -353,6 +353,25 @@ the slicing rules rather than by hand, and where several candidate regions match
 choice is recorded before the run. Hand-editing a produced slice is a deviation and
 is logged as one.
 
+A third filing has since been acquired as a frozen accession, from an issuer whose
+filing is prepared by a different filer agent than the second, and extracted with
+the same extractor unchanged. The sealed case pack — twelve cases across the same
+six failure classes, with slices cut by the slicing rules rather than by hand — was
+built and hashed before the first model call:
+
+    85ab21a5ccc4be339699a9e81895573677e0a17dcf6f714f877ed5d327638ff5
+
+Two things are recorded in it before any model ran. The slicing prediction is
+already partly falsified: on unseen material the rules produced a sufficient slice
+for eight of nine evidence-bearing cases, missing one because this filing heads its
+balance sheet with a bare date where the previous one wrote "as of". That rule is
+deliberately **not** being changed now — changing preparation after seeing the
+evaluation material is what the pre-registration exists to prevent — so the case
+carries a recorded prediction that it will refuse. Separately, one row could not be
+separated from its narrative repeat by any section string, so the reviewer chose
+among the slicer's own candidates, which the protocol permits and which is recorded
+in the pack.
+
 The prediction most likely to fail is the slicing one, and its number will be
 reported whatever it is. No prediction is registered about how many cases are
 accepted, because the author also chooses the cases, and a count target would invite
