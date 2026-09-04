@@ -442,6 +442,34 @@ Both changes move the route, so the second transfer evaluation is closed against
 it ran on, and the repaired route has been evaluated on nothing. Whether the scale change
 helps is a prediction to be registered before a fourth filing, not a claim to be made now.
 
+## A third transfer evaluation, pre-registered (2026-09-04)
+
+Two repairs after the second transfer run — the scale description and the generation
+budgets — have been evaluated on nothing, and a third repair to the slicing rules was
+made between evaluations and disclosed. The route is frozen at commit `2ebc68b` and a
+declaration with the protocol and predictions was written before any fourth-issuer
+document was acquired or read. It names the intended issuer and case design, so it stays
+private; its SHA-256 is recorded here:
+
+    9e6767f4fe25cdc181b04b169e9199091541293ad3c76e78b2fcfba24bc58339
+
+The selection criterion is declared in advance and is deliberately targeted: the filing
+must report at thousands scale, because the scale repair cannot be tested on a filing that
+reports in millions. Choosing material that exercises a repair is legitimate; choosing it
+afterwards would not be. If the acquired filing turns out not to report at that scale, the
+prediction is untested and the report has to say so.
+
+Two rules are added to the protocol from the previous run's mistakes: a sealed pack must
+be provably buildable before it is sealed, because two cases last time never reached a
+model owing to locators the author wrote badly; and the maximum prompt and answer of every
+batch is reported against the context, so the budget repair is checked rather than assumed.
+
+The central prediction is registered at no better than even odds. The same instrument —
+adding a worked example to a field description — has one recorded non-effect: an earlier
+fix appeared to work on the set it was written against and did not hold on new material.
+Whether the scale repair is any different is exactly what this run is for, and the
+prediction that it may fail is written down in advance rather than after.
+
 ## Not proven
 
 No number in this repository is a benchmark result. Twelve reviewed cases on a
