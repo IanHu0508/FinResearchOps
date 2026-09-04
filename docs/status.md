@@ -5,7 +5,7 @@
 
 | Area | Status | Evidence |
 |---|---|---|
-| Deterministic core (`FinAuditGate.run` / `replay`) | Implemented for one public synthetic profile and for private validation profiles | 148 offline tests; `scripts/synthetic_demo.py` |
+| Deterministic core (`FinAuditGate.run` / `replay`) | Implemented for one public synthetic profile and for private validation profiles | 159 offline tests; `scripts/synthetic_demo.py` |
 | Application (`FinResearchOps.handle` / `read_case`) | Implemented: Case, Workpaper, append-only Review, proposal-only Packet, replay records, crash recovery | `tests/test_application.py` |
 | Local model Adapter (shared Ollama, Qwen3-4B) | Implemented: frozen request with a closed response schema and five fictional example rows, schema-constrained decoding, whitespace-tolerant span location, bounded raw capture, one content-addressed trace per call, offline verification | `tests/test_ollama_adapter.py`, `tests/test_model_trace_binding.py` (mocked exchanges); four route revisions and two model experiments on real text, 2026-09-03 |
 | CLI `finresearchops` | Implemented: six thin actions over the Application Interface | `tests/test_cli.py`, installed wheel `--help` |
@@ -327,8 +327,12 @@ What is deliberately not claimed:
   exactly one allowlisted operation, a year-on-year growth rate over exactly two
   evidence items; it does not decide what to check, retrieve its own material, or
   plan a sequence of steps;
-- the document slice a run sees is still chosen by a person. There is no
-  automatic slicing, so nothing here runs end to end on a filing unattended;
+- the document slice a run sees is now cut by a rule rather than by hand
+  (`finauditgate.slicing`), but a person still has to say which row is meant.
+  On the two filings used so far, every reviewed case has a candidate slice
+  carrying both cited figures with their period header and currency and scale.
+  Those rules were written against those same two documents, so that is a fit,
+  not a generalisation, and a third filing is what would test it;
 - roughly half the cases on a new filing need a human, and that is the design
   working, not a hidden cost that has been measured away;
 - no reviewer disposition has been recorded for the second filing at all;
