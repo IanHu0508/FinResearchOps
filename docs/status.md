@@ -219,7 +219,15 @@ the first model call**, and that hash is recorded here for the same reason:
 
     ea8200e94896a00186f4f49b618ebcbd47b4d321a9a9f0f866029288a1fb6e97
 
-No model has been run on it at the time of writing.
+It has since been run on both model sizes, under the frozen route, in the
+post-freeze split. On twelve cases across the same six failure classes: the small
+model `ACCEPT` 3 / `HUMAN_REVIEW` 3 / `RETRY` 6, the larger model `ACCEPT` 6 /
+`HUMAN_REVIEW` 3 / `RETRY` 3, **unsafe accepts 0 in both** — every accepted answer
+equals the gold that was sealed before the first call, checked mechanically — and
+replay consistent 12 of 12 in both. No human review disposition has been recorded,
+so "no unsafe accept" here means "equals the sealed gold", not "a reviewer signed
+it". These counts are kept apart from the development counts and must not be pooled
+with them.
 
 The pre-registration binds the run in advance: the case list and gold are hashed
 before the first model call and never edited afterwards, a slice is never re-cut
@@ -228,6 +236,34 @@ neither, development and transfer counts are never pooled, and predicted contrac
 refusals are declared ahead of time and counted apart from reading errors. Two of
 those rules exist because the development set shows the failure they prevent, and
 both instances are disclosed in the private record.
+
+## What the second filing showed (2026-09-03)
+
+The gate transferred. On a different issuer, a different filing format, a different
+accounting framework and a harder table layout, no wrong answer passed: every wrong
+column, fabricated span and mislabelled row became a refusal. Both designed refusal
+branches — a document published after the task cutoff, and a slice carrying no
+admissible evidence — behaved identically on both model sizes. Negative growth rates
+were exercised end to end for the first time, since every development accept had been
+positive.
+
+Two things did not transfer, and both are recorded as findings rather than smoothed
+over:
+
+- the per-share vocabulary is genuinely inadequate for this filing. It prints two
+  blocks whose row labels are character-identical, one per share and one per American
+  Depositary Share, and the schema has no way to say which is meant. Three cases fail
+  on both models for this reason. It is a contract defect to fix on the contract, not
+  by tuning wording against these cases;
+- column selection dominated the small model's failures. This filing puts three
+  currency-of-report year columns plus a convenience-translation column on one row,
+  where the development filing had two columns. That difficulty was **not** predicted
+  in advance, and is logged as unpredicted.
+
+One confound must be stated with any number from this run: the issuer changed and the
+source format changed at the same time, from a PDF whose table rows wrap across lines
+to HTML whose rows survive intact. Rows are easier to cite in the second, so improvement
+cannot be credited to the contract alone.
 
 ## Not proven
 
