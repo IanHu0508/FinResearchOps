@@ -650,6 +650,17 @@ its SHA-256 is recorded here, before acquisition:
 
     4d093ddda02beb5137acceaffc3c8d8bc693fa30a2542ccd299ee8b65410db26
 
+That declaration set the criterion and left the issuer to be named. The issuer and
+the frozen accession are named in an addendum, appended rather than edited in so
+the hash above still stands, and its own hash is recorded before any byte of the
+filing was fetched:
+
+    af344a0cd2ff98fd08194212bc33f32fab3fdbca1ff02d8a73bc20f8659000d9
+
+Freezing the accession before fetching is what stops a filing being chosen after
+its contents are known. Two requests preceded it and neither read the filing: a
+company lookup and the submissions metadata.
+
 The freeze now also pins three files that are *preparation* rather than route —
 the slicer, the operations table, and the profile builder. They change what the
 model is shown without changing the route hash, which is precisely how the
