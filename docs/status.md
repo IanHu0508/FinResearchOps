@@ -898,6 +898,47 @@ accepted by the larger model; the two "no currency" errors of the larger model d
 not recur; no wrong answer is accepted at either size; and any case that was
 accepted before and is not now is reported on its own.
 
+## The rerun on three changes, scored (2026-09-05)
+
+Fifty-two runs across four arms — the sealed pack and the rerun pack, each on
+the smaller and the larger local model. **No wrong answer in any of them. Every
+replay consistent.** Not a held-out evaluation; attribution is per case.
+
+| arm | accepted of 13 | against its sealed arm |
+|---|---|---|
+| sealed, smaller model | 2 | — |
+| **rerun, smaller model** | **5** | gained three, lost none |
+| sealed, larger model | 4 | — |
+| **rerun, larger model** | **5** | gained two, lost one |
+
+**The column shift was the note reference.** Rendered as a reference, the
+smaller model read both affected rows correctly on the first attempt, and one of
+them is the first accepted ratio in this project's history — an operation that
+had failed on every model since it was added. This is the first change here that
+moved the model's reading of free text, and it did so by changing the document
+rather than the instructions.
+
+**The two reviewer corrections each did what they were meant to, on one size
+each.** The corrected metric label is accepted by the smaller model; the reworded
+growth question is accepted by the larger one. On the other size each still
+fails, on an error of the model's own — citing a caption line, misreading a
+value — and each was refused.
+
+**Closing the currency vocabulary did half of what it was meant to.** It fixed
+one of the larger model's two "no currency" errors and not the other: a closed
+list stops values outside the list, not wrong choices from it. The fixed case
+then failed on a period written as a bare year. Recorded as a partial effect.
+
+**The regression, on its own.** The larger model lost one balance-sheet case it
+had accepted, citing a span with the two years swapped that the document does
+not contain. That row carries no note reference; the rest of the statement does.
+Whether the changed bytes perturbed it is not settled.
+
+The two sizes now fail on different cases: together they would cover eight of
+the eleven answerable ones. That is an argument for a second-opinion arm, not
+for either size alone — and every one of their errors, at both sizes, was
+refused.
+
 ## Not proven
 
 No number in this repository is a benchmark result. Twelve reviewed cases on a
