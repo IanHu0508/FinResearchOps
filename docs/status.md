@@ -868,6 +868,36 @@ does not name, and the candidate fix is in how a note reference is rendered, not
 in wording. And the two cases blocked by reviewer defects stay blocked at both
 sizes; corrected, the larger model would stand at 6 of 13.
 
+## Three changes, one rerun pack, sealed before the first call (2026-09-05)
+
+Three things were changed at once, on the user's instruction, and the fifth
+filing's cases are rerun on all three. **This is not a held-out evaluation** —
+the cases were run and analysed before the changes — and every change is named
+so that attribution can be read case by case:
+
+- **note references are rendered as note references.** In an inline-XBRL filing
+  every filed figure is wrapped in an XBRL tag; a bare one-to-three-digit
+  integer in a row that carries tagged figures is not a figure but a reference to
+  a note, and rendered as-is it reads as one more number in the column sequence.
+  Both local models read the previous year's figure as the current year's on
+  exactly those rows. The extractor's fourth version renders such a cell as
+  `[note n]` — 40 cells in this filing — and leaves a filing without inline XBRL
+  exactly as before. Deterministic: the re-extraction reproduced the same bytes;
+- **the two reviewer defects are corrected** — the metric label the model got
+  right, and the growth question that said "change";
+- **the currency field is closed** (recorded above).
+
+Sealed, with the same pre-seal check the fifth filing passed, before any model
+call:
+
+    242d07c936571353df22bb0f627d75c4a8445ad48730052219d529230bc73ee5
+
+Predictions, against the fields the model writes: the column shift disappears on
+the two cases that had it; the case blocked only by the question's wording is
+accepted by the larger model; the two "no currency" errors of the larger model do
+not recur; no wrong answer is accepted at either size; and any case that was
+accepted before and is not now is reported on its own.
+
 ## Not proven
 
 No number in this repository is a benchmark result. Twelve reviewed cases on a
