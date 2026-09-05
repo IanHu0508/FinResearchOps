@@ -775,6 +775,23 @@ prose had no effect at all. One effect in four is not a licence to reach for pro
 again — but it does suggest the enumerated fields respond to their own
 descriptions in a way the free-text ones did not.
 
+## The fifth filing's case pack, sealed before any model call (2026-09-04)
+
+Thirteen cases, every slice cut by the slicer, every locator resolved by the
+profile builder at pack-build time, every admissible slice stating the period,
+currency and scale its claim is judged on, and every question checked against
+the rule that it may not name a field being scored. It is the first pack to pass
+the pre-seal check on its first run — the previous four all had defects that were
+found afterwards, seven of twelve in one of them.
+
+The pack carries the three things no held-out filing has yet exercised: a
+corroboration case, located by which printing the figure is; a difference across
+a sign change, which the pairing rule refused to express until this week; and a
+ratio, registered in advance as expected **not** to be accepted. Its hash is
+recorded here before the first model call:
+
+    ff237540cbba0bfa9693ee5d219144f68f714de85c6df11c543d489377b2a469
+
 ## Not proven
 
 No number in this repository is a benchmark result. Twelve reviewed cases on a
