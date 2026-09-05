@@ -792,6 +792,55 @@ recorded here before the first model call:
 
     ff237540cbba0bfa9693ee5d219144f68f714de85c6df11c543d489377b2a469
 
+## The fifth filing, run (2026-09-04)
+
+Thirteen sealed cases, one local model, the current route. **Accepted 2, refused
+11. Both accepted answers equal the sealed ones. No wrong answer. All thirteen
+replays consistent offline.** This is the first held-out result on the current
+route; every earlier sealed run is on an older one.
+
+The registered predictions, scored against what the model wrote rather than
+against the gate's reason codes:
+
+- **scale**: right on 7 of the 8 monetary cases whose question did not name it —
+  including the one table headed in thousands inside a filing that reports in
+  millions everywhere else. The model read that table's own caption over its own
+  prior and over the rest of the document. One observation; it went the right way;
+- **the pre-seal check**: all thirteen cases passed on the first run, the first
+  pack ever to do so. Four earlier packs each had defects found afterwards;
+- **corroboration**: recorded as agreeing on a held-out filing for the first time
+  — a balance-sheet total restated at the foot of its own statement;
+- **a difference across a sign change**: registered as expected to be accepted;
+  **falsified**, by the model writing the same figure for both years and omitting
+  the minus the contract's own example shows. Refused;
+- **the ratio**: registered as expected **not** to be accepted; it was not — but
+  not for the reason diagnosed. The model labelled the denominator's period
+  correctly this time and failed instead by reading the wrong column. The negative
+  prediction stands and its mechanism was wrong, and both are recorded;
+- **no wrong answer accepted**: held.
+
+## What now limits the pass rate, stated plainly
+
+Of eleven answerable cases: two accepted, two blocked by defects in how the
+reviewer wrote the case, seven by errors the model made. Every one of the seven
+was refused. Every earlier evaluation was dominated by scaffolding defects —
+half of the cases in one were unanswerable from their own slice — and that has
+been fixed: every slice now states what its claim is judged on, every case
+reached the model, and the pre-seal check passed first time.
+
+What remains is the model. It shifts columns when a note number precedes the
+figures, copies one figure into both years when the sign changes, chooses the
+difference operation for a growth question, and cites a caption instead of the
+figure. None of those is a wording fix: this project has four recorded
+non-effects of prose and one effect, on an enumerated field. Raising the
+acceptance rate from here means a stronger model, or a contract change beyond
+wording. **The number the gate exists for did not move.**
+
+The two reviewer defects were a metric label the model got right and the reviewer
+got wrong, and a growth question worded with a word the contract maps to the
+difference operation. The second is now caught before sealing; the first has no
+lint and stays a matter of care.
+
 ## Not proven
 
 No number in this repository is a benchmark result. Twelve reviewed cases on a
