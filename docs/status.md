@@ -841,6 +841,33 @@ got wrong, and a growth question worded with a word the contract maps to the
 difference operation. The second is now caught before sealing; the first has no
 lint and stays a matter of care.
 
+## The larger local model on the same sealed pack (2026-09-05)
+
+A supplementary arm, outside the declaration, which froze the smaller model:
+same sealed pack, same prompt (verified on every trace), same schema and
+generation config, only the model changed to the 14B local weights.
+
+**Accepted 4 of 13 (the smaller model: 2). No wrong answer at either size. All
+replays consistent at both.** Scale right on all 8 non-leaking monetary cases,
+including the thousands table inside the millions filing.
+
+Where the arms differ: the larger model accepted both sign-change cases the
+smaller one failed — the registered prediction about a difference across a sign
+change was falsified on the registered model and holds on this one; that is
+evidence about model size, not a re-scoring — and it chose the right operation on
+a case where the smaller one chose the difference. It regressed on one: a
+per-share amount labelled as carrying no currency. It over-applied that "no
+currency" label on a second case too, where its scale and figures were right.
+Both were refused.
+
+**Two things this does not change.** The column shift — reading the previous
+year's figure as the current year's on rows where a note number precedes the
+figures — survives the size change on both cases that have it. It is not a
+small-model artifact; it is a structural feature of the input that the contract
+does not name, and the candidate fix is in how a note reference is rendered, not
+in wording. And the two cases blocked by reviewer defects stay blocked at both
+sizes; corrected, the larger model would stand at 6 of 13.
+
 ## Not proven
 
 No number in this repository is a benchmark result. Twelve reviewed cases on a
