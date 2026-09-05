@@ -52,6 +52,7 @@ import sys
 from finauditgate.contracts import REVIEWED_PROFILE_MODES
 from finauditgate.core.operations import ALLOWLISTED_OPERATIONS, output_unit_for
 from finauditgate.adapters.ollama_contract import (
+    CURRENCIES,
     METRIC_BASES,
     METRICS,
     SCALES,
@@ -249,7 +250,7 @@ def main() -> int:
     # every operation that compares one metric across two periods wants.
     parser.add_argument("--comparison-metric", default=None, choices=METRICS)
     parser.add_argument("--metric-basis", default="REPORTED", choices=METRIC_BASES)
-    parser.add_argument("--currency", default="USD")
+    parser.add_argument("--currency", default="USD", choices=CURRENCIES)
     parser.add_argument("--unit", default="MONETARY", choices=UNITS)
     parser.add_argument("--scale", default="MILLION", choices=SCALES)
     parser.add_argument("--sign", default="POSITIVE", choices=SIGNS)

@@ -2,6 +2,7 @@ import random
 import unittest
 
 from finauditgate.adapters.ollama_contract import (
+    CURRENCIES,
     _locate_span,
     CANDIDATE_TOOL_CONTRACT,
     EVIDENCE_IDS,
@@ -85,7 +86,11 @@ class OllamaToolContractTest(unittest.TestCase):
         self.assertEqual(list(UNITS), evidence["unit"]["enum"])
         self.assertEqual(list(SCALES), evidence["scale"]["enum"])
         self.assertEqual(list(SIGNS), evidence["sign"]["enum"])
-        for free_text in ("exact_span", "period", "value", "currency"):
+        # currency closed on 2026-09-05: it was the last free-text semantic
+        # field, and a description on a free-text field has never moved a model
+        # here, while one on an enumerated field has.
+        self.assertEqual(list(CURRENCIES), evidence["currency"]["enum"])
+        for free_text in ("exact_span", "period", "value"):
             self.assertNotIn("enum", evidence[free_text])
             self.assertTrue(evidence[free_text]["description"])
 

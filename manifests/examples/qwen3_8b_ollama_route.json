@@ -7,12 +7,12 @@
     "module": "finauditgate.adapters.ollama",
     "port_method": "CandidateModel.propose",
     "pre_flight_check": "INSTALLED_TAG_MUST_CARRY_FROZEN_DIGEST",
-    "prompt_sha256": "5507726b30058424c994ad4857d16cc6c02645bb06befebb1e0836d006ea6940",
+    "prompt_sha256": "3d9cd91e4dd6ed76188e952ed5314abe97edc6e9b1418b5c382ce4eb6e386551",
     "proxy_policy": "IGNORE_ENVIRONMENT_PROXIES",
     "receipt_schema": "finauditgate.model-trace-receipt/v3",
     "redirect_policy": "FORBID_ALL_REDIRECTS",
     "schema_visibility": "RESPONSE_SCHEMA_RESTATED_IN_SYSTEM_MESSAGE",
-    "tool_schema_sha256": "7caaad3d7864b2e8a04c25f20d9d09c29cb8b8d29b50990d67d5b003de7e6c23",
+    "tool_schema_sha256": "9d7f06933afa60263aa302c356955a2e1083f6f41010fba298ad48d435938caf",
     "trace_schema": "finauditgate.model-call-trace/v6"
   },
   "budgets": {

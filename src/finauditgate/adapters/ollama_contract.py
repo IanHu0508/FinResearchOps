@@ -46,6 +46,17 @@ METRIC_BASES = ("REPORTED", "ADJUSTED")
 # operands were.  PERCENT is already a unit, so the two sets overlap.
 
 UNITS = ("MONETARY", "PER_SHARE", "PER_DEPOSITARY_SHARE", "COUNT", "PERCENT")
+# Closed on 2026-09-05. `currency` was the one free-text semantic field left, and
+# the larger local model wrote NONE for a per-share amount and for a fee table
+# whose caption names RMB -- against a description that already said NONE is for
+# share counts and percentages only. Descriptions on free-text fields have never
+# moved a model here; descriptions on enumerated fields have. So the field is
+# enumerated, from the same list the slicer recognises as a currency token, and
+# constrained decoding can no longer emit anything outside it.
+CURRENCIES = (
+    "RMB", "USD", "HKD", "EUR", "GBP", "JPY", "CNY", "SGD", "AUD", "CAD",
+    "CHF", "KRW", "TWD", "INR", "NONE",
+)
 SCALES = ("UNIT", "THOUSAND", "MILLION", "BILLION")
 SIGNS = ("POSITIVE", "NEGATIVE")
 OUTPUT_UNITS = ("PERCENT",) + tuple(u for u in UNITS if u != "PERCENT")
@@ -187,6 +198,7 @@ _EVIDENCE_RULE = _ObjectRule(
             "currency",
             _string(
                 _EVIDENCE_ERROR,
+                enum=CURRENCIES,
                 description=(
                     "The currency abbreviation printed in the document (RMB, "
                     "USD, HKD, EUR) for monetary and per-share amounts; NONE "
