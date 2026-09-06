@@ -240,6 +240,18 @@ class PublicContractTest(unittest.TestCase):
 
     def test_schema_files_freeze_the_public_contracts(self) -> None:
         expected = {
+            "investment-research-case.v5.schema.json": (
+                "urn:finresearchops:schema:investment-research-case:v5",
+                "finresearchops.investment-research-case/v5",
+            ),
+            "tradingagents-baseline.v1.schema.json": (
+                "urn:finresearchops:schema:tradingagents-baseline:v1",
+                "finresearchops.tradingagents-baseline/v1",
+            ),
+            "cashflow-case.v1.schema.json": (
+                "urn:finresearchops:schema:cashflow-case:v1",
+                "finresearchops.cashflow-case/v1",
+            ),
             "run-task-artifact.v1.schema.json": (
                 "urn:finauditgate:schema:run-task-artifact:v1",
                 "finauditgate.task/v1",
@@ -278,12 +290,15 @@ class PublicContractTest(unittest.TestCase):
                 "case-record.v1.schema.json",
                 "case-transaction-commit.v1.schema.json",
                 "case-transaction.v1.schema.json",
+                "cashflow-case.v1.schema.json",
+                "investment-research-case.v5.schema.json",
                 "replay-record.v3.schema.json",
                 "replay-report.v5.schema.json",
                 "research-change-packet.v1.schema.json",
                 "review-record.v1.schema.json",
                 "run-ref.v1.schema.json",
                 "run-task-artifact.v1.schema.json",
+                "tradingagents-baseline.v1.schema.json",
                 "workpaper.v3.schema.json",
             ],
         )

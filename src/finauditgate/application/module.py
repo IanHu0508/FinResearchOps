@@ -51,6 +51,8 @@ from finauditgate.core.engine import MANIFEST_SCHEMA_VERSION
 from finauditgate.core.profiles import PrivateDevValidationProfile
 from finauditgate.ports.model import CandidateModel
 from finauditgate.core.operations import ANSWER_CONTRACT_VALUES
+from finauditgate.cashflow import CashflowCaseView, InvestigateCashflow
+from finauditgate.research import ResearchCaseView, TradingBaselineView
 from finauditgate.private_storage import (
     PrivateStorageError,
     PrivateWorkspaceAnchor,
@@ -90,6 +92,8 @@ class FinResearchOps:
         private_workspace_anchor: PrivateWorkspaceAnchor | None = None,
         retry_budget: int = 1,
         clock: Callable[[], datetime] | None = None,
+        investigator=None,
+        researcher=None,
     ) -> None:
         if type(retry_budget) is not int or retry_budget != 1:
             raise ValueError("M2 retry_budget must be exactly 1")
@@ -109,6 +113,7 @@ class FinResearchOps:
             model_trace_root=model_trace_root,
             private_dev_profile=private_dev_profile,
             private_workspace_anchor=private_workspace_anchor,
+            investigator=investigator,
         )
         self._offline_gate = FinAuditGate(
             artifact_root=self._core_root,
@@ -116,11 +121,25 @@ class FinResearchOps:
             private_workspace_anchor=private_workspace_anchor,
         )
         self._clock = clock or (lambda: datetime.now(timezone.utc))
+        self._researcher = researcher
 
-    def handle(self, command: object) -> ApplicationOutcome:
+    def handle(self, command: object) -> ApplicationOutcome | CashflowCaseView | ResearchCaseView | TradingBaselineView | ReplayReport:
         """Execute one exact, closed, versioned command type."""
 
         try:
+            from finauditgate.research import ResearchSecurity, RunTradingBaseline
+            if type(command) is RunTradingBaseline:
+                from finauditgate.application.baseline_case import run
+                return run(self, command)
+            if type(command) is ResearchSecurity:
+                from finauditgate.application.research_case import run
+                return run(self, command)
+            if type(command) is InvestigateCashflow:
+                from finauditgate.application.cashflow_case import save
+                self._require_private_artifact_root()
+                outcome = self._gate.run(command.task)
+                case_ref = save(self._application_root, outcome)
+                return self.read_case(case_ref)
             if type(command) is CreateCase:
                 return self._create_case(command)
             if type(command) is RunAnalysis:
@@ -136,6 +155,10 @@ class FinResearchOps:
                     self._seal_committed_case_transaction(command.case_ref)
                     return self._export_change_packet(command)
             if type(command) is ReplayRun:
+                if (self._core_root / "runs" / command.run_ref.run_id / "research-evidence.json").is_file():
+                    return self._offline_gate.replay(command.run_ref)
+                if (self._core_root / "runs" / command.run_ref.run_id / "cashflow.json").is_file():
+                    return self._offline_gate.replay(command.run_ref)
                 return self._replay_run(command)
             raise ApplicationError("UNSUPPORTED_COMMAND")
         except ApplicationError:
@@ -145,10 +168,26 @@ class FinResearchOps:
         except OSError as exc:
             raise ApplicationError("APPLICATION_STORAGE_FAILED") from exc
 
-    def read_case(self, case_ref: str) -> CaseView:
+    def read_case(self, case_ref: str) -> CaseView | CashflowCaseView | ResearchCaseView | TradingBaselineView:
         """Reopen and integrity-check one Case from append-only artifacts."""
 
         try:
+            try:
+                _validate_case_ref(case_ref)
+            except (ValueError, TypeError):
+                raise ApplicationError("CASE_REF_INVALID")
+            if (self._application_root / "baseline-cases" / case_ref / "case.json").is_file():
+                from finauditgate.application.baseline_case import load
+                self._require_private_artifact_root()
+                return load(self, case_ref)
+            if (self._application_root / "research-cases" / case_ref / "case.json").is_file():
+                from finauditgate.application.research_case import load
+                self._require_private_artifact_root()
+                return load(self, case_ref)
+            if (self._application_root / "cashflow-cases" / case_ref / "case.json").is_file():
+                from finauditgate.application.cashflow_case import load
+                self._require_private_artifact_root()
+                return load(self._application_root, self._offline_gate, self._core_root, case_ref)
             with self._case_lock(case_ref):
                 return self._load_case(case_ref)
         except ApplicationError:

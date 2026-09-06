@@ -44,6 +44,15 @@ traces, and paired outputs to resolve below the workspace's sibling `private/`
 tree. Change Packet export contains neither raw requests/responses nor private
 trace paths.
 
+## Optional TradingAgents integration
+
+The integration depends on [TauricResearch/TradingAgents](https://github.com/TauricResearch/TradingAgents)
+at the commit pinned in `requirements/tradingagents.lock`. Its source is
+installed separately, not vendored in this repository; its Apache-2.0 license
+and third-party notices remain applicable. DeepSeek is an external model
+service. Provider responses, data caches and real research reports stay private.
+This project is an independent integration and does not imply upstream endorsement.
+
 ## Prohibited public material
 
 Do not commit credentials, cookies, private paths, customer or portfolio data,

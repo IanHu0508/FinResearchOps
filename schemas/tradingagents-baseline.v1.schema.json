@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:finresearchops:schema:tradingagents-baseline:v1",
+  "type": "object",
+  "additionalProperties": false,
+  "title": "TradingAgentsBaseline",
+  "required": [
+    "schema_version",
+    "symbol",
+    "as_of",
+    "reports",
+    "signal",
+    "budget",
+    "provider",
+    "model",
+    "upstream_commit",
+    "financial_audit",
+    "review_status"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "finresearchops.tradingagents-baseline/v1"
+    },
+    "symbol": {
+      "type": "string"
+    },
+    "as_of": {
+      "type": "string",
+      "format": "date"
+    },
+    "reports": {
+      "type": "object"
+    },
+    "signal": {
+      "type": "string"
+    },
+    "budget": {
+      "type": "object"
+    },
+    "provider": {
+      "type": "string"
+    },
+    "model": {
+      "type": "string"
+    },
+    "upstream_commit": {
+      "const": "2448d0a12576f9b2ddcd5980a0630833423d1e1b"
+    },
+    "financial_audit": {
+      "const": "NOT_APPLIED_NATIVE_BASELINE"
+    },
+    "review_status": {
+      "const": "AWAITING_REVIEW"
+    }
+  }
+}

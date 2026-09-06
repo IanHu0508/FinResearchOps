@@ -3,6 +3,28 @@
 Status is tracked in [`status.md`](status.md); this document describes only
 how the current code works.
 
+## TradingAgents research
+
+The TradingAgents integration adds native-baseline and evidence-led research
+commands behind the same Application Interface. The custom route uses
+`FundamentalEvidenceTask` behind the existing core `run/replay`, followed by
+isolated analysis/challenge drafts and fresh synthesis from audited evidence.
+The synthesis receives required reference IDs, not the draft opinion text. Old-thesis
+comparison happens after the new decision is saved. See
+[tradingagents-research.md](tradingagents-research.md) for the execution paths,
+optional integration environment and remaining limits.
+
+## Cash-flow investigation task
+
+The filing-based task runs through the same `handle/read_case` and `run/replay`
+Interfaces. It reads source facts, calculates the earnings/cash-flow bridge,
+chooses bounded note searches and saves a draft workpaper. It has no per-question
+answer-profile input. See [cashflow-investigation.md](cashflow-investigation.md)
+for the complete path, module map, source semantics and remaining limits.
+
+The profile-based mechanism described below remains a separate task type;
+its answer-key checks are not used by the cash-flow investigation.
+
 ## Two layers, two small Interfaces
 
 ```text

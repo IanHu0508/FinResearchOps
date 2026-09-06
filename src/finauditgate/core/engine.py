@@ -10,6 +10,9 @@ decision still follows from the stored bytes.
 
 from __future__ import annotations
 
+from finauditgate.cashflow import CashflowOutcome, CashflowTask
+from finauditgate.research import FundamentalEvidenceTask
+
 from datetime import date
 from decimal import DecimalException
 import json
@@ -109,9 +112,11 @@ class FinAuditGate:
         model_trace_root: Path | None = None,
         private_dev_profile: PrivateDevValidationProfile | None = None,
         private_workspace_anchor: PrivateWorkspaceAnchor | None = None,
+        investigator=None,
     ) -> None:
         self._artifact_root = Path(artifact_root)
         self._model = model
+        self._investigator = investigator
         if (
             private_workspace_anchor is not None
             and type(private_workspace_anchor) is not PrivateWorkspaceAnchor
@@ -167,9 +172,17 @@ class FinAuditGate:
 
     # ------------------------------------------------------------------ run
 
-    def run(self, task: AuditTask) -> AuditOutcome:
-        """Validate at most two proposals, calculate deterministically, persist."""
+    def run(self, task: AuditTask | CashflowTask | FundamentalEvidenceTask) -> AuditOutcome | CashflowOutcome:
+        """Run the task's financial checks and persist a replayable outcome."""
 
+        if type(task) is FundamentalEvidenceTask:
+            from finauditgate.core.research_evidence import run
+            self._ensure_private_artifact_root()
+            return run(task, self._artifact_root)
+        if type(task) is CashflowTask:
+            from finauditgate.core.cashflow import run
+            self._ensure_private_artifact_root()
+            return run(task, self._artifact_root, self._investigator)
         if self._model is None:
             raise RuntimeError("run() requires a candidate model Adapter")
         if type(task) is not AuditTask:
@@ -492,6 +505,14 @@ class FinAuditGate:
         run_id = run_ref.run_id
         run_ref = RunRef(run_id=run_id)
         run_directory = self._artifact_root / "runs" / run_id
+        if (run_directory / "research-evidence.json").is_file():
+            from finauditgate.core.research_evidence import replay
+            self._ensure_private_artifact_root()
+            return replay(self._artifact_root, run_ref)
+        if (run_directory / "cashflow.json").is_file():
+            from finauditgate.core.cashflow import replay
+            self._ensure_private_artifact_root()
+            return replay(self._artifact_root, run_ref)
         try:
             manifest_bytes = _read_bounded_json_bytes(run_directory / "manifest.json")
             if manifest_bytes is None or _json_payload_exceeds_limits(manifest_bytes):

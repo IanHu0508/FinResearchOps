@@ -1,11 +1,65 @@
 # FinResearchOps / FinAuditGate
 
-A filing-update workflow for equity researchers, built around one idea: **the
-model may only propose; deterministic code verifies and calculates; a person
-approves; everything replays offline.**
+A local financial-research workflow for investigating earnings and operating
+cash flow after an annual filing. **Programs read and calculate financial
+facts; a bounded agent chooses what to investigate; people review the evidence.**
+
+## Why this project
+
+投研判断需要两端约束：先核对财务事实，再让新增证据影响判断。本项目从年度
+盈利与经营现金流调查切入，用确定性核验、受限附注补查和独立证据综合，形成
+可追溯的中文研究草稿。最终综合不接收初稿观点文字，旧观点在新判断保存后才
+参与对照；这些机制并不证明模型偏好已经消失。
+
+The workflow addresses two sources of research error:
+
+- **Financial inputs:** source, period, currency and calculation checks before interpretation.
+- **Opinion propagation:** separate initial drafts, bounded counter-evidence lookup, and final synthesis from audited evidence rather than draft conclusions.
+
+This is a research prototype for human review. It does not establish investment
+performance, eliminate model bias, or provide a complete valuation system.
+
+The first user path reads an acquired inline-XBRL filing, compares consolidated
+profit and operating cash flow, locates major reconciliation items, searches
+related disclosures and writes a Chinese draft workpaper. A rule baseline and
+a fixed local 8B planner use the same financial checks and search budget.
+The task requires no per-question answer profile.
+
+Current scope, evidence and remaining work are maintained only in
+[`docs/status.md`](docs/status.md).
+
+## TradingAgents research integration
+
+The optional integration offers a native upstream baseline and a slim research
+route that combines audited cash-flow evidence, isolated analysis/challenge
+drafts, source-aware synthesis and old-thesis comparison. It uses a separate
+dependency environment. Setup, CLI commands and limitations are in
+[`docs/tradingagents-research.md`](docs/tradingagents-research.md).
+
+## Run a cash-flow investigation
+
+```bash
+PYTHONPATH=src .venv/bin/python -m finauditgate.cli \
+  --artifact-root <absolute-private-output-directory> \
+  investigate-cashflow \
+  --source-manifest <absolute-acquisition-provenance-json> \
+  --comparison-end 2024-12-31 --cutoff 2026-09-05 \
+  --currency CNY --strategy rules
+```
+
+Select `--strategy adaptive` to use the already installed local 8B model.
+The output includes a workpaper path, Case reference and offline-replay run ID.
+No software, filings or model weights are downloaded by the command.
+
+The supported format, missing-value treatment, source manifest, small module
+map and draft-only review boundary are documented in
+[`docs/cashflow-investigation.md`](docs/cashflow-investigation.md).
+
+## The two layers and the retained profile-based task
 
 - **FinAuditGate** is the core. Given one frozen document and one question, it
-  takes a candidate from a model (two evidence spans, their financial
+  can run either the source-only cash-flow task or the retained reviewed-profile
+  task. The latter takes a candidate from a model (two evidence spans, their financial
   semantics, one allowlisted formula), checks every claim against the frozen
   bytes and a reviewed profile, computes the answer with `Decimal`, and returns
   exactly one of `ACCEPT / RETRY / ABSTAIN / HUMAN_REVIEW`. Every run is a set
@@ -17,24 +71,31 @@ approves; everything replays offline.**
   Research Change Packet.
 
 ```text
-frozen text slice (≤ 32 KB)
-   → local model (Qwen3-4B via Ollama, one schema-constrained JSON answer)
-   → FinAuditGate: span/hash check, semantics, Decimal, one retry
-   → ACCEPT / RETRY / ABSTAIN / HUMAN_REVIEW
-   → FinResearchOps: Case → Workpaper → human review → Change Packet
-   → offline replay (no model, no network)
+acquired annual filing
+   → source facts + financial reconciliation
+   → choose a driver → search notes → return evidence or missing-input feedback
+   → local draft workpaper for human review
+   → offline replay of source calculations and recorded actions
 ```
 
 Current status lives in one place: [`docs/status.md`](docs/status.md).
 
 ## Quick start
 
-The package is standard-library only. The verified environment is a
-uv-managed CPython 3.12.13 with a repository `.venv` (see `.python-version`).
+The core package is standard-library only and requires Python 3.12. From a
+fresh checkout, create the local environment before running the offline tests:
 
 ```bash
+git clone https://github.com/IanHu0508/FinResearchOps.git finaudit-gate
+cd finaudit-gate
+python3.12 -m venv .venv
 PYTHONPATH=src .venv/bin/python -m unittest discover -s tests
 ```
+
+The synthetic demo below needs no model, API key or issuer filing. Cloud-model
+setup is separate; see the [TradingAgents integration guide](docs/tradingagents-research.md).
+Keep the checkout directory named `finaudit-gate`: private-run path checks
+expect a sibling `private/` directory next to that Git worktree.
 
 Run the public synthetic profile end to end and replay it without a model:
 
@@ -52,7 +113,7 @@ $HOME/.local/bin/uv pip install --python "$W/venv/bin/python" --offline "$W"/dis
 env -u PYTHONPATH "$W/venv/bin/finresearchops" --help
 ```
 
-## Running a real case with the local model
+## Running the retained reviewed-profile task
 
 `finresearchops` is a thin CLI over the Application Interface
 (`handle(command)` / `read_case(case_ref)`). It needs a local Ollama daemon
@@ -60,7 +121,6 @@ with the frozen tag installed, and every private input must live under the
 workspace's sibling `private/` tree:
 
 ```bash
-ollama pull qwen3:4b-q4_K_M
 finresearchops --artifact-root /…/private/runs/dev/example \
   create-case --mode PRIVATE_DEV --document /…/private/…/slice.txt \
   --source-id tencent-2025-annual-report --published-at 2026-04-09 \
@@ -74,34 +134,20 @@ The complete procedure, including how to build the validation profile from
 reviewed facts, is in [`docs/runbook-private-case.md`](docs/runbook-private-case.md).
 The CLI actions are documented in [`docs/cli.md`](docs/cli.md).
 
-## What is and is not proven
+## Verification and claims
 
-Proven by the offline suite (131 tests, no network, no model, no issuer data):
-
-- the deterministic gate on a public synthetic profile, including registered
-  fiscal-period / metric / basis / currency / unit / scale / sign aliases,
-  bounded one-retry behaviour, and fail-closed handling of malformed proposals;
-- the Application lifecycle with append-only Reviews, proposal-only export, and
-  crash recovery at every publication boundary;
-- the local-model Adapter contract with mocked loopback exchanges: one frozen
-  request, bounded raw capture, one content-addressed trace per call, and an
-  offline verifier that reconstructs the proposal from the saved bytes;
-- private validation profiles for acceptable answers, post-cutoff documents,
-  and questions with no admissible evidence, through to Packet export.
-
-Not proven yet:
-
-- any `ACCEPT` on a real issuer document with the real local model;
-- generalisation beyond one formula (`growth_rate_percent`) and hand-cut text
-  slices (there is no PDF parsing or retrieval inside the product);
-- any evaluation result.
+The offline suite covers financial rules, the two task paths, private storage,
+model contracts, Application persistence and replay. Test results are not
+financial evaluation results. See [`docs/status.md`](docs/status.md) for dated
+observations and [`docs/evaluation-protocol.md`](docs/evaluation-protocol.md)
+for the evaluation rules.
 
 ## Repository layout
 
 - `src/finauditgate/` — core (`core/`), Application (`application/`), model
   Adapters (`adapters/`), the paired-evaluation helper (`evaluation/`), CLI.
 - `tests/` — offline `unittest` suite.
-- `fixtures/synthetic/` — the one original synthetic filing fragment.
+- `fixtures/synthetic/` — original synthetic text and inline-XBRL fixtures.
 - `schemas/` — JSON Schemas for every persisted artifact, one version each.
 - `manifests/examples/` — public-safe route and source metadata.
 - `scripts/` — the synthetic demo and the validation-profile builder.

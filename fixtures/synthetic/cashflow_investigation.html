@@ -1,0 +1,22 @@
+<!doctype html>
+<html xmlns:ix="http://www.xbrl.org/2013/inlineXBRL" xmlns:xbrli="http://www.xbrl.org/2003/instance" xmlns:us-gaap="http://fasb.org/us-gaap/2025" xmlns:iso4217="http://www.xbrl.org/2003/iso4217">
+<head><title>Fictional Aurora Manufacturing annual cash-flow example</title></head>
+<body>
+<ix:header>
+<xbrli:context id="fy2025"><xbrli:entity><xbrli:identifier scheme="http://www.sec.gov/CIK">0001111111</xbrli:identifier></xbrli:entity><xbrli:period><xbrli:startDate>2025-01-01</xbrli:startDate><xbrli:endDate>2025-12-31</xbrli:endDate></xbrli:period></xbrli:context>
+<xbrli:context id="fy2024"><xbrli:entity><xbrli:identifier scheme="http://www.sec.gov/CIK">0001111111</xbrli:identifier></xbrli:entity><xbrli:period><xbrli:startDate>2024-01-01</xbrli:startDate><xbrli:endDate>2024-12-31</xbrli:endDate></xbrli:period></xbrli:context>
+<xbrli:unit id="money"><xbrli:measure>iso4217:USD</xbrli:measure></xbrli:unit>
+</ix:header>
+<h1>Fictional Aurora Manufacturing</h1>
+<p>This entire filing is an original synthetic example for testing. It is not a public company's disclosure.</p>
+<h2>Consolidated statements of cash flows — USD millions</h2>
+<table><tr><th>Item</th><th>2025</th><th>2024</th></tr>
+<tr><td>Net income including noncontrolling interests</td><td><ix:nonFraction id="profit25" name="us-gaap:ProfitLoss" contextRef="fy2025" unitRef="money" scale="6" decimals="-6" format="ixt:num-dot-decimal">120</ix:nonFraction></td><td><ix:nonFraction id="profit24" name="us-gaap:ProfitLoss" contextRef="fy2024" unitRef="money" scale="6" decimals="-6" format="ixt:num-dot-decimal">100</ix:nonFraction></td></tr>
+<tr><td>Depreciation</td><td><ix:nonFraction id="dep25" name="us-gaap:Depreciation" contextRef="fy2025" unitRef="money" scale="6" decimals="-6">20</ix:nonFraction></td><td><ix:nonFraction id="dep24" name="us-gaap:Depreciation" contextRef="fy2024" unitRef="money" scale="6" decimals="-6">20</ix:nonFraction></td></tr>
+<tr><td>Accounts receivable</td><td>(<ix:nonFraction id="ar25" name="us-gaap:IncreaseDecreaseInAccountsReceivable" contextRef="fy2025" unitRef="money" scale="6" decimals="-6">50</ix:nonFraction>)</td><td><ix:nonFraction id="ar24" name="us-gaap:IncreaseDecreaseInAccountsReceivable" contextRef="fy2024" unitRef="money" sign="-" scale="6" decimals="-6">10</ix:nonFraction></td></tr>
+<tr><td>Net cash provided by operating activities</td><td><ix:nonFraction id="cfo25" name="us-gaap:NetCashProvidedByUsedInOperatingActivities" contextRef="fy2025" unitRef="money" scale="6" decimals="-6">90</ix:nonFraction></td><td><ix:nonFraction id="cfo24" name="us-gaap:NetCashProvidedByUsedInOperatingActivities" contextRef="fy2024" unitRef="money" scale="6" decimals="-6">130</ix:nonFraction></td></tr>
+</table>
+<h2>Management discussion</h2>
+<p id="receivables-note">Accounts receivable increased mainly because the company extended payment terms for a group of customers. Collections shifted into the following year. This explanation describes management's account and does not independently establish future collectability.</p>
+<p id="depreciation-note">Depreciation remained stable because the useful lives and asset base were largely unchanged. The company reports this expense as a noncash adjustment in its cash-flow reconciliation.</p>
+</body></html>

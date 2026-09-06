@@ -1,7 +1,59 @@
 # Project Status
 
-> Updated 2026-09-03. This file is the only public status source; other
+> Updated 2026-09-06. This file is the only public status source; other
 > documents describe mechanisms and link here.
+
+## Public package verification — 2026-09-06
+
+Publication checks are `COMPLETED`: 239 source-tree offline tests, 6 mocked
+integration checks, and 239 tests against the wheel installed in a disposable
+environment with no source package directory all passed. The installed CLI
+also opened successfully. These checks establish engineering behavior, not
+financial interpretation acceptance or investment performance.
+
+The public repository distributes code, documentation, schemas, synthetic
+fixtures and safe metadata. Real filings, research reports, credentials,
+model traces and manual review records remain outside it.
+
+## TradingAgents integration — 2026-09-05
+
+| Area | Status | Evidence and limits |
+|---|---|---|
+| Separate upstream runtime | `COMPLETED` | Fixed v0.4.0 source installed in a separate Python 3.12 environment; 108 installed dependencies passed compatibility checks; core environment unchanged |
+| Native upstream baseline | `COMPLETED` | One real upstream run completed with fourteen model requests and reopened; functional observation, not a return-reproduction result |
+| Fundamental evidence bridge | `PARTIAL` | Annual earnings/cash-flow checks, explicit disclosed-amount normalization, program-computed ratios and up to two note lookups; no full valuation or all-fundamentals coverage |
+| Evidence-led research route | `PARTIAL` | Three real model requests produced a candidate; final synthesis reads compact audited inputs and reference IDs, not initial opinion text; financial interpretation remains subject to review |
+| Research report and reopen | `COMPLETED` | Current Case v5 / evidence v2 generated three linked pages from a real run; both core records replayed consistently; older development formats retained as historical files |
+| Verification | `COMPLETED` | 239 offline tests and 6 integration checks passed; real report identity, local links, evidence anchors, expansion, console and mobile width checked |
+| DeepSeek runtime | `COMPLETED` | Credentials configured; actual-wire output limits and reasoning settings verified; JSON mode used for product output; numerical text delegated to program rendering |
+| Financial interpretation acceptance | `PARTIAL` | Known major cash/noncash misconceptions were addressed, but some terminology and source-use qualifications still need review; no claim of bias elimination or general business improvement |
+
+Usage and architecture: [tradingagents-research.md](tradingagents-research.md).
+The product route currently provides operating-thesis drafts, not a complete
+fundamental/valuation system. Ticker-to-CIK mapping is not independently checked;
+no price join, target price, position or buy/sell rating is produced on this route.
+Reference coverage checks do not establish financial entailment or causal validity.
+
+## Current cash-flow task — 2026-09-05
+
+| Area | Status | Evidence and limits |
+|---|---|---|
+| Bounded end-to-end framework | `COMPLETED` | One Application command runs source reading, reconciliation, bounded note search, draft workpaper and offline replay |
+| Financial source reader and report | `PARTIAL` | Same-filing explicit facts can resolve missing counterparts; conflicting candidates remain unresolved. Period-aware disclosures and statement-section arithmetic are shown with source references; no per-question gold input |
+| Local model path | `PARTIAL` | Fixed 8B selects driver IDs. Background-only or empty searches trigger a bounded rule fallback. The development run recorded one model call and one fallback; this is not a model-improvement claim |
+| Offline checks | `COMPLETED` | 213 tests passed on 2026-09-05, including the retained profile-based task; three final runs across two already-read filings reopened and replayed consistently |
+| New task evaluation | `NOT_STARTED` | No held-out measurement, human financial acceptance, causal-explanation scoring or manual-time improvement established |
+| Approval/public export for the new task | `NOT_STARTED` | New workpapers are drafts awaiting review; existing profile-based approval/export remains separate |
+| BFB expansion and complex UI | `DEFERRED` | Not required by the cash-flow framework |
+
+Mechanism, entry point and limitations: [cashflow-investigation.md](cashflow-investigation.md).
+The findings are source-backed development observations, not general accuracy
+or financial-performance claims. Runs and issuer materials stay private.
+
+## Historical profile-based status snapshot
+
+The following dated record concerns earlier routes; it is not the current
+cash-flow task's status or next-step list.
 
 | Area | Status | Evidence |
 |---|---|---|

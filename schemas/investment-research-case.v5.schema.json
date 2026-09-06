@@ -1,0 +1,465 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:finresearchops:schema:investment-research-case:v5",
+  "type": "object",
+  "additionalProperties": false,
+  "title": "InvestmentResearchCase",
+  "required": [
+    "schema_version",
+    "request",
+    "result",
+    "run_ids",
+    "comparison",
+    "review_status"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "finresearchops.investment-research-case/v5"
+    },
+    "request": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "symbol",
+        "entity_identifier",
+        "question",
+        "horizon_months",
+        "cutoff",
+        "source_id",
+        "scope"
+      ],
+      "properties": {
+        "symbol": {
+          "type": "string"
+        },
+        "entity_identifier": {
+          "type": "string",
+          "pattern": "^[0-9]+$"
+        },
+        "question": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1000
+        },
+        "horizon_months": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 120
+        },
+        "cutoff": {
+          "type": "string",
+          "format": "date"
+        },
+        "source_id": {
+          "type": "string"
+        },
+        "scope": {
+          "const": "ANNUAL_EARNINGS_CASHFLOW_THESIS_NOT_COMPLETE_VALUATION"
+        }
+      }
+    },
+    "result": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "analysis",
+        "challenge",
+        "decision",
+        "calls",
+        "budget",
+        "upstream_commit",
+        "runtime_kind"
+      ],
+      "properties": {
+        "analysis": {
+          "title": "ResearchAnalysis",
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "summary",
+            "claims",
+            "requested_drivers"
+          ],
+          "properties": {
+            "summary": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 1600,
+              "pattern": "^(?![\\s\\S]*(?:[0-9０-９]|[零〇一二三四五六七八九十百千万亿两壹贰叁肆伍陆柒捌玖拾佰仟]+(?:元|美元|倍)|百分之[零〇一二三四五六七八九十百千万亿两]))[\\s\\S]*$",
+              "description": "Qualitative prose only. No digits, dates, amounts, percentages, ratio values or numerical forecasts. Code renders the figures separately. Keep reference IDs in evidence_ids, not prose."
+            },
+            "claims": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 3,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "statement",
+                  "evidence_ids",
+                  "assumption",
+                  "revisit_if"
+                ],
+                "properties": {
+                  "statement": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 1600,
+                    "pattern": "^(?![\\s\\S]*(?:[0-9０-９]|[零〇一二三四五六七八九十百千万亿两壹贰叁肆伍陆柒捌玖拾佰仟]+(?:元|美元|倍)|百分之[零〇一二三四五六七八九十百千万亿两]))[\\s\\S]*$",
+                    "description": "Qualitative prose only. No digits, dates, amounts, percentages, ratio values or numerical forecasts. Code renders the figures separately. Keep reference IDs in evidence_ids, not prose."
+                  },
+                  "evidence_ids": {
+                    "type": "array",
+                    "maxItems": 3,
+                    "uniqueItems": true,
+                    "items": {
+                      "type": "string"
+                    },
+                    "minItems": 1
+                  },
+                  "assumption": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 1600,
+                    "pattern": "^(?![\\s\\S]*(?:[0-9０-９]|[零〇一二三四五六七八九十百千万亿两壹贰叁肆伍陆柒捌玖拾佰仟]+(?:元|美元|倍)|百分之[零〇一二三四五六七八九十百千万亿两]))[\\s\\S]*$",
+                    "description": "Qualitative prose only. No digits, dates, amounts, percentages, ratio values or numerical forecasts. Code renders the figures separately. Keep reference IDs in evidence_ids, not prose."
+                  },
+                  "revisit_if": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 1600,
+                    "pattern": "^(?![\\s\\S]*(?:[0-9０-９]|[零〇一二三四五六七八九十百千万亿两壹贰叁肆伍陆柒捌玖拾佰仟]+(?:元|美元|倍)|百分之[零〇一二三四五六七八九十百千万亿两]))[\\s\\S]*$",
+                    "description": "Qualitative prose only. No digits, dates, amounts, percentages, ratio values or numerical forecasts. Code renders the figures separately. Keep reference IDs in evidence_ids, not prose."
+                  }
+                }
+              }
+            },
+            "requested_drivers": {
+              "type": "array",
+              "maxItems": 2,
+              "uniqueItems": true,
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "challenge": {
+          "title": "ResearchAnalysis",
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "summary",
+            "claims",
+            "requested_drivers"
+          ],
+          "properties": {
+            "summary": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 1600,
+              "pattern": "^(?![\\s\\S]*(?:[0-9０-９]|[零〇一二三四五六七八九十百千万亿两壹贰叁肆伍陆柒捌玖拾佰仟]+(?:元|美元|倍)|百分之[零〇一二三四五六七八九十百千万亿两]))[\\s\\S]*$",
+              "description": "Qualitative prose only. No digits, dates, amounts, percentages, ratio values or numerical forecasts. Code renders the figures separately. Keep reference IDs in evidence_ids, not prose."
+            },
+            "claims": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 3,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "statement",
+                  "evidence_ids",
+                  "assumption",
+                  "revisit_if"
+                ],
+                "properties": {
+                  "statement": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 1600,
+                    "pattern": "^(?![\\s\\S]*(?:[0-9０-９]|[零〇一二三四五六七八九十百千万亿两壹贰叁肆伍陆柒捌玖拾佰仟]+(?:元|美元|倍)|百分之[零〇一二三四五六七八九十百千万亿两]))[\\s\\S]*$",
+                    "description": "Qualitative prose only. No digits, dates, amounts, percentages, ratio values or numerical forecasts. Code renders the figures separately. Keep reference IDs in evidence_ids, not prose."
+                  },
+                  "evidence_ids": {
+                    "type": "array",
+                    "maxItems": 3,
+                    "uniqueItems": true,
+                    "items": {
+                      "type": "string"
+                    },
+                    "minItems": 1
+                  },
+                  "assumption": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 1600,
+                    "pattern": "^(?![\\s\\S]*(?:[0-9０-９]|[零〇一二三四五六七八九十百千万亿两壹贰叁肆伍陆柒捌玖拾佰仟]+(?:元|美元|倍)|百分之[零〇一二三四五六七八九十百千万亿两]))[\\s\\S]*$",
+                    "description": "Qualitative prose only. No digits, dates, amounts, percentages, ratio values or numerical forecasts. Code renders the figures separately. Keep reference IDs in evidence_ids, not prose."
+                  },
+                  "revisit_if": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 1600,
+                    "pattern": "^(?![\\s\\S]*(?:[0-9０-９]|[零〇一二三四五六七八九十百千万亿两壹贰叁肆伍陆柒捌玖拾佰仟]+(?:元|美元|倍)|百分之[零〇一二三四五六七八九十百千万亿两]))[\\s\\S]*$",
+                    "description": "Qualitative prose only. No digits, dates, amounts, percentages, ratio values or numerical forecasts. Code renders the figures separately. Keep reference IDs in evidence_ids, not prose."
+                  }
+                }
+              }
+            },
+            "requested_drivers": {
+              "type": "array",
+              "maxItems": 2,
+              "uniqueItems": true,
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "decision": {
+          "title": "ResearchDecision",
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "conclusion",
+            "outlook",
+            "claims",
+            "counterevidence_response",
+            "scenarios",
+            "limitations",
+            "next_steps"
+          ],
+          "properties": {
+            "conclusion": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 1600,
+              "pattern": "^(?![\\s\\S]*(?:[0-9０-９]|[零〇一二三四五六七八九十百千万亿两壹贰叁肆伍陆柒捌玖拾佰仟]+(?:元|美元|倍)|百分之[零〇一二三四五六七八九十百千万亿两]))[\\s\\S]*$",
+              "description": "Qualitative prose only. No digits, dates, amounts, percentages, ratio values or numerical forecasts. Code renders the figures separately. Keep reference IDs in evidence_ids, not prose."
+            },
+            "outlook": {
+              "type": "string",
+              "enum": [
+                "改善",
+                "承压",
+                "混合",
+                "证据不足"
+              ]
+            },
+            "claims": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 3,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "statement",
+                  "evidence_ids",
+                  "assumption",
+                  "revisit_if"
+                ],
+                "properties": {
+                  "statement": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 1600,
+                    "pattern": "^(?![\\s\\S]*(?:[0-9０-９]|[零〇一二三四五六七八九十百千万亿两壹贰叁肆伍陆柒捌玖拾佰仟]+(?:元|美元|倍)|百分之[零〇一二三四五六七八九十百千万亿两]))[\\s\\S]*$",
+                    "description": "Qualitative prose only. No digits, dates, amounts, percentages, ratio values or numerical forecasts. Code renders the figures separately. Keep reference IDs in evidence_ids, not prose."
+                  },
+                  "evidence_ids": {
+                    "type": "array",
+                    "maxItems": 3,
+                    "uniqueItems": true,
+                    "items": {
+                      "type": "string"
+                    },
+                    "minItems": 1
+                  },
+                  "assumption": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 1600,
+                    "pattern": "^(?![\\s\\S]*(?:[0-9０-９]|[零〇一二三四五六七八九十百千万亿两壹贰叁肆伍陆柒捌玖拾佰仟]+(?:元|美元|倍)|百分之[零〇一二三四五六七八九十百千万亿两]))[\\s\\S]*$",
+                    "description": "Qualitative prose only. No digits, dates, amounts, percentages, ratio values or numerical forecasts. Code renders the figures separately. Keep reference IDs in evidence_ids, not prose."
+                  },
+                  "revisit_if": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 1600,
+                    "pattern": "^(?![\\s\\S]*(?:[0-9０-９]|[零〇一二三四五六七八九十百千万亿两壹贰叁肆伍陆柒捌玖拾佰仟]+(?:元|美元|倍)|百分之[零〇一二三四五六七八九十百千万亿两]))[\\s\\S]*$",
+                    "description": "Qualitative prose only. No digits, dates, amounts, percentages, ratio values or numerical forecasts. Code renders the figures separately. Keep reference IDs in evidence_ids, not prose."
+                  }
+                }
+              }
+            },
+            "counterevidence_response": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 12,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "evidence_id",
+                  "treatment",
+                  "reason"
+                ],
+                "properties": {
+                  "evidence_id": {
+                    "type": "string"
+                  },
+                  "treatment": {
+                    "type": "string",
+                    "enum": [
+                      "采纳",
+                      "部分采纳",
+                      "不采纳",
+                      "待核实"
+                    ]
+                  },
+                  "reason": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 1600,
+                    "pattern": "^(?![\\s\\S]*(?:[0-9０-９]|[零〇一二三四五六七八九十百千万亿两壹贰叁肆伍陆柒捌玖拾佰仟]+(?:元|美元|倍)|百分之[零〇一二三四五六七八九十百千万亿两]))[\\s\\S]*$",
+                    "description": "Qualitative prose only. No digits, dates, amounts, percentages, ratio values or numerical forecasts. Code renders the figures separately. Keep reference IDs in evidence_ids, not prose."
+                  }
+                }
+              }
+            },
+            "scenarios": {
+              "type": "array",
+              "minItems": 3,
+              "maxItems": 3,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "name",
+                  "condition",
+                  "evidence_to_check"
+                ],
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "enum": [
+                      "维持判断",
+                      "支持增强",
+                      "支持减弱"
+                    ]
+                  },
+                  "condition": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 1600,
+                    "pattern": "^(?![\\s\\S]*(?:[0-9０-９]|[零〇一二三四五六七八九十百千万亿两壹贰叁肆伍陆柒捌玖拾佰仟]+(?:元|美元|倍)|百分之[零〇一二三四五六七八九十百千万亿两]))[\\s\\S]*$",
+                    "description": "Qualitative prose only. No digits, dates, amounts, percentages, ratio values or numerical forecasts. Code renders the figures separately. Keep reference IDs in evidence_ids, not prose."
+                  },
+                  "evidence_to_check": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 1600,
+                    "pattern": "^(?![\\s\\S]*(?:[0-9０-９]|[零〇一二三四五六七八九十百千万亿两壹贰叁肆伍陆柒捌玖拾佰仟]+(?:元|美元|倍)|百分之[零〇一二三四五六七八九十百千万亿两]))[\\s\\S]*$",
+                    "description": "Qualitative prose only. No digits, dates, amounts, percentages, ratio values or numerical forecasts. Code renders the figures separately. Keep reference IDs in evidence_ids, not prose."
+                  }
+                }
+              }
+            },
+            "limitations": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 8,
+              "items": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 1600,
+                "pattern": "^(?![\\s\\S]*(?:[0-9０-９]|[零〇一二三四五六七八九十百千万亿两壹贰叁肆伍陆柒捌玖拾佰仟]+(?:元|美元|倍)|百分之[零〇一二三四五六七八九十百千万亿两]))[\\s\\S]*$",
+                "description": "Qualitative prose only. No digits, dates, amounts, percentages, ratio values or numerical forecasts. Code renders the figures separately. Keep reference IDs in evidence_ids, not prose."
+              }
+            },
+            "next_steps": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 5,
+              "items": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 1600,
+                "pattern": "^(?![\\s\\S]*(?:[0-9０-９]|[零〇一二三四五六七八九十百千万亿两壹贰叁肆伍陆柒捌玖拾佰仟]+(?:元|美元|倍)|百分之[零〇一二三四五六七八九十百千万亿两]))[\\s\\S]*$",
+                "description": "Qualitative prose only. No digits, dates, amounts, percentages, ratio values or numerical forecasts. Code renders the figures separately. Keep reference IDs in evidence_ids, not prose."
+              }
+            }
+          }
+        },
+        "calls": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 3,
+          "items": {
+            "type": "object",
+            "required": [
+              "stage",
+              "request",
+              "proposal"
+            ]
+          }
+        },
+        "budget": {
+          "type": "object",
+          "required": [
+            "calls"
+          ],
+          "properties": {
+            "calls": {
+              "const": 3
+            }
+          }
+        },
+        "upstream_commit": {
+          "const": "2448d0a12576f9b2ddcd5980a0630833423d1e1b"
+        },
+        "runtime_kind": {
+          "enum": [
+            "SCRIPTED_INTEGRATION",
+            "TRADINGAGENTS_MODEL_CLIENT"
+          ]
+        }
+      }
+    },
+    "run_ids": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 2,
+      "items": {
+        "type": "string",
+        "pattern": "^[0-9a-f]{64}$"
+      }
+    },
+    "comparison": {
+      "type": "object",
+      "required": [
+        "previous_case_ref",
+        "kind",
+        "previous",
+        "current",
+        "note"
+      ],
+      "properties": {
+        "kind": {
+          "enum": [
+            "INITIAL_RESEARCH",
+            "OUTLOOK_CHANGED",
+            "OUTLOOK_RETAINED"
+          ]
+        }
+      }
+    },
+    "review_status": {
+      "const": "AWAITING_REVIEW"
+    }
+  }
+}

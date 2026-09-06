@@ -9,6 +9,40 @@ JSON Schema files exist for the artifacts that cross the Application or
 public boundary. Core run artifacts are defined by the code that writes and
 replays them (`src/finauditgate/core/engine.py`).
 
+## TradingAgents research artifacts
+
+| Artifact | Schema | Definition |
+|---|---|---|
+| core `research-evidence.json` and manifest | `finauditgate.research-evidence/v2` | `core/research_evidence.py`, adds explicit disclosed-amount normalization and program-computed cash/profit ratios |
+| evidence replay response | `finauditgate.research-evidence-replay/v1` | deterministic source, calculation and lookup replay |
+| `research-cases/<ref>/case.json` | `finresearchops.investment-research-case/v5` | `investment-research-case.v5.schema.json`; compact audited inputs with explicit use limits, qualitative prose and evidence conditions; final synthesis excludes initial opinion text |
+| `baseline-cases/<ref>/case.json` | `finresearchops.tradingagents-baseline/v1` | `tradingagents-baseline.v1.schema.json`; native reports explicitly marked unaudited |
+| `research-executions/*/new-decision.json` | `finresearchops.new-research-decision/v1` | decision saved before the old Case is read |
+| research failure record | `finresearchops.research-failure/v1` | core references and a bounded failure code |
+| native failure record | `finresearchops.tradingagents-baseline-failure/v1` | exception type and budget receipt, no credential or exception-body serialization |
+| product model request/response/error | `finresearchops.research-model-request/v1`, `finresearchops.research-model-response/v3`, `finresearchops.research-model-error/v1` | private JSON-mode model records, including finish reason |
+| native model request/response/error | `finresearchops.native-model-request/v1`, `finresearchops.native-model-response/v2`, `finresearchops.native-model-error/v1` | private upstream callback records; response includes finish reason |
+| `wire-<n>.json` | `finresearchops.model-wire/v2` | actual model, output limit and reasoning-effort fields after SDK translation; no credentials or HTTP headers |
+
+Research HTML and native Markdown are renderings recomputed on Case reopen.
+Raw model traces remain private; reopening verifies captured stage inputs and
+proposals, not a new stochastic model response or hidden model reasoning.
+
+## Cash-flow investigation
+
+This task uses its own artifact shapes and the same `run/replay` Interface.
+It does not supply a reviewed-answer policy to the older task type.
+
+| Artifact | Schema | Definition |
+|---|---|---|
+| `runs/<id>/cashflow.json` and its `manifest.json` | `finauditgate.cashflow-run/v3` | `core/cashflow.py`; source metadata, financial facts, classified source passages, actions with model/rule origin, and captured responses |
+| financial analysis within the record | `finresearchops.cashflow-analysis/v3` | Adds explicit-source resolutions, the operating-assets/liabilities section, overview and disclosed-amount comparison |
+| replay response | `finauditgate.cashflow-replay/v1` | Offline recalculation and recorded-action verification |
+| `application/cashflow-cases/<ref>/case.json` | `finresearchops.cashflow-case/v1` | `cashflow-case.v1.schema.json` |
+| `workpaper.html`, `evidence.html` | renderings, not JSON artifacts | Hash-bound to the Case and regenerated from the core record when reopening |
+
+Full behavior and limits: [cash-flow investigation](../docs/cashflow-investigation.md).
+
 ## FinAuditGate run directory (`runs/<run_id>/`)
 
 | File | Schema version | Contents |

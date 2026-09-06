@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:finresearchops:schema:cashflow-case:v1",
+  "title": "Cash-flow investigation draft Case",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "run_id", "case_ref", "workpaper_sha256", "evidence_sha256"],
+  "properties": {
+    "schema_version": {"const": "finresearchops.cashflow-case/v1"},
+    "run_id": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "case_ref": {"type": "string", "pattern": "^case-[0-9a-f]{64}$"},
+    "workpaper_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "evidence_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}
