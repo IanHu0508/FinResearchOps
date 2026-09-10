@@ -52,7 +52,7 @@ from finauditgate.core.profiles import PrivateDevValidationProfile
 from finauditgate.ports.model import CandidateModel
 from finauditgate.core.operations import ANSWER_CONTRACT_VALUES
 from finauditgate.cashflow import CashflowCaseView, InvestigateCashflow
-from finauditgate.research import ResearchCaseView, TradingBaselineView
+from finauditgate.research import ResearchCaseView, TradingBaselineView, NativeResearchView, ThesisCaseView
 from finauditgate.private_storage import (
     PrivateStorageError,
     PrivateWorkspaceAnchor,
@@ -123,11 +123,17 @@ class FinResearchOps:
         self._clock = clock or (lambda: datetime.now(timezone.utc))
         self._researcher = researcher
 
-    def handle(self, command: object) -> ApplicationOutcome | CashflowCaseView | ResearchCaseView | TradingBaselineView | ReplayReport:
+    def handle(self, command: object) -> ApplicationOutcome | CashflowCaseView | ResearchCaseView | TradingBaselineView | NativeResearchView | ThesisCaseView | ReplayReport:
         """Execute one exact, closed, versioned command type."""
 
         try:
-            from finauditgate.research import ResearchSecurity, RunTradingBaseline
+            from finauditgate.research import ResearchSecurity, RunTradingBaseline, RunAuditedNativeResearch, ResearchThesis
+            if type(command) is ResearchThesis:
+                from finauditgate.application.thesis_case import run
+                return run(self, command)
+            if type(command) is RunAuditedNativeResearch:
+                from finauditgate.application.native_case import run
+                return run(self, command)
             if type(command) is RunTradingBaseline:
                 from finauditgate.application.baseline_case import run
                 return run(self, command)
@@ -168,7 +174,7 @@ class FinResearchOps:
         except OSError as exc:
             raise ApplicationError("APPLICATION_STORAGE_FAILED") from exc
 
-    def read_case(self, case_ref: str) -> CaseView | CashflowCaseView | ResearchCaseView | TradingBaselineView:
+    def read_case(self, case_ref: str) -> CaseView | CashflowCaseView | ResearchCaseView | TradingBaselineView | NativeResearchView | ThesisCaseView:
         """Reopen and integrity-check one Case from append-only artifacts."""
 
         try:
@@ -176,8 +182,16 @@ class FinResearchOps:
                 _validate_case_ref(case_ref)
             except (ValueError, TypeError):
                 raise ApplicationError("CASE_REF_INVALID")
+            if (self._application_root / "thesis-cases" / case_ref / "case.json").is_file():
+                from finauditgate.application.thesis_case import load
+                self._require_private_artifact_root()
+                return load(self, case_ref)
             if (self._application_root / "baseline-cases" / case_ref / "case.json").is_file():
                 from finauditgate.application.baseline_case import load
+                self._require_private_artifact_root()
+                return load(self, case_ref)
+            if (self._application_root / "native-audited-cases" / case_ref / "case.json").is_file():
+                from finauditgate.application.native_case import load
                 self._require_private_artifact_root()
                 return load(self, case_ref)
             if (self._application_root / "research-cases" / case_ref / "case.json").is_file():

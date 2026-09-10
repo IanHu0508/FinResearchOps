@@ -7,15 +7,16 @@ class ModelBudget:
     def __init__(self, *, ceiling_cny="50", input_per_million="9", output_per_million="27",
                  max_calls=24, max_input_bytes=90000, max_output_tokens=8192):
         try:
-            self.ceiling = Decimal(ceiling_cny)
+            self.ceiling = None if ceiling_cny is None else Decimal(ceiling_cny)
             self.input_rate = Decimal(input_per_million)
             self.output_rate = Decimal(output_per_million)
         except (ArithmeticError, TypeError, ValueError) as exc:
             raise ValueError("MODEL_BUDGET_INVALID") from exc
-        if (not all(x.is_finite() and x >= 0 for x in (self.ceiling, self.input_rate, self.output_rate))
-                or self.ceiling <= 0 or type(max_calls) is not int or not 1 <= max_calls <= 24
-                or type(max_input_bytes) is not int or not 1 <= max_input_bytes <= 90000
-                or type(max_output_tokens) is not int or not 1 <= max_output_tokens <= 16384):
+        if (not all(x.is_finite() and x >= 0 for x in (self.input_rate, self.output_rate))
+                or (self.ceiling is not None and (not self.ceiling.is_finite() or self.ceiling <= 0))
+                or type(max_calls) is not int or not 1 <= max_calls <= 24
+                or type(max_input_bytes) is not int or not 1 <= max_input_bytes <= 524288
+                or type(max_output_tokens) is not int or not 1 <= max_output_tokens <= 65536):
             raise ValueError("MODEL_BUDGET_INVALID")
         self.max_calls, self.max_input_bytes, self.max_output_tokens = max_calls, max_input_bytes, max_output_tokens
         self.reserved = Decimal(0)
@@ -35,7 +36,7 @@ class ModelBudget:
         # allowance covers message framing and structured-output schema tokens.
         upper = ((Decimal(size + 8192) * self.input_rate
                   + Decimal(self.max_output_tokens) * self.output_rate) / Decimal(1000000))
-        if self.reserved + upper > self.ceiling:
+        if self.ceiling is not None and self.reserved + upper > self.ceiling:
             raise ValueError("MODEL_SPEND_LIMIT")
         self.reserved += upper
         self.calls += 1
@@ -66,7 +67,7 @@ class ModelBudget:
             estimate = str(sum((Decimal(x["input_tokens"]) * self.input_rate
                                 + Decimal(x["output_tokens"]) * self.output_rate
                                 for x in self.usage), Decimal(0)) / Decimal(1000000))
-        return {"calls": self.calls, "ceiling_cny": str(self.ceiling),
+        return {"calls": self.calls, "ceiling_cny": None if self.ceiling is None else str(self.ceiling),
                 "reserved_upper_cny": str(self.reserved), "usage": self.usage,
                 "uncached_price_estimate_cny": estimate,
                 "input_per_million_cny": str(self.input_rate), "output_per_million_cny": str(self.output_rate),

@@ -5,19 +5,21 @@ import json
 from finauditgate.core.artifacts import canonical_json_bytes, write_once
 
 
-def model_http_client(provider, max_output_tokens, *, trace_root=None, transport=None, reasoning_effort=None):
+def model_http_client(provider, max_output_tokens, *, trace_root=None, transport=None, reasoning_effort=None, start_index=0, timeout_seconds=120):
     import httpx
     if provider != "deepseek":
-        return httpx.Client(timeout=120, transport=transport)
-    if type(max_output_tokens) is not int or not 1 <= max_output_tokens <= 16384:
+        return httpx.Client(timeout=timeout_seconds, transport=transport)
+    if type(max_output_tokens) is not int or not 1 <= max_output_tokens <= 65536:
         raise ValueError("MODEL_HTTP_OUTPUT_LIMIT_INVALID")
     if reasoning_effort not in (None, "low", "high", "max"):
         raise ValueError("MODEL_REASONING_EFFORT_INVALID")
+    if type(start_index) is not int or not 0 <= start_index <= 24:
+        raise ValueError("MODEL_HTTP_CALL_INDEX_INVALID")
 
     class DeepSeekLimitTransport(httpx.BaseTransport):
         def __init__(self):
             self.inner = transport or httpx.HTTPTransport(retries=0)
-            self.count = 0
+            self.count = start_index
 
         def handle_request(self, request):
             if (request.url.scheme != "https" or request.url.host != "api.deepseek.com"
@@ -54,4 +56,4 @@ def model_http_client(provider, max_output_tokens, *, trace_root=None, transport
         def close(self):
             self.inner.close()
 
-    return httpx.Client(timeout=120, transport=DeepSeekLimitTransport())
+    return httpx.Client(timeout=timeout_seconds, transport=DeepSeekLimitTransport())

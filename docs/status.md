@@ -1,7 +1,258 @@
 # Project Status
 
-> Updated 2026-09-06. This file is the only public status source; other
+> Updated 2026-09-09. This file is the only public status source; other
 > documents describe mechanisms and link here.
+
+## Current direction: lightweight review and opinion updates — 2026-09-09
+
+The lightweight native research slice is `COMPLETED` as an implementation and
+one real-model workflow check. Financial reliability and bias-reduction claims
+remain `PARTIAL`. The main command is `research-thesis`; the heavy financial
+admission/projection route is no longer a prerequisite.
+
+The flow isolates the two first drafts, uses symmetric responses to sealed
+initial claims, and gives the final manager original sources and updated
+arguments without upstream ratings, transaction directions or trader-authored
+thresholds. Generated analyst summaries are excluded from downstream evidence;
+frozen sources skip those redundant model calls. The optional data-review Agent
+reads the exact saved report, cannot overwrite it, and can fail independently.
+The original deterministic filing component remains a standalone capability.
+
+273 core tests and 43 integration checks pass, including actual SDK JSON-wire
+behavior, completed-prefix recovery, incomplete-tail recomputation, the removal
+of trader thresholds, full-report review input and standard-library reopening.
+
+One known case used 19 frozen source records, the selected native fundamentals /
+market graph with 16 nodes and 30 edges, ten research model steps and one review
+step. Three of eight initial claims were revised and five maintained; both
+researchers answered all opponent claims and the final manager assessed all
+eight. Nine valid prior returns were restored after exact-message checks, and
+two new requests completed the final judgment and review. This is a recovered
+end-to-end result, not a fresh eleven-request resample or a controlled comparison.
+
+Provider failures exposed disjoint schema fragments, a prose-only manager
+response and an incomplete final response. Original outputs and costs remain.
+New requests explicitly use JSON mode and include the full response schema;
+a bounded compatibility reader preserves the observed old manager prose, and
+only complete schema-valid prefixes can be reused. Missing final fields are
+regenerated, never filled with a default rating. Actual ratings, including Hold,
+are model output; REVIEW is available when a defensible rating is unavailable.
+
+The review reported four issues, including a real magnitude error in one final
+assessment and financial-definition / source-coverage concerns. It also offered
+unjustified reassurance about historical data availability and lack of rating
+impact. Those assurances are not accepted as validation. The main report still
+contains identified errors; the reviewer is useful as an optional prompt for
+human checking, not a truth oracle. Model-authored valuation multiples and
+thresholds remain assumptions, and repeated statements from one source do not
+constitute independent evidence. No improvement in returns, general financial
+accuracy, or removal of model preferences is claimed. The public-source checkpoint
+excludes issuer files, private workpapers, model traces and real run outputs.
+
+## Previous native-chain direction and evidence
+
+The project direction is reproduction and enhancement of the pinned native
+TradingAgents decision chain. The native functional baseline is `COMPLETED`.
+The Native Adapter's offline input-propagation slice is `COMPLETED`: the real
+upstream graph, nodes and routes execute with synthetic external providers.
+The complete live enhancement remains `PARTIAL`; live financial/market/model
+connection is `COMPLETED`. Bounded typed-claim validation and manager
+adjudication are `COMPLETED` for this slice; full judgment/updates remain
+`PARTIAL` and controlled A/B/C runs are `NOT_STARTED`. Existing slim-route results do not
+constitute full native-chain optimization.
+
+Planned comparisons retain the same native chain: A controlled native baseline,
+B audit only, C audit plus judgment-flow improvements. Model, source access,
+cutoff and configurations must be comparable; otherwise do not attribute
+differences to the optimization. External valuation integration is deferred.
+
+The custom evidence/admissibility layer's necessity and net research benefit
+remain unestablished. Upstream supplies data tools and a market snapshot; local
+additions perform filing extraction, financial-data projection and typed-claim
+adjudication. The projection reduces what models can see, and typed mode's Hold
+is a fixed compatibility value. Engineering checks do not prove that this is a
+better research workflow. Its necessity remains unproven; it is not a prerequisite
+of the new main research command. Historical records below describe that earlier
+restricted route, not the current default workflow.
+
+## Follow-up validation — 2026-09-08
+
+A synthetic rehashed-record test exposed a dependency-order bypass: a future
+parent was rejected cold but accepted when that parent was already in the
+replay cache. The fix checks source identity and ordering on every dependency
+edge, including cache hits. Both traversal orders now reject the forgery;
+the existing real Case v5 still reopens. Failed and pre-fix evidence is retained.
+
+273 core tests and 29 integration checks pass, including the new regression.
+An additional matrix covers 26 typed propositions and four manager control
+scenarios. Six real DeepSeek protocol probes used synthetic sources; actual
+messages, model proposals and core records were matched and replayed. The two
+manager probes handled 31 controls and rejected all 12 pre-labelled unsupported
+items. They were given the core support flags; this is protocol compliance,
+not independent financial reasoning or a new native-graph reproduction.
+
+The probes also revealed a fidelity gap: wrong prose was often rewritten into
+correct typed facts, rather than represented as the original faulty claim for
+rejection. Thus safe checked output does not prove exhaustive draft auditing.
+The price-hypothesis rule also rejects indicator-only references while allowing
+volume-only references because volume shares the `PRICE_` prefix. That business
+rule was not changed in this validation slice; its financial rationale remains
+unestablished. Draft alignment, rule calibration and business decision reasons
+remain `PARTIAL`. No bias-removal or return-performance claim is made.
+
+## Typed claims and manager adjudication — 2026-09-08
+
+The opt-in native mode preserves the graph, tools and state factories while
+changing the judgment protocol. Analysts submit draft-derived typed claims;
+downstream roles submit facts or bounded hypotheses. The deterministic core
+checks reference identity, measurement roles and relations. Managers explicitly
+choose use/reject/defer; unsupported claims cannot be promoted, and only checked
+projections enter downstream model context or the delivered report. Raw drafts
+and all model/core decisions remain traceable.
+
+272 core tests and 29 integration checks pass. Positive/negative cases cover
+balance versus change, prior prepayments versus new cash, unknown versus zero
+holdings, and closing versus intraday prices. Integration also rejects a forged
+manager report even when its native node output is changed to match. Tool
+batches execute serially to avoid shared vendor-cache initialization races.
+
+One successful live Case v5 preserves 16 nodes and 30 edges, with 16 model
+requests and 14 tools. Ten roles submitted 80 claims including repeated facts;
+79 met the bounded contract. The two managers made 56 itemized choices without
+missing an item. This is admissibility bookkeeping, not financial accuracy or
+independent evidence counts. Sources, catalog and ten reviews replay offline;
+actual model inputs/outputs and checked report projections match their records.
+
+One indicator-only price-trend hypothesis was not admitted because the current
+rule requires an explicit price observation. This is a coverage restriction,
+not evidence that the hypothesis is false. Business hypotheses and discretionary
+rejection reasons need further development. First-round isolation, complete
+counterevidence updates, native old-thesis comparison and A/B/C evaluation
+remain unfinished. No investment-attractiveness conclusion is available without
+valuation inputs; the native Hold field is explicitly compatibility-only.
+
+An initial live attempt was interrupted by a vendor SQLite cache lock, and an
+underspecified relation field produced rejected proposals. The tool-concurrency
+and schema-enumeration repairs were verified; failed returns remain preserved.
+The current bounded slice is complete, but general financial reasoning and
+investment effectiveness remain unproven. Changes remain local and unpublished.
+
+## Earlier native live connection and quality review — 2026-09-08
+
+The explicit live entry adds source-bound ADS identity, quote and processed
+OHLCV/snapshot checks, and uncapped monetary budgets with independent call,
+input/output and timeout limits. The interim path checks 74 source facts,
+including signed consolidated-to-parent earnings attribution. Raw vendor
+financial returns are retained; the model receives only the primary-source
+projection. Tool receipts and actual model tool messages are cross-checked.
+
+The first live case completed 14 model calls and reopened offline, but financial
+interpretation was `INVALIDATED`: unverified valuation inputs and accounting
+misinterpretations reached the final manager. A second run completed 13 model
+calls; Case persistence rejected a mismatch between omitted tool arguments and
+the upstream's executed defaults. The default handling has been repaired and
+regression-checked. Its raw replies and failed financial interpretations remain
+private. The revised Case v4 completed 13 real model calls, 14 tool calls and
+18 work-node invocations, retaining 16 nodes and 30 edges. Both core records
+replay; the Case reopens with the actual-tool-message and projection checks.
+
+The final manager still confused a decreasing positive liability balance with
+a negative balance, prior prepayment revenue recognition with current cash
+generation, unknown holdings with zero holdings, and historical closing prices
+with intraday extrema. This report's financial interpretation is `INVALIDATED`.
+The connection works, but free-text financial semantics are not yet enforced.
+All three runs, failures and reviews are retained; this is not a controlled
+A/B/C result. The next slice is source-bound claims and judgment validation.
+
+266 core offline tests and 26 integration checks pass. The corrected native
+path writes Case/packet v4, source earnings evidence/analysis v6 and runtime
+receipt v2; complete graph results are saved before Case validation to support
+receipt-only recovery without repeating paid calls. These changes are local,
+not a new GitHub release. Financial acceptance remains `PARTIAL`.
+
+## Native audit propagation — historical offline slice, 2026-09-07
+
+Two persistent synthetic cases (complete and partial evidence) retain 16 graph
+nodes including start/end and 30 edges. Each executes 17 simulated model calls,
+7 synthetic tools and 26 node invocations across 14 work-node types. All ten
+decision-node types receive the same audit material in actual model message
+content; generated model reports do not copy that material forward.
+
+258 core offline tests and 25 integration checks passed, including 15 native
+integration cases. Negative checks reject missing/altered evidence, metadata-only
+markers, errored or missing tool receipts, changed topology, unbound reports and
+rating mismatch. Current and partial cases reopen and core-replay in the
+standard-library environment without model dependencies.
+
+Real model requests and model cost were zero. This proves input and record
+consistency, not compliance by a real model, real market/identity verification,
+financial quality or bias reduction. This earlier offline slice preceded the
+live connection above; its zero cost does not describe subsequent live runs.
+
+Mechanism and reproduction: [native-audit.md](native-audit.md).
+
+## Profit attribution and change explanation component — 2026-09-07
+
+Engineering is `COMPLETED`: evidence/analysis v5 adds a signed income-statement
+bridge and period-aware notes; Case v7 adds a post-decision explanation that
+addresses every prior claim and cannot replace the saved current decision.
+258 offline tests and 10 integration checks passed. One real four-request
+component run, current/prior replays, desktop/mobile reports and links passed.
+The exact echo of a JSON Schema title is normalized without changing financial
+fields; raw replies and the no-repeat recovery record remain private.
+
+Financial acceptance is `PARTIAL`: the model labelled a tax explanation
+strengthened although its cited facts were already in the prior report.
+This does not count as new evidence. Native integration must distinguish new
+facts, repaired reasoning and wording changes. Source inspection also withdrew
+an earlier suspicion that a cited explanation was quarterly; that passage
+explicitly covered the half-year. No full-chain or bias-removal gain is claimed.
+
+## Interim source and thesis comparison snapshot — 2026-09-07
+
+The bounded interim path is `COMPLETED` as an engineering slice: explicit
+January–June consolidated HTML columns, source/column/scale anchors, cash-flow
+reconciliation, separate contract-liability balances and cash-income-tax
+payments, and income-tax component/total checking. It writes evidence v4,
+analysis v4 and Case v6. Existing annual reports remain readable.
+
+253 offline tests and 7 mocked integration checks passed. One actual interim
+research run completed in three model calls. Its source contained 52 extracted
+facts, both cash-flow bridges reconciled, and current/prior core records
+replayed consistently. Desktop/mobile report, fact and derived links, draft
+expansion, tax/period display and source-timing notices passed checks.
+
+The new judgment was saved before prior thesis retrieval. The report labels
+the new file as already public at the previous research cutoff: this is a
+coverage expansion, not an observed response to a subsequently published event.
+The outlook label remained mixed while the underlying evidence changed.
+
+Financial acceptance remains `PARTIAL`: causal attribution of profit changes
+and the composition of contract-liability movements still require review.
+No general bias-removal, financial accuracy or investment-return result is
+established. These changes remain local and are not a new GitHub release.
+
+## Financial meaning repair snapshot — 2026-09-07
+
+Engineering repair is `COMPLETED`: new evidence v3 binds measurement kinds
+and periods to financial references, and model inputs retain original XBRL
+concepts and signed values alongside cash-flow presentation amounts. Reports
+show the core meaning next to model interpretations. Published evidence v2
+and Case v5 still reopen and replay under their original format.
+
+241 offline tests and 6 integration checks passed. One same-filing model run
+completed with three requests; the previously observed contract-liability
+adjustment/closing-balance mislabel did not recur. The final narrative did not
+discuss the equity-method item, so that interpretation was not verified by
+this run. Existing financial analysis stayed unchanged; source replays and
+desktop/mobile link and disclosure checks passed.
+
+Financial interpretation acceptance remains `PARTIAL`: an unsupported market
+assumption and some links between noncash normalization and cash persistence
+still require review. This is a same-source repair observation, not proof of
+stable model correctness or new-information thesis updating. Changes in this
+section remain local; the published checkpoint is recorded in the prior
+publication entry.
 
 ## Public package verification — 2026-09-06
 
@@ -15,7 +266,7 @@ The public repository distributes code, documentation, schemas, synthetic
 fixtures and safe metadata. Real filings, research reports, credentials,
 model traces and manual review records remain outside it.
 
-## TradingAgents integration — 2026-09-05
+## TradingAgents integration snapshot — 2026-09-05
 
 | Area | Status | Evidence and limits |
 |---|---|---|

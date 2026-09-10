@@ -1,5 +1,42 @@
 # Architecture
 
+The main research path crosses `handle(ResearchThesis(...))` and `read_case`.
+Its instance-local protocol keeps native graph routing while isolating initial
+drafts, limiting round-two discussion to sealed first drafts, and rebuilding
+the final assessment without upstream ratings or trader-authored thresholds. Original vendor fields remain
+available. The Application persists the main Case before the optional data
+review Agent, which receives the exact saved report text; review failure does not revoke the main opinion. FinAuditGate is
+an independent optional financial component, not this path's admission gate.
+See [thesis-research](thesis-research.md). The mechanisms below describe retained
+financial investigation and restricted audit routes.
+
+Native audit execution crosses `handle(RunAuditedNativeResearch(...))` and
+`read_case(...)`. The Native Adapter adds a fixed evidence block through the
+upstream instance's instrument-context hook; original graph construction and
+routing remain unchanged. Application validation binds the recorded model,
+tool and node inputs/outputs to the core result and the final report. The live
+tool adapter retains vendor returns and exposes only the core financial
+projection to models. A separate core record binds ADS identity and market
+inputs. See [native-audit.md](native-audit.md) for commands and limits.
+
+The optional typed-judgment mode uses the same native workflow and state
+factories. Its model Adapter submits source-bound propositions to the core
+through `run(ReviewNativeJudgment(...))`. The core owns measurement types,
+relations, supported hypothesis scopes and admissibility; the Application owns
+review ordering and model/record/report binding. Only deterministic checked
+projections enter downstream context and the report. Raw analyst prose remains
+in private traces. This mode changes the judgment prompts; it is an enhancement,
+not an untouched native baseline or a general natural-language verifier.
+
+The interim research path uses `InterimCashflowTask` inside the same
+`FundamentalEvidenceTask` and `ResearchSecurity` Interfaces. `core/interim.py`
+resolves spanned HTML period/date/currency columns and supplies source facts
+to the existing cash-flow reconciliation. It is an explicit January–June
+reader, not a fallback from failed annual inline-XBRL parsing. Tax and balance
+supplements remain core-owned; the Application compares source periods and
+availability only after persisting the new judgment. See the
+[research guide](tradingagents-research.md) for scope and commands.
+
 Status is tracked in [`status.md`](status.md); this document describes only
 how the current code works.
 

@@ -64,10 +64,12 @@ def _links(ids):
 
 def render(record):
     a, task = record["analysis"], record["task"]
+    interim = task.get("source_format") == "INTERIM_HTML_JANUARY_JUNE"
+    period_label = "上半年合并口径 · 同期比较，未年化" if interim else "年度合并口径"
     source_url = escape(task["source_url"], quote=True)
     intro = (f"<span class='badge'>研究草稿 · 待人工复核</span><h1>盈利与现金流调查</h1>"
              f"<p>{escape(task['document']['source_id'])} · {escape(a['current_end'])} 对比 {escape(a['comparison_end'])}</p>"
-             f"<p class='muted'>年度合并口径 · 单位：{escape(a['currency'])} 百万 · <a href='{source_url}'>打开原始披露</a></p>"
+             f"<p class='muted'>{period_label} · 单位：{escape(a['currency'])} 百万 · <a href='{source_url}'>打开原始披露</a></p>"
              "<div class='flow'><span>① 读取来源事实</span><span>② 核算现金差异</span><span>③ 选择附注补查</span><span>④ 人工复核底稿</span></div>")
     signals = "".join(f"<p>{escape(_SIGNALS[s])}</p>" for s in a.get("signals", []))
     rows = []
@@ -135,7 +137,12 @@ def render(record):
     for fact in a["facts"]:
         resolution = fact.get('resolution')
         method = '' if resolution is None else '<p>此数值来自同文件的相同指标、期间、主体与币种披露。' + ('来源带有明确的零值标签。' if resolution['method']=='EXPLICIT_TAGGED_ZERO' else '现金流方向沿用该现金流行中已有数值的符号关系。') + '</p>'
-        evidence.append(f"<section id='{escape(fact['fact_id'], quote=True)}'><h2>{escape(fact['row_label'])}</h2><p>{escape(fact['period_start'])} 至 {escape(fact['period_end'])} · {escape(fact['currency'])}</p><p>原文数字：<strong>{escape(fact['printed'])}</strong>；XBRL 归一化金额：{escape(fact['value'])}；现金流口径金额：{escape(fact['displayed_cash_effect'])}</p>{method}<p><code>{escape(fact['concept'])}</code></p><p class='muted'>原文字符区间 {fact['source']['char_start']}–{fact['source']['char_end']} · 片段 SHA-256：{fact['source']['span_sha256']}</p></section>")
+        if interim:
+            period = (escape(fact['period_start']) + " 至 " if fact['period_start'] else "期末 ") + escape(fact['period_end'])
+            headers = "；".join(str(h['char_start']) + "–" + str(h['char_end']) for h in fact['source_headers'])
+            evidence.append(f"<section id='{escape(fact['fact_id'],quote=True)}'><h2>{escape(fact['row_label'])}</h2><p>{period} · {escape(fact['currency'])}</p><p>原文数字：<strong>{escape(fact['printed'])}</strong>；HTML 表格归一化金额：{escape(fact['value'])}</p><p>类型：{escape(record['reference_meanings'][fact['fact_id']]['label'])}。这是带表头定位的普通表格取数，不是 XBRL 标签验证。</p><p class='muted'>原行字符区间 {fact['source']['char_start']}–{fact['source']['char_end']}；表头区间 {headers}；原行 SHA-256：{fact['source']['span_sha256']}</p></section>")
+        else:
+            evidence.append(f"<section id='{escape(fact['fact_id'], quote=True)}'><h2>{escape(fact['row_label'])}</h2><p>{escape(fact['period_start'])} 至 {escape(fact['period_end'])} · {escape(fact['currency'])}</p><p>原文数字：<strong>{escape(fact['printed'])}</strong>；XBRL 归一化金额：{escape(fact['value'])}；现金流口径金额：{escape(fact['displayed_cash_effect'])}</p>{method}<p><code>{escape(fact['concept'])}</code></p><p class='muted'>原文字符区间 {fact['source']['char_start']}–{fact['source']['char_end']} · 片段 SHA-256：{fact['source']['span_sha256']}</p></section>")
     if group:
         group_rows = ''.join(f"<tr><td>{escape(d['label'])} {_links(d['fact_ids'])}</td><td>{_amount(d['current'])}</td><td>{_amount(d['comparison'])}</td><td>{_amount(d['change'])}</td></tr>" for d in a['drivers'] if d['group']=='OPERATING_ASSETS_LIABILITIES')
         evidence.append("<section id='operating-assets-liabilities'><h2>经营性资产及负债变动组成项</h2><table><tr><th>项目</th><th>本期</th><th>比较期</th><th>金额变化</th></tr>" + group_rows + f"</table><p>分组标题原文字符区间：{group['section_source']['char_start']}–{group['section_source']['char_end']}。此分组来自原现金流表，不是资产负债表余额差。</p></section>")

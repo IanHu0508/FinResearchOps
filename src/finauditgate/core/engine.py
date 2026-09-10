@@ -175,6 +175,15 @@ class FinAuditGate:
     def run(self, task: AuditTask | CashflowTask | FundamentalEvidenceTask) -> AuditOutcome | CashflowOutcome:
         """Run the task's financial checks and persist a replayable outcome."""
 
+        from finauditgate.research import SecurityMarketTask, ReviewNativeJudgment
+        if type(task) is ReviewNativeJudgment:
+            from finauditgate.core.judgment import run
+            self._ensure_private_artifact_root()
+            return run(task,self._artifact_root)
+        if type(task) is SecurityMarketTask:
+            from finauditgate.core.security_market import run
+            self._ensure_private_artifact_root()
+            return run(task, self._artifact_root)
         if type(task) is FundamentalEvidenceTask:
             from finauditgate.core.research_evidence import run
             self._ensure_private_artifact_root()
@@ -505,6 +514,14 @@ class FinAuditGate:
         run_id = run_ref.run_id
         run_ref = RunRef(run_id=run_id)
         run_directory = self._artifact_root / "runs" / run_id
+        if (run_directory / "judgment.json").is_file():
+            from finauditgate.core.judgment import replay
+            self._ensure_private_artifact_root()
+            return replay(self._artifact_root,run_ref)
+        if (run_directory / "security-market.json").is_file():
+            from finauditgate.core.security_market import replay
+            self._ensure_private_artifact_root()
+            return replay(self._artifact_root, run_ref)
         if (run_directory / "research-evidence.json").is_file():
             from finauditgate.core.research_evidence import replay
             self._ensure_private_artifact_root()

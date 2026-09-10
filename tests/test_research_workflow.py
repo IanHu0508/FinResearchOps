@@ -12,7 +12,7 @@ from types import SimpleNamespace
 
 from finauditgate import FinAuditGate, FrozenDocumentPackage
 from finauditgate.adapters.model_budget import ModelBudget
-from finauditgate.adapters.research_contract import clone, model_evidence_view, required_review_references
+from finauditgate.adapters.research_contract import clone, model_evidence_view, required_review_references, normalize_schema_title, DECISION_SCHEMA, validate_shape
 from finauditgate.application import ApplicationError, FinResearchOps, ReplayRun
 from finauditgate.cashflow import CashflowTask
 from finauditgate.research import FundamentalEvidenceTask, ResearchSecurity
@@ -63,8 +63,33 @@ class ScriptedResearcher:
             self.mutation(result)
         return result
 
+    def explain_update(self, payload):
+        proposal = update_proposal(payload)
+        return {"proposal": proposal, "call": {"stage": "update", "request": clone(payload), "proposal": clone(proposal)},
+                "budget": {"calls": 4}}
+
+
+def update_proposal(payload):
+    return {"summary": "合成对照：相同标签仍可对应不同证据。", "items": [
+        {"prior_claim_id": old["claim_id"], "current_claim_ids": [payload["current_claims"][0]["claim_id"]],
+         "assessment": "待核实", "reason": "合成示例：现有证据尚不足以证明原假设持续成立。",
+         "evidence_ids": [payload["evidence"]["analysis"]["facts"][0]["fact_id"]], "next_check": "核实与该假设相关的后续资料。"}
+        for old in payload["prior_claims"]]}
+
 
 class ResearchWorkflowTest(unittest.TestCase):
+    def test_schema_title_echo_is_narrowly_normalized(self):
+        raw = {"title": "ResearchDecision", "unexpected_financial_field": "keep for rejection"}
+        cleaned, changes = normalize_schema_title(raw, DECISION_SCHEMA)
+        self.assertNotIn("title", cleaned)
+        self.assertIn("unexpected_financial_field", cleaned)
+        self.assertIn("title", raw)
+        self.assertEqual(["REMOVED_EXACT_SCHEMA_TITLE_ECHO"], changes)
+        with self.assertRaisesRegex(ValueError, "SHAPE_INVALID"):
+            validate_shape(cleaned, DECISION_SCHEMA)
+        other = {"title": "Financial opinion"}
+        self.assertEqual((other, []), normalize_schema_title(other, DECISION_SCHEMA))
+
     def setUp(self):
         temp = tempfile.TemporaryDirectory()
         self.addCleanup(temp.cleanup)
@@ -96,6 +121,34 @@ class ResearchWorkflowTest(unittest.TestCase):
         self.assertEqual(2, len(outcome.report["steps"]))
         self.assertTrue(gate.replay(outcome.run_ref).consistent)
         self.assertEqual("HUMAN_REVIEW", outcome.decision.value)
+
+    def test_research_preserves_concept_sign_and_annual_measurement(self):
+        # A positive cash-flow addback can carry a negative signed XBRL result.
+        data = self.task.document.document_bytes.replace(
+            b'name="us-gaap:Depreciation"',
+            b'name="example:EquityMethodResults" sign="-"').replace(
+            b'<td>Depreciation</td>', b'<td>Share of equity method results</td>')
+        task = replace(self.task, document=replace(self.task.document, document_bytes=data))
+        gate = FinAuditGate(artifact_root=self.root)
+        outcome = gate.run(FundamentalEvidenceTask(task))
+        record = outcome.report
+        fact = next(f for f in record["analysis"]["facts"] if f["concept"] == "example:EquityMethodResults")
+        view = model_evidence_view(record)
+        projected = next(f for f in view["analysis"]["facts"] if f["fact_id"] == fact["fact_id"])
+        self.assertEqual(fact["concept"], projected["concept"])
+        self.assertEqual("-20000000", projected["xbrl_signed_value"])
+        self.assertEqual("20000000", projected["statement_signed_amount"])
+        meaning = record["reference_meanings"][fact["fact_id"]]
+        self.assertEqual("ANNUAL_RECONCILIATION_COMPONENT", meaning["measure_kind"])
+        self.assertIn("不代表期末余额", meaning["use_limit"])
+        self.assertIn("不证明正收益", meaning["use_limit"])
+        self.assertTrue(gate.replay(outcome.run_ref).consistent)
+
+    def test_research_report_shows_core_meaning_beside_interpretation(self):
+        view = self.app(ScriptedResearcher()).handle(self.command)
+        html = Path(view.workpaper_paths[0]).read_text()
+        self.assertIn("核验口径：", html)
+        self.assertIn("期间", html)
 
     def test_unknown_and_duplicate_driver_requests_are_rejected(self):
         with self.assertRaises(ValueError):

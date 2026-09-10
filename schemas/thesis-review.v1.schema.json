@@ -1,0 +1,70 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ThesisDataReview",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "main_sha256",
+    "status",
+    "reason",
+    "findings"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "finresearchops.thesis-review/v1"
+    },
+    "main_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "status": {
+      "enum": [
+        "COMPLETED",
+        "PARTIAL",
+        "DEFERRED"
+      ]
+    },
+    "reason": {
+      "type": "string"
+    },
+    "findings": {
+      "type": "array",
+      "maxItems": 8,
+      "items": {
+        "$ref": "#/$defs/ReviewFinding"
+      }
+    }
+  },
+  "$defs": {
+    "ReviewFinding": {
+      "additionalProperties": false,
+      "properties": {
+        "issue": {
+          "minLength": 1,
+          "title": "Issue",
+          "type": "string"
+        },
+        "evidence_refs": {
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 8,
+          "title": "Evidence Refs",
+          "type": "array"
+        },
+        "next_check": {
+          "minLength": 1,
+          "title": "Next Check",
+          "type": "string"
+        }
+      },
+      "required": [
+        "issue",
+        "evidence_refs",
+        "next_check"
+      ],
+      "title": "ReviewFinding",
+      "type": "object"
+    }
+  }
+}

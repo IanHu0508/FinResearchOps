@@ -36,8 +36,11 @@ class SyntheticClient:
         self.schemas.append(schema)
         payload = json.loads(prompt.split("Evidence and task:\n", 1)[1])
         self.requests.append(payload)
-        a, c, d = support.proposals(payload["evidence"])
-        proposal = (a, c, d)[len(self.requests) - 1]
+        if schema["title"] == "ResearchUpdate":
+            proposal = support.update_proposal(payload)
+        else:
+            a, c, d = support.proposals(payload["evidence"])
+            proposal = (a, c, d)[len(self.requests) - 1]
         raw = SimpleNamespace(content=json.dumps(proposal, ensure_ascii=False), tool_calls=[], invalid_tool_calls=[],
                               usage_metadata={"input_tokens": 100, "output_tokens": 50, "total_tokens": 150})
         return raw
@@ -45,6 +48,42 @@ class SyntheticClient:
 
 class TradingAgentsGraphTest(unittest.TestCase):
     setUp = support.ResearchWorkflowTest.setUp
+
+    def test_half_year_context_has_tax_and_balance_scope(self):
+        from dataclasses import replace
+        from finauditgate.cashflow import InterimCashflowTask
+        task = InterimCashflowTask("synthetic-interim", replace(self.task.document,
+            document_bytes=(support.FIXTURE.parent / "interim_cashflow.html").read_bytes(),
+            declared_published_at=date(2026, 8, 20)), self.task.source_url, self.task.accession,
+            self.task.entity_identifier, date(2026, 6, 30), date(2025, 6, 30), date(2026, 9, 7), "CNY")
+        client = SyntheticClient()
+        runner = TradingAgentsResearcher(trace_root=self.root / "traces", client=client,
+                                         budget=ModelBudget(max_calls=3))
+        view = FinResearchOps(artifact_root=self.root, researcher=runner).handle(replace(self.command, filing=task))
+        evidence = client.requests[-1]["evidence"]
+        self.assertEqual("JANUARY_JUNE_VS_PRIOR_JANUARY_JUNE_NOT_ANNUALIZED", evidence["source"]["period_basis"])
+        self.assertEqual("25000", evidence["analysis"]["supplemental"]["cash_income_taxes_paid"]["current"])
+        self.assertIn("Matched half-year", evidence["use_limits"]["cash_tax_comparison"])
+        self.assertEqual(view, FinResearchOps(artifact_root=self.root).read_case(view.case_ref))
+
+    def test_update_is_a_fourth_call_after_current_judgment_is_saved(self):
+        from dataclasses import replace
+        from finauditgate.cashflow import InterimCashflowTask
+        task = InterimCashflowTask("synthetic-interim", replace(self.task.document,
+            document_bytes=(support.FIXTURE.parent / "interim_cashflow.html").read_bytes(),
+            declared_published_at=date(2026, 8, 20)), self.task.source_url, self.task.accession,
+            self.task.entity_identifier, date(2026, 6, 30), date(2025, 6, 30), date(2026, 9, 7), "CNY")
+        command = replace(self.command, filing=task)
+        prior = FinResearchOps(artifact_root=self.root, researcher=support.ScriptedResearcher()).handle(command)
+        client = SyntheticClient()
+        runner = TradingAgentsResearcher(trace_root=self.root / "traces", client=client, budget=ModelBudget(max_calls=4))
+        view = FinResearchOps(artifact_root=self.root, researcher=runner).handle(replace(command,previous_case_ref=prior.case_ref))
+        self.assertEqual(4,len(client.requests))
+        for request in client.requests[:3]:
+            self.assertNotIn("prior_claims",request)
+        self.assertIn("prior_claims",client.requests[3])
+        self.assertEqual(view.latest_report["result"]["decision"]["conclusion"],client.requests[3]["current_conclusion"])
+        self.assertEqual(4,view.latest_report["update_explanation"]["budget"]["calls"])
 
     def test_lookup_contract_exposes_exact_allowed_ids_to_the_model(self):
         client = SyntheticClient()
@@ -81,6 +120,22 @@ class TradingAgentsGraphTest(unittest.TestCase):
         view = FinResearchOps(artifact_root=self.root, researcher=runner).handle(self.command)
         self.assertEqual(3, len(client.requests))
         self.assertEqual("混合", view.latest_report["result"]["decision"]["outlook"])
+
+    def test_schema_title_echo_preserves_raw_reply_and_saves_same_financial_proposal(self):
+        class TitleClient(SyntheticClient):
+            def invoke(self, prompt):
+                raw = super().invoke(prompt)
+                proposal = json.loads(raw.content)
+                proposal["title"] = self.schemas[-1]["title"]
+                raw.content = json.dumps(proposal, ensure_ascii=False)
+                return raw
+        client = TitleClient()
+        runner = TradingAgentsResearcher(trace_root=self.root / "traces", client=client, budget=ModelBudget(max_calls=3))
+        view = FinResearchOps(artifact_root=self.root, researcher=runner).handle(self.command)
+        self.assertNotIn("title", view.latest_report["result"]["decision"])
+        raw = json.loads((self.root / "traces/call-003-response.json").read_text())
+        self.assertEqual("ResearchDecision", json.loads(raw["content"])["title"])
+        self.assertEqual(["REMOVED_EXACT_SCHEMA_TITLE_ECHO"], raw["normalizations"])
 
     def test_native_graph_builds_with_private_configuration_without_network(self):
         state = {key: "Synthetic native-construction fixture." for key in (

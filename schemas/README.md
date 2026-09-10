@@ -11,20 +11,55 @@ replays them (`src/finauditgate/core/engine.py`).
 
 ## TradingAgents research artifacts
 
+The main research path uses `finresearchops.thesis-case/v1`
+(`thesis-case.v1.schema.json`). It stores original source text, independent
+initial claims, symmetric revisions, fresh assessments and actual model I/O.
+`finresearchops.thesis-sources/v1` describes the optional frozen input bundle;
+`finresearchops.thesis-review/v1` is a separately saved post-report Agent opinion.
+Review state does not change the main Case hash. `finresearchops.thesis-runtime/v1`
+captures partial or complete model/tool/node activity and budget, including
+interrupted requests. The artifact validators establish protocol/receipt
+integrity, not financial truth or absence of model bias.
+`finresearchops.thesis-failure/v1` records bounded failure codes and exception
+type chains without copying provider error bodies. Completed model returns can
+be reused after exact-message checks; nested `prior_reuse` receipts preserve
+earlier reuse and cost history. A narrowly supported manager Markdown layout is
+read verbatim, with no default rating and no financial corrections.
+
+The native audited path uses `finresearchops.native-audited-case/v1`
+(`native-audited-case.v1.schema.json`) for offline cases: core reference, research task, native
+topology, actual model/tool/node records and bound native reports. Its
+`finresearchops.native-audit-packet/v1` is reconstructed from the core record
+on reopen; no new model execution is required. Failures use
+`finresearchops.native-audit-failure/v1`. Live Case v2 adds a replayable security/market core reference and model budget. Source-filtered packet v3 was used by a rejected run, without a persisted Case v3. Case/packet v4 binds retained vendor returns to projected tool responses, refines signed-adjustment, tax-period and horizon rules, and adds a source-derived financial table to the report. See [native-audit.md](../docs/native-audit.md).
+
 | Artifact | Schema | Definition |
 |---|---|---|
-| core `research-evidence.json` and manifest | `finauditgate.research-evidence/v2` | `core/research_evidence.py`, adds explicit disclosed-amount normalization and program-computed cash/profit ratios |
+| native typed-judgment Case | `finresearchops.native-audited-case/v5` | `native-audited-case.v5.schema.json`; core catalog and per-node review references, actual model-message binding, checked report projections |
+| native typed propositions and adjudications | `finauditgate.native-judgment/v1` | `core/judgment.py`; source-bound catalog, bounded facts/hypotheses, requested/effective manager choices and recursive replay of prior reviews |
+| core `research-evidence.json` and manifest | `finauditgate.research-evidence/v3` | `core/research_evidence.py`; normalized amounts, ratios, and core-owned measurement/period meanings for financial references |
+| interim core evidence and manifest | `finauditgate.research-evidence/v5` | Half-year source and anchors, separate balances/tax, profit-change bridge and period-filtered notes; delivered v4 retains its original replay behavior |
+| native interim earnings attribution | `finauditgate.research-evidence/v6` | Explicit owner-earnings scope adds signed consolidated-to-parent reconciliation; existing evidence keeps its original replay |
+| security and market core | `finauditgate.security-market/v1` | `security-market.v1.schema.json`; source-bound ADS identity, quote/snapshot/processed OHLCV checks and frozen input hashes |
+| live native request/response | `finresearchops.native-live-request/v1`, `finresearchops.native-live-response/v1` | Actual messages, finish reason and usage; private and persisted per request |
+| live native runtime receipt | `finresearchops.native-live-runtime/v1` | Partial or complete model/tool/node records and budget; corrected runtime receipt v2 adds vendor observations |
+| filtered financial tool response | `finresearchops.native-financial-tool-view/v1` | Source/period coverage, checked fields, original vendor hash and explicit missing data |
 | evidence replay response | `finauditgate.research-evidence-replay/v1` | deterministic source, calculation and lookup replay |
 | `research-cases/<ref>/case.json` | `finresearchops.investment-research-case/v5` | `investment-research-case.v5.schema.json`; compact audited inputs with explicit use limits, qualitative prose and evidence conditions; final synthesis excludes initial opinion text |
+| interim `research-cases/<ref>/case.json` | `finresearchops.investment-research-case/v6` | `investment-research-case.v6.schema.json`; source/period comparison and whether new material was already public at the prior cutoff |
+| new interim `research-cases/<ref>/case.json` | `finresearchops.investment-research-case/v7` | `investment-research-case.v7.schema.json`; adds a post-decision explanation covering each prior claim, with current evidence references and cumulative call budget |
 | `baseline-cases/<ref>/case.json` | `finresearchops.tradingagents-baseline/v1` | `tradingagents-baseline.v1.schema.json`; native reports explicitly marked unaudited |
 | `research-executions/*/new-decision.json` | `finresearchops.new-research-decision/v1` | decision saved before the old Case is read |
 | research failure record | `finresearchops.research-failure/v1` | core references and a bounded failure code |
 | native failure record | `finresearchops.tradingagents-baseline-failure/v1` | exception type and budget receipt, no credential or exception-body serialization |
-| product model request/response/error | `finresearchops.research-model-request/v1`, `finresearchops.research-model-response/v3`, `finresearchops.research-model-error/v1` | private JSON-mode model records, including finish reason |
+| product model request/response/error | `finresearchops.research-model-request/v1`, `finresearchops.research-model-response/v4`, `finresearchops.research-model-error/v1` | private JSON-mode records, raw content, finish reason and any exact schema-title-echo normalization |
 | native model request/response/error | `finresearchops.native-model-request/v1`, `finresearchops.native-model-response/v2`, `finresearchops.native-model-error/v1` | private upstream callback records; response includes finish reason |
 | `wire-<n>.json` | `finresearchops.model-wire/v2` | actual model, output limit and reasoning-effort fields after SDK translation; no credentials or HTTP headers |
 
 Research HTML and native Markdown are renderings recomputed on Case reopen.
+The publicly released evidence v2 remains readable and replayable without v3
+measurement metadata; annual runs write v3, ordinary interim runs v5, native owner-earnings runs v6. Case v5 is unchanged in shape and
+uses the corresponding evidence version to reconstruct its captured input and HTML.
 Raw model traces remain private; reopening verifies captured stage inputs and
 proposals, not a new stochastic model response or hidden model reasoning.
 
@@ -37,6 +72,9 @@ It does not supply a reviewed-answer policy to the older task type.
 |---|---|---|
 | `runs/<id>/cashflow.json` and its `manifest.json` | `finauditgate.cashflow-run/v3` | `core/cashflow.py`; source metadata, financial facts, classified source passages, actions with model/rule origin, and captured responses |
 | financial analysis within the record | `finresearchops.cashflow-analysis/v3` | Adds explicit-source resolutions, the operating-assets/liabilities section, overview and disclosed-amount comparison |
+| interim financial analysis | `finresearchops.cashflow-analysis/v4` | Reuses the decomposition, adds explicit half-year coverage and separate cash-tax, tax-expense and instant-balance fields |
+| new interim financial analysis | `finresearchops.cashflow-analysis/v5` | Adds signed profit contributions, pretax/net-income/tax cross-checks and within-period explanation retrieval |
+| native owner-earnings analysis | `finresearchops.cashflow-analysis/v6` | Adds the signed consolidated-to-parent earnings reconciliation, without EPS/FX/ADS annualization |
 | replay response | `finauditgate.cashflow-replay/v1` | Offline recalculation and recorded-action verification |
 | `application/cashflow-cases/<ref>/case.json` | `finresearchops.cashflow-case/v1` | `cashflow-case.v1.schema.json` |
 | `workpaper.html`, `evidence.html` | renderings, not JSON artifacts | Hash-bound to the Case and regenerated from the core record when reopening |

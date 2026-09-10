@@ -1,6 +1,8 @@
 import json
 import os
 import unittest
+import tempfile
+from pathlib import Path
 from unittest.mock import patch
 
 import httpx
@@ -9,6 +11,15 @@ from finauditgate.adapters.model_http import model_http_client
 
 
 class DeepSeekWireTest(unittest.TestCase):
+    def test_new_client_for_update_does_not_overwrite_prior_wire_record(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            for start in (0, 3):
+                with model_http_client("deepseek", 64, trace_root=root, start_index=start,
+                     transport=httpx.MockTransport(lambda r: httpx.Response(200, json={}))) as client:
+                    client.post("https://api.deepseek.com/chat/completions", json={"model":"synthetic", "messages":[], "max_tokens":64})
+            self.assertEqual(["wire-001.json", "wire-004.json"], sorted(p.name for p in root.iterdir()))
+
     def test_actual_sdk_sends_documented_deepseek_token_limit(self):
         captured = []
         def handle(request):

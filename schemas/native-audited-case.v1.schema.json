@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:finresearchops:schema:native-audited-case:v1",
+  "title": "NativeAuditedCase",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "request", "core_run_id", "result", "review_status"],
+  "properties": {
+    "schema_version": {"const": "finresearchops.native-audited-case/v1"},
+    "request": {
+      "type": "object", "additionalProperties": false,
+      "required": ["symbol", "as_of", "question", "horizon_months", "entity_identifier"],
+      "properties": {
+        "symbol": {"type": "string"}, "as_of": {"type": "string", "format": "date"},
+        "question": {"type": "string", "minLength": 1, "maxLength": 1000},
+        "horizon_months": {"type": "integer", "minimum": 1, "maximum": 120},
+        "entity_identifier": {"type": "string", "pattern": "^[0-9]+$"}
+      }
+    },
+    "core_run_id": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "result": {
+      "type": "object", "additionalProperties": false,
+      "required": ["upstream_commit", "runtime_kind", "request", "packet_sha256", "topology_before", "topology_after", "model_calls", "tool_calls", "node_calls", "reports", "signal", "final_instrument_context"],
+      "properties": {
+        "upstream_commit": {"const": "2448d0a12576f9b2ddcd5980a0630833423d1e1b"},
+        "runtime_kind": {"const": "OFFLINE_SYNTHETIC_NATIVE"},
+        "request": {"type": "object"}, "packet_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "topology_before": {"type": "object"}, "topology_after": {"type": "object"},
+        "model_calls": {"type": "array", "minItems": 10, "maxItems": 24, "items": {"type": "object"}},
+        "tool_calls": {"type": "array", "minItems": 2, "maxItems": 48, "items": {"type": "object"}},
+        "node_calls": {"type": "array", "minItems": 14, "maxItems": 96, "items": {"type": "object"}},
+        "reports": {"type": "object"}, "signal": {"type": "string", "minLength": 1},
+        "final_instrument_context": {"type": "string", "minLength": 1}
+      }
+    },
+    "review_status": {"const": "AWAITING_REVIEW"}
+  }
+}

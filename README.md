@@ -1,40 +1,45 @@
 # FinResearchOps / FinAuditGate
 
-A local financial-research workflow for investigating earnings and operating
-cash flow after an annual filing. **Programs read and calculate financial
-facts; a bounded agent chooses what to investigate; people review the evidence.**
+A local investment-research workflow built on the pinned TradingAgents graph,
+with independent first drafts, explicit counterevidence updates and a fresh
+final assessment. A separate, optional data-review Agent checks the saved report.
 
 ## Why this project
 
-投研判断需要两端约束：先核对财务事实，再让新增证据影响判断。本项目从年度
-盈利与经营现金流调查切入，用确定性核验、受限附注补查和独立证据综合，形成
-可追溯的中文研究草稿。最终综合不接收初稿观点文字，旧观点在新判断保存后才
-参与对照；这些机制并不证明模型偏好已经消失。
+项目重点是避免初始投资倾向一路变成最终结论。多空首轮各自成稿，第二轮
+对称回应对方初稿，记录每条论点维持、修改、撤回或未解决的原因；最终经理
+从原始资料、更新论据和风险分析重新判断，不接收前序评级、交易方向或交易员自设门槛。
+资料复核放在主体报告保存之后，其失败或不同意见不会改写主结论。
 
 The workflow addresses two sources of research error:
 
-- **Financial inputs:** source, period, currency and calculation checks before interpretation.
-- **Opinion propagation:** separate initial drafts, bounded counter-evidence lookup, and final synthesis from audited evidence rather than draft conclusions.
+- **Opinion propagation:** independent drafts, itemized revision reasons and final judgment without upstream ratings.
+- **Financial inputs:** complete source access and optional review of dates, currencies, measurement and unsupported inferences.
 
 This is a research prototype for human review. It does not establish investment
 performance, eliminate model bias, or provide a complete valuation system.
 
-The first user path reads an acquired inline-XBRL filing, compares consolidated
-profit and operating cash flow, locates major reconciliation items, searches
-related disclosures and writes a Chinese draft workpaper. A rule baseline and
-a fixed local 8B planner use the same financial checks and search budget.
-The task requires no per-question answer profile.
+FinAuditGate remains available for standalone filing and cash-flow checks. Its
+limited coverage is not a prerequisite for the main research path. Neither
+source references nor agreement among agents establish financial truth.
 
 Current scope, evidence and remaining work are maintained only in
 [`docs/status.md`](docs/status.md).
 
 ## TradingAgents research integration
 
-The optional integration offers a native upstream baseline and a slim research
-route that combines audited cash-flow evidence, isolated analysis/challenge
-drafts, source-aware synthesis and old-thesis comparison. It uses a separate
-dependency environment. Setup, CLI commands and limitations are in
-[`docs/tradingagents-research.md`](docs/tradingagents-research.md).
+Use [`research-thesis`](docs/thesis-research.md) for the main workflow. It keeps
+the native analyst/research/trader/risk/portfolio topology and routing while
+changing role prompts and information flow. Complete native tool returns, or a
+frozen source bundle, reach the research roles without the old field projection.
+Models can give an actual rating or `REVIEW` when there is no defensible rating.
+
+The original `tradingagents-baseline` remains a separate comparison route.
+The [filing-focused component](docs/tradingagents-research.md) and
+[restricted native audit route](docs/native-audit.md) retain their independent
+and historical uses; they are not steps inside `research-thesis`. In particular,
+the old typed route's compatibility Hold must not be treated as an investment
+rating. All model-backed routes use the separate integration environment.
 
 ## Run a cash-flow investigation
 

@@ -10,6 +10,7 @@ finresearchops --artifact-root <private root> <action> [options]
 
 | Action | Application call | Caller-supplied fields |
 |---|---|---|
+| `research-thesis` | `handle(ResearchThesis)` | `--symbol`, `--as-of`, `--question`, optional `--sources`, `--no-review`, horizon and model options; see [main workflow](thesis-research.md) |
 | `tradingagents-baseline` | `handle(RunTradingBaseline)` | `--symbol`, `--as-of`, optional `--env-file`, `--model`, `--max-spend-cny` |
 | `research-security` | `handle(ResearchSecurity)` | acquired filing options plus `--symbol`, `--question`, optional `--horizon-months`, `--previous-case-ref`, model options |
 | `investigate-cashflow` | `handle(InvestigateCashflow)` | acquired `--source-manifest` or explicit source metadata, `--comparison-end`, `--cutoff`, `--currency`, `--strategy rules/adaptive` |

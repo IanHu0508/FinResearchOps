@@ -53,6 +53,18 @@ class CashflowTask:
 
 
 @dataclass(frozen=True, slots=True)
+class InterimCashflowTask(CashflowTask):
+    """A separate January-June HTML statement path; never an annual fallback."""
+
+    def __post_init__(self):
+        super(InterimCashflowTask, self).__post_init__()
+        if (self.strategy != "rules" or (self.current_end.month, self.current_end.day) != (6, 30)
+                or (self.comparison_end.month, self.comparison_end.day) != (6, 30)
+                or self.current_end.year - self.comparison_end.year != 1):
+            raise ValueError("COMPARABLE_JANUARY_JUNE_PERIODS_REQUIRED")
+
+
+@dataclass(frozen=True, slots=True)
 class CashflowOutcome:
     run_ref: RunRef
     decision: Decision
