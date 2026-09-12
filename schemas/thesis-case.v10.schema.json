@@ -1,0 +1,1727 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "FinResearchOps native thesis case v10: separated user view and substantive research context",
+  "type": "object",
+  "required": [
+    "request",
+    "topology",
+    "reports",
+    "initial",
+    "revisions",
+    "research_evaluation",
+    "execution_review",
+    "risk_briefs",
+    "final_assessment",
+    "updated_claims",
+    "exchanges",
+    "model_calls",
+    "tool_calls",
+    "schema_version",
+    "status",
+    "review_status",
+    "upstream_commit",
+    "runtime_kind",
+    "model",
+    "source_bundle",
+    "signal",
+    "budget",
+    "financial_gate",
+    "automatic_trading",
+    "independent_assessment",
+    "sensitivity_policy",
+    "rating_comparison",
+    "forward_draft",
+    "forward_calculations"
+  ],
+  "properties": {
+    "request": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "symbol",
+        "as_of",
+        "question",
+        "horizon_months",
+        "data_mode",
+        "hypotheses",
+        "research_constraints",
+        "user_view"
+      ],
+      "properties": {
+        "symbol": {
+          "type": "string"
+        },
+        "as_of": {
+          "type": "string",
+          "format": "date"
+        },
+        "question": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1000
+        },
+        "horizon_months": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 120
+        },
+        "data_mode": {
+          "enum": [
+            "FROZEN_SOURCES",
+            "LIVE_VENDOR"
+          ]
+        },
+        "hypotheses": {
+          "type": "array",
+          "maxItems": 5,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000
+          }
+        },
+        "research_constraints": {
+          "type": "array",
+          "maxItems": 5,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000
+          }
+        },
+        "user_view": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 1000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "topology": {
+      "type": "object"
+    },
+    "reports": {
+      "type": "object"
+    },
+    "initial": {
+      "type": "object"
+    },
+    "revisions": {
+      "type": "object"
+    },
+    "research_evaluation": {
+      "$ref": "#/$defs/ResearchEvaluation"
+    },
+    "execution_review": {
+      "$ref": "#/$defs/ExecutionReview"
+    },
+    "risk_briefs": {
+      "type": "object"
+    },
+    "final_assessment": {
+      "$ref": "#/$defs/FinalAssessment"
+    },
+    "updated_claims": {
+      "type": "array"
+    },
+    "exchanges": {
+      "type": "array"
+    },
+    "model_calls": {
+      "type": "array"
+    },
+    "tool_calls": {
+      "type": "array"
+    },
+    "schema_version": {
+      "const": "finresearchops.thesis-case/v10"
+    },
+    "status": {
+      "const": "COMPLETED"
+    },
+    "review_status": {
+      "const": "AWAITING_REVIEW"
+    },
+    "upstream_commit": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "runtime_kind": {
+      "enum": [
+        "REAL_MODEL",
+        "OFFLINE_SYNTHETIC"
+      ]
+    },
+    "model": {
+      "type": "string"
+    },
+    "source_bundle": {
+      "anyOf": [
+        {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "title": "FrozenThesisSources",
+          "type": "object",
+          "required": [
+            "schema_version",
+            "symbol",
+            "as_of",
+            "identity",
+            "sources"
+          ],
+          "properties": {
+            "schema_version": {
+              "const": "finresearchops.thesis-sources/v1"
+            },
+            "symbol": {
+              "type": "string"
+            },
+            "as_of": {
+              "type": "string",
+              "format": "date"
+            },
+            "identity": {
+              "type": "object"
+            },
+            "sources": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 48,
+              "items": {
+                "type": "object",
+                "required": [
+                  "id",
+                  "origin",
+                  "availability_note",
+                  "content",
+                  "sha256"
+                ],
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "origin": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "availability_note": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "content": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "sha256": {
+                    "type": "string",
+                    "pattern": "^[0-9a-f]{64}$"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "title": "FrozenThesisSources",
+          "type": "object",
+          "required": [
+            "schema_version",
+            "symbol",
+            "as_of",
+            "identity",
+            "sources"
+          ],
+          "properties": {
+            "schema_version": {
+              "const": "finresearchops.thesis-sources/v2"
+            },
+            "symbol": {
+              "type": "string"
+            },
+            "as_of": {
+              "type": "string",
+              "format": "date"
+            },
+            "identity": {
+              "type": "object"
+            },
+            "sources": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 48,
+              "items": {
+                "type": "object",
+                "required": [
+                  "id",
+                  "origin",
+                  "availability_note",
+                  "content",
+                  "sha256",
+                  "use"
+                ],
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "origin": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "availability_note": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "content": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "sha256": {
+                    "type": "string",
+                    "pattern": "^[0-9a-f]{64}$"
+                  },
+                  "use": {
+                    "enum": [
+                      "research",
+                      "sensitivity"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "signal": {
+      "enum": [
+        "Buy",
+        "Overweight",
+        "Hold",
+        "Underweight",
+        "Sell",
+        "REVIEW"
+      ]
+    },
+    "budget": {
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "financial_gate": {
+      "const": "NOT_REQUIRED"
+    },
+    "automatic_trading": {
+      "const": false
+    },
+    "reused_calls": {
+      "type": "object",
+      "required": [
+        "runtime_sha256",
+        "available_calls",
+        "used_calls",
+        "prior_budget"
+      ],
+      "properties": {
+        "runtime_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "available_calls": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 24
+        },
+        "used_calls": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 24
+        },
+        "prior_budget": {
+          "type": [
+            "object",
+            "null"
+          ]
+        },
+        "prior_reuse": {
+          "type": [
+            "object",
+            "null"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "independent_assessment": {
+      "$ref": "#/$defs/IndependentAssessment"
+    },
+    "sensitivity_policy": {
+      "const": "DECLARED_SCENARIOS_REPORT_ONLY"
+    },
+    "rating_comparison": {
+      "type": "object",
+      "required": [
+        "before",
+        "after",
+        "changed"
+      ],
+      "properties": {
+        "before": {
+          "type": "string"
+        },
+        "after": {
+          "type": "string"
+        },
+        "changed": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false
+    },
+    "forward_draft": {
+      "$ref": "#/$defs/UnderwritingDraft"
+    },
+    "forward_calculations": {
+      "type": "object",
+      "required": [
+        "method",
+        "scenario_results",
+        "limitations"
+      ],
+      "properties": {
+        "method": {
+          "const": "ordinary_company_annual_earnings_bridge"
+        },
+        "scenario_results": {
+          "type": "array"
+        },
+        "limitations": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "description": "Deterministic results from the exact forward_draft; reopened and compared by the same calculator. No economic or source certification."
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "Claim": {
+      "additionalProperties": false,
+      "properties": {
+        "statement": {
+          "minLength": 1,
+          "title": "Statement",
+          "type": "string"
+        },
+        "business_mechanism": {
+          "minLength": 1,
+          "title": "Business Mechanism",
+          "type": "string"
+        },
+        "evidence_refs": {
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 8,
+          "title": "Evidence Refs",
+          "type": "array"
+        },
+        "would_change_mind": {
+          "minLength": 1,
+          "title": "Would Change Mind",
+          "type": "string"
+        },
+        "uncertainty": {
+          "minLength": 1,
+          "title": "Uncertainty",
+          "type": "string"
+        }
+      },
+      "required": [
+        "statement",
+        "business_mechanism",
+        "evidence_refs",
+        "would_change_mind",
+        "uncertainty"
+      ],
+      "title": "Claim",
+      "type": "object"
+    },
+    "InitialBrief": {
+      "additionalProperties": false,
+      "description": "Complete JSON response object with every required field and no surrounding prose.",
+      "properties": {
+        "claims": {
+          "items": {
+            "$ref": "#/$defs/Claim"
+          },
+          "maxItems": 4,
+          "minItems": 2,
+          "title": "Claims",
+          "type": "array"
+        }
+      },
+      "required": [
+        "claims"
+      ],
+      "title": "InitialBrief",
+      "type": "object"
+    },
+    "ClaimUpdate": {
+      "additionalProperties": false,
+      "properties": {
+        "claim_id": {
+          "title": "Claim Id",
+          "type": "string"
+        },
+        "status": {
+          "enum": [
+            "maintain",
+            "revise",
+            "withdraw",
+            "unresolved"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "updated_statement": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Only revise supplies a replacement; otherwise null.",
+          "title": "Updated Statement"
+        },
+        "reason": {
+          "minLength": 1,
+          "title": "Reason",
+          "type": "string"
+        },
+        "evidence_refs": {
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 8,
+          "title": "Evidence Refs",
+          "type": "array"
+        },
+        "would_change_mind": {
+          "minLength": 1,
+          "title": "Would Change Mind",
+          "type": "string"
+        }
+      },
+      "required": [
+        "claim_id",
+        "status",
+        "updated_statement",
+        "reason",
+        "evidence_refs",
+        "would_change_mind"
+      ],
+      "title": "ClaimUpdate",
+      "type": "object"
+    },
+    "CounterResponse": {
+      "additionalProperties": false,
+      "properties": {
+        "claim_id": {
+          "title": "Claim Id",
+          "type": "string"
+        },
+        "response": {
+          "enum": [
+            "acknowledge",
+            "dispute",
+            "unresolved"
+          ],
+          "title": "Response",
+          "type": "string"
+        },
+        "reason": {
+          "minLength": 1,
+          "title": "Reason",
+          "type": "string"
+        },
+        "evidence_refs": {
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 8,
+          "title": "Evidence Refs",
+          "type": "array"
+        }
+      },
+      "required": [
+        "claim_id",
+        "response",
+        "reason",
+        "evidence_refs"
+      ],
+      "title": "CounterResponse",
+      "type": "object"
+    },
+    "RevisionBrief": {
+      "additionalProperties": false,
+      "description": "Complete JSON response containing updates AND counter_responses together.",
+      "properties": {
+        "updates": {
+          "items": {
+            "$ref": "#/$defs/ClaimUpdate"
+          },
+          "maxItems": 4,
+          "minItems": 2,
+          "title": "Updates",
+          "type": "array"
+        },
+        "counter_responses": {
+          "items": {
+            "$ref": "#/$defs/CounterResponse"
+          },
+          "maxItems": 4,
+          "minItems": 2,
+          "title": "Counter Responses",
+          "type": "array"
+        }
+      },
+      "required": [
+        "updates",
+        "counter_responses"
+      ],
+      "title": "RevisionBrief",
+      "type": "object"
+    },
+    "Assessment": {
+      "additionalProperties": false,
+      "properties": {
+        "claim_id": {
+          "title": "Claim Id",
+          "type": "string"
+        },
+        "disposition": {
+          "enum": [
+            "use",
+            "conditional",
+            "reject"
+          ],
+          "title": "Disposition",
+          "type": "string"
+        },
+        "reason": {
+          "minLength": 1,
+          "title": "Reason",
+          "type": "string"
+        }
+      },
+      "required": [
+        "claim_id",
+        "disposition",
+        "reason"
+      ],
+      "title": "Assessment",
+      "type": "object"
+    },
+    "ResearchPlan": {
+      "additionalProperties": false,
+      "properties": {
+        "recommendation": {
+          "description": "Research stance from this analysis. REVIEW means insufficient basis to rate; Hold means a supported neutral view.",
+          "enum": [
+            "Buy",
+            "Overweight",
+            "Hold",
+            "Underweight",
+            "Sell",
+            "REVIEW"
+          ],
+          "title": "Recommendation",
+          "type": "string"
+        },
+        "rationale": {
+          "minLength": 1,
+          "title": "Rationale",
+          "type": "string"
+        },
+        "strategic_actions": {
+          "description": "Conditional next steps; do not invent holdings or personal risk constraints.",
+          "title": "Strategic Actions",
+          "type": "string"
+        }
+      },
+      "required": [
+        "recommendation",
+        "rationale",
+        "strategic_actions"
+      ],
+      "title": "ResearchPlan",
+      "type": "object"
+    },
+    "ResearchEvaluation": {
+      "additionalProperties": false,
+      "description": "Complete JSON response containing plan, assessments and valuation_basis_and_gaps.",
+      "properties": {
+        "plan": {
+          "$ref": "#/$defs/ResearchPlan"
+        },
+        "assessments": {
+          "items": {
+            "$ref": "#/$defs/Assessment"
+          },
+          "maxItems": 8,
+          "minItems": 4,
+          "title": "Assessments",
+          "type": "array"
+        },
+        "valuation_basis_and_gaps": {
+          "minLength": 1,
+          "title": "Valuation Basis And Gaps",
+          "type": "string"
+        }
+      },
+      "required": [
+        "plan",
+        "assessments",
+        "valuation_basis_and_gaps"
+      ],
+      "title": "ResearchEvaluation",
+      "type": "object"
+    },
+    "TraderProposal": {
+      "additionalProperties": false,
+      "properties": {
+        "action": {
+          "enum": [
+            "Buy",
+            "Hold",
+            "Sell"
+          ],
+          "title": "Action",
+          "type": "string"
+        },
+        "reasoning": {
+          "minLength": 1,
+          "title": "Reasoning",
+          "type": "string"
+        },
+        "entry_price": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Entry Price"
+        },
+        "stop_loss": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Stop Loss"
+        },
+        "position_sizing": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Position Sizing"
+        }
+      },
+      "required": [
+        "action",
+        "reasoning"
+      ],
+      "title": "TraderProposal",
+      "type": "object"
+    },
+    "ExecutionReview": {
+      "additionalProperties": false,
+      "description": "Complete JSON execution review, not a free-text transaction report.",
+      "properties": {
+        "proposal": {
+          "$ref": "#/$defs/TraderProposal"
+        },
+        "feasibility_conditions": {
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 6,
+          "minItems": 1,
+          "title": "Feasibility Conditions",
+          "type": "array"
+        },
+        "missing_portfolio_inputs": {
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 6,
+          "title": "Missing Portfolio Inputs",
+          "type": "array"
+        }
+      },
+      "required": [
+        "proposal",
+        "feasibility_conditions",
+        "missing_portfolio_inputs"
+      ],
+      "title": "ExecutionReview",
+      "type": "object"
+    },
+    "RiskBrief": {
+      "additionalProperties": false,
+      "description": "Complete JSON risk review containing every required field.",
+      "properties": {
+        "analysis": {
+          "minLength": 1,
+          "title": "Analysis",
+          "type": "string"
+        },
+        "evidence_refs": {
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 8,
+          "title": "Evidence Refs",
+          "type": "array"
+        },
+        "invalidation_conditions": {
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 5,
+          "minItems": 1,
+          "title": "Invalidation Conditions",
+          "type": "array"
+        }
+      },
+      "required": [
+        "analysis",
+        "evidence_refs",
+        "invalidation_conditions"
+      ],
+      "title": "RiskBrief",
+      "type": "object"
+    },
+    "PortfolioDecision": {
+      "additionalProperties": false,
+      "properties": {
+        "rating": {
+          "description": "Fresh evidence-based research stance. REVIEW if there is no defensible rating; never use Hold as a missing-data placeholder.",
+          "enum": [
+            "Buy",
+            "Overweight",
+            "Hold",
+            "Underweight",
+            "Sell",
+            "REVIEW"
+          ],
+          "title": "Rating",
+          "type": "string"
+        },
+        "executive_summary": {
+          "description": "Conclusion, confidence and material conditions. Do not invent personal position advice.",
+          "minLength": 1,
+          "title": "Executive Summary",
+          "type": "string"
+        },
+        "investment_thesis": {
+          "minLength": 1,
+          "title": "Investment Thesis",
+          "type": "string"
+        },
+        "price_target": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Price Target"
+        },
+        "time_horizon": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Time Horizon"
+        }
+      },
+      "required": [
+        "rating",
+        "executive_summary",
+        "investment_thesis"
+      ],
+      "title": "PortfolioDecision",
+      "type": "object"
+    },
+    "FinalAssessment": {
+      "additionalProperties": false,
+      "description": "Complete JSON response: decision, all assessments and every other required field.",
+      "properties": {
+        "decision": {
+          "$ref": "#/$defs/PortfolioDecision"
+        },
+        "assessments": {
+          "description": "One concise reason per disposition. Do not duplicate financial figures already in financial_analysis; when numbers are essential, identify both comparable periods and recheck their difference.",
+          "items": {
+            "$ref": "#/$defs/Assessment"
+          },
+          "maxItems": 8,
+          "minItems": 4,
+          "title": "Assessments",
+          "type": "array"
+        },
+        "strongest_counterevidence": {
+          "minLength": 1,
+          "title": "Strongest Counterevidence",
+          "type": "string"
+        },
+        "why_it_changes_or_does_not_change_the_view": {
+          "minLength": 1,
+          "title": "Why It Changes Or Does Not Change The View",
+          "type": "string"
+        },
+        "valuation_basis_and_gaps": {
+          "minLength": 1,
+          "title": "Valuation Basis And Gaps",
+          "type": "string"
+        },
+        "next_observations": {
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 6,
+          "minItems": 1,
+          "title": "Next Observations",
+          "type": "array"
+        },
+        "financial_analysis": {
+          "$ref": "#/$defs/FinancialAnalysis"
+        },
+        "decision_update": {
+          "$ref": "#/$defs/DecisionUpdate"
+        },
+        "forward_assessment": {
+          "$ref": "#/$defs/ForwardAssessment"
+        }
+      },
+      "required": [
+        "decision",
+        "assessments",
+        "strongest_counterevidence",
+        "why_it_changes_or_does_not_change_the_view",
+        "valuation_basis_and_gaps",
+        "next_observations",
+        "financial_analysis",
+        "decision_update",
+        "forward_assessment"
+      ],
+      "title": "FinalAssessment",
+      "type": "object"
+    },
+    "ReviewFinding": {
+      "additionalProperties": false,
+      "properties": {
+        "issue": {
+          "minLength": 1,
+          "title": "Issue",
+          "type": "string"
+        },
+        "evidence_refs": {
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 8,
+          "title": "Evidence Refs",
+          "type": "array"
+        },
+        "next_check": {
+          "minLength": 1,
+          "title": "Next Check",
+          "type": "string"
+        }
+      },
+      "required": [
+        "issue",
+        "evidence_refs",
+        "next_check"
+      ],
+      "title": "ReviewFinding",
+      "type": "object"
+    },
+    "DataReview": {
+      "additionalProperties": false,
+      "description": "Complete JSON data review containing findings and coverage_and_limits.",
+      "properties": {
+        "findings": {
+          "items": {
+            "$ref": "#/$defs/ReviewFinding"
+          },
+          "maxItems": 8,
+          "title": "Findings",
+          "type": "array"
+        },
+        "coverage_and_limits": {
+          "minLength": 1,
+          "title": "Coverage And Limits",
+          "type": "string"
+        }
+      },
+      "required": [
+        "findings",
+        "coverage_and_limits"
+      ],
+      "title": "DataReview",
+      "type": "object"
+    },
+    "FinancialAnalysis": {
+      "additionalProperties": false,
+      "properties": {
+        "operating_performance": {
+          "description": "Revenue, business drivers and margin changes, separating observed results from sustainability hypotheses; show a comparable-period bridge where supported.",
+          "minLength": 1,
+          "title": "Operating Performance",
+          "type": "string"
+        },
+        "earnings_quality": {
+          "description": "Operating profit to pretax, tax and attributable income; GAAP/non-GAAP definition and cash-flow adjustments. Identify source conflicts and unresolved attribution.",
+          "minLength": 1,
+          "title": "Earnings Quality",
+          "type": "string"
+        },
+        "cash_and_capital_allocation": {
+          "description": "Cash balance vs cash generation, capex/working capital, restricted or subsidiary cash, dividends/buybacks and dilution; never equate consolidated cash with distributable parent cash.",
+          "minLength": 1,
+          "title": "Cash And Capital Allocation",
+          "type": "string"
+        },
+        "valuation_and_price_requirements": {
+          "description": "Explicit earnings period, currency/share basis, reproducible valuation arithmetic and assumptions. Link operating changes to valuation. Distinguish conditional price requirements, forecasts and fair value; omit unsupported targets.",
+          "minLength": 1,
+          "title": "Valuation And Price Requirements",
+          "type": "string"
+        },
+        "evidence_refs": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "maxItems": 12,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Optional chapter-level reference summary; claim and belief references remain separate. Do not invent references to populate this summary.",
+          "title": "Evidence Refs"
+        }
+      },
+      "required": [
+        "operating_performance",
+        "earnings_quality",
+        "cash_and_capital_allocation",
+        "valuation_and_price_requirements"
+      ],
+      "title": "FinancialAnalysis",
+      "type": "object"
+    },
+    "IndependentBelief": {
+      "additionalProperties": false,
+      "properties": {
+        "statement": {
+          "minLength": 1,
+          "title": "Statement",
+          "type": "string"
+        },
+        "business_mechanism": {
+          "minLength": 1,
+          "title": "Business Mechanism",
+          "type": "string"
+        },
+        "evidence_refs": {
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 8,
+          "title": "Evidence Refs",
+          "type": "array"
+        },
+        "would_change_mind": {
+          "minLength": 1,
+          "title": "Would Change Mind",
+          "type": "string"
+        },
+        "uncertainty": {
+          "minLength": 1,
+          "title": "Uncertainty",
+          "type": "string"
+        },
+        "belief_id": {
+          "description": "D1, D2, ... in order; these are this independent draft's beliefs.",
+          "pattern": "^D[1-4]$",
+          "title": "Belief Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "statement",
+        "business_mechanism",
+        "evidence_refs",
+        "would_change_mind",
+        "uncertainty",
+        "belief_id"
+      ],
+      "title": "IndependentBelief",
+      "type": "object"
+    },
+    "IndependentAssessment": {
+      "additionalProperties": false,
+      "description": "Source-only beliefs first, then a compact initial stance; no duplicate financial report.",
+      "properties": {
+        "beliefs": {
+          "items": {
+            "$ref": "#/$defs/IndependentBelief"
+          },
+          "maxItems": 4,
+          "minItems": 2,
+          "title": "Beliefs",
+          "type": "array"
+        },
+        "decision": {
+          "$ref": "#/$defs/InitialDecision"
+        }
+      },
+      "required": [
+        "beliefs",
+        "decision"
+      ],
+      "title": "IndependentAssessment",
+      "type": "object"
+    },
+    "AdoptedAssumption": {
+      "additionalProperties": false,
+      "properties": {
+        "statement": {
+          "minLength": 1,
+          "title": "Statement",
+          "type": "string"
+        },
+        "origin": {
+          "enum": [
+            "independent_draft",
+            "peer_proposal",
+            "sensitivity_note",
+            "forward_draft"
+          ],
+          "title": "Origin",
+          "type": "string"
+        },
+        "basis": {
+          "enum": [
+            "source_supported",
+            "illustrative",
+            "unverified"
+          ],
+          "title": "Basis",
+          "type": "string"
+        },
+        "evidence_refs": {
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 8,
+          "title": "Evidence Refs",
+          "type": "array"
+        },
+        "why_appropriate": {
+          "minLength": 1,
+          "title": "Why Appropriate",
+          "type": "string"
+        },
+        "consequence_if_false": {
+          "minLength": 1,
+          "title": "Consequence If False",
+          "type": "string"
+        }
+      },
+      "required": [
+        "statement",
+        "origin",
+        "basis",
+        "evidence_refs",
+        "why_appropriate",
+        "consequence_if_false"
+      ],
+      "title": "AdoptedAssumption",
+      "type": "object"
+    },
+    "BeliefUpdate": {
+      "additionalProperties": false,
+      "properties": {
+        "belief_id": {
+          "title": "Belief Id",
+          "type": "string"
+        },
+        "status": {
+          "enum": [
+            "maintain",
+            "revise",
+            "withdraw",
+            "unresolved"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "new_statement": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "New Statement"
+        },
+        "update_basis": {
+          "enum": [
+            "source_observation",
+            "reasoning_correction",
+            "assumption_change",
+            "no_new_basis"
+          ],
+          "title": "Update Basis",
+          "type": "string"
+        },
+        "reason": {
+          "minLength": 1,
+          "title": "Reason",
+          "type": "string"
+        },
+        "financial_implication": {
+          "description": "Effect on earnings/cash/valuation, or why no justified effect; a number of agreeing agents is not an effect.",
+          "minLength": 1,
+          "title": "Financial Implication",
+          "type": "string"
+        },
+        "evidence_refs": {
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 8,
+          "title": "Evidence Refs",
+          "type": "array"
+        }
+      },
+      "required": [
+        "belief_id",
+        "status",
+        "new_statement",
+        "update_basis",
+        "reason",
+        "financial_implication",
+        "evidence_refs"
+      ],
+      "title": "BeliefUpdate",
+      "type": "object"
+    },
+    "DecisionUpdate": {
+      "additionalProperties": false,
+      "properties": {
+        "belief_updates": {
+          "items": {
+            "$ref": "#/$defs/BeliefUpdate"
+          },
+          "maxItems": 4,
+          "minItems": 2,
+          "title": "Belief Updates",
+          "type": "array"
+        },
+        "adopted_assumptions": {
+          "items": {
+            "$ref": "#/$defs/AdoptedAssumption"
+          },
+          "maxItems": 6,
+          "title": "Adopted Assumptions",
+          "type": "array"
+        },
+        "basis_for_rating": {
+          "description": "Identify actual pricing/risk grounds for the rating; distinguish a defensible neutral view from inability to value. Do not turn an illustrative multiple or growth trigger into a decision rule.",
+          "minLength": 1,
+          "title": "Basis For Rating",
+          "type": "string"
+        }
+      },
+      "required": [
+        "belief_updates",
+        "adopted_assumptions",
+        "basis_for_rating"
+      ],
+      "title": "DecisionUpdate",
+      "type": "object"
+    },
+    "ForecastAssumption": {
+      "additionalProperties": false,
+      "properties": {
+        "value": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Numeric input, or null when unavailable. Ratios are fractions, not percentage points. Do not use zero for unknown.",
+          "title": "Value"
+        },
+        "basis_type": {
+          "enum": [
+            "reported",
+            "company_guidance",
+            "reference_comparison",
+            "analyst_assumption"
+          ],
+          "title": "Basis Type",
+          "type": "string"
+        },
+        "reason": {
+          "description": "Explain the input, historical anchor and forward change; a cited historical number does not certify a forecast.",
+          "minLength": 1,
+          "title": "Reason",
+          "type": "string"
+        },
+        "evidence_refs": {
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 6,
+          "title": "Evidence Refs",
+          "type": "array"
+        }
+      },
+      "required": [
+        "value",
+        "basis_type",
+        "reason",
+        "evidence_refs"
+      ],
+      "title": "ForecastAssumption",
+      "type": "object"
+    },
+    "ForecastScenario": {
+      "additionalProperties": false,
+      "properties": {
+        "scenario_id": {
+          "pattern": "^F[1-3]$",
+          "title": "Scenario Id",
+          "type": "string"
+        },
+        "name": {
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "drivers": {
+          "description": "Business mechanism linking observed activity to the annual forecast; do not merely apply symmetric percentage changes.",
+          "minLength": 1,
+          "title": "Drivers",
+          "type": "string"
+        },
+        "revenue": {
+          "$ref": "#/$defs/ForecastAssumption"
+        },
+        "operating_margin": {
+          "$ref": "#/$defs/ForecastAssumption"
+        },
+        "net_nonoperating_income": {
+          "$ref": "#/$defs/ForecastAssumption",
+          "description": "Signed total net interest, investment, FX and other pretax non-operating income, in millions of reporting currency."
+        },
+        "effective_tax_rate": {
+          "$ref": "#/$defs/ForecastAssumption"
+        },
+        "noncontrolling_attribution": {
+          "$ref": "#/$defs/NoncontrollingAttribution"
+        },
+        "diluted_ordinary_shares": {
+          "$ref": "#/$defs/ForecastAssumption",
+          "description": "Millions of diluted ordinary shares for this forecast period, not millions of ADS."
+        },
+        "non_working_capital_adjustments": {
+          "$ref": "#/$defs/ForecastAssumption",
+          "description": "Signed profit-to-CFO adjustments before changes in operating assets/liabilities, including noncash items. CFO minus net income ALSO includes operating asset/liability cash effects and cannot be used as this subtotal."
+        },
+        "operating_asset_liability_cash_effect": {
+          "$ref": "#/$defs/ForecastAssumption",
+          "description": "Signed cash-flow effects of changes in operating assets/liabilities, including tax balances where reported. This is not a balance-sheet change or necessarily strict valuation NWC; cash release is positive, use is negative."
+        },
+        "cash_capex": {
+          "$ref": "#/$defs/ForecastAssumption",
+          "description": "Positive cash purchases of PPE/software and intangibles/content; deducted once. Do not claim maintenance capex is un-deducted after including these purchases."
+        },
+        "fx_reporting_per_price_currency": {
+          "$ref": "#/$defs/ForecastAssumption",
+          "description": "Units of reporting currency for ONE unit of quote currency, e.g. CNY per USD. Explicit FX assumption for the valuation date."
+        },
+        "exit_pe": {
+          "$ref": "#/$defs/ForecastAssumption",
+          "description": "Optional annual parent-earnings exit multiple. Justify reference, comparability and risks; null if no defensible basis. A multiple is not a fact or automatically fair value."
+        },
+        "cash_dividend_per_traded_unit": {
+          "$ref": "#/$defs/ForecastAssumption",
+          "description": "Cumulative cash dividend per share/ADS over the holding horizon, in quote currency; not a buyback amount or annualized yield."
+        },
+        "valuation_reasoning": {
+          "description": "Economic argument for the multiple or why no multiple is defensible; separate rerating from earnings growth. Do not fit inputs to current price.",
+          "minLength": 1,
+          "title": "Valuation Reasoning",
+          "type": "string"
+        },
+        "evidence_that_changes_case": {
+          "minLength": 1,
+          "title": "Evidence That Changes Case",
+          "type": "string"
+        }
+      },
+      "required": [
+        "scenario_id",
+        "name",
+        "drivers",
+        "revenue",
+        "operating_margin",
+        "net_nonoperating_income",
+        "effective_tax_rate",
+        "noncontrolling_attribution",
+        "diluted_ordinary_shares",
+        "non_working_capital_adjustments",
+        "operating_asset_liability_cash_effect",
+        "cash_capex",
+        "fx_reporting_per_price_currency",
+        "exit_pe",
+        "cash_dividend_per_traded_unit",
+        "valuation_reasoning",
+        "evidence_that_changes_case"
+      ],
+      "title": "ForecastScenario",
+      "type": "object"
+    },
+    "UnderwritingDraft": {
+      "additionalProperties": false,
+      "description": "Business-driven forecast inputs; a calculator, not this model, performs the arithmetic.",
+      "properties": {
+        "business_model": {
+          "description": "Explain applicability of a non-financial operating-company earnings bridge. Do not force this template onto banks or loss-making early-stage businesses.",
+          "minLength": 1,
+          "title": "Business Model",
+          "type": "string"
+        },
+        "reporting_currency": {
+          "pattern": "^[A-Z]{3}$",
+          "title": "Reporting Currency",
+          "type": "string"
+        },
+        "price_currency": {
+          "pattern": "^[A-Z]{3}$",
+          "title": "Price Currency",
+          "type": "string"
+        },
+        "amount_unit": {
+          "const": "million",
+          "title": "Amount Unit",
+          "type": "string"
+        },
+        "earnings_basis": {
+          "description": "Annual earnings denominator relative to valuation date: trailing ends on that date, forward starts then or next day, fiscal_year uses explicit reporting-year dates and must explain comparability.",
+          "enum": [
+            "trailing_at_valuation",
+            "forward_from_valuation",
+            "fiscal_year"
+          ],
+          "title": "Earnings Basis",
+          "type": "string"
+        },
+        "forecast_start": {
+          "format": "date",
+          "title": "Forecast Start",
+          "type": "string"
+        },
+        "forecast_end": {
+          "description": "End of the annual earnings/cash period used at valuation; show any actual/forecast blend in limitations.",
+          "format": "date",
+          "title": "Forecast End",
+          "type": "string"
+        },
+        "valuation_date": {
+          "format": "date",
+          "title": "Valuation Date",
+          "type": "string"
+        },
+        "market_price_date": {
+          "anyOf": [
+            {
+              "format": "date",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Market Price Date"
+        },
+        "market_price": {
+          "$ref": "#/$defs/ForecastAssumption"
+        },
+        "shares_per_traded_unit": {
+          "$ref": "#/$defs/ForecastAssumption",
+          "description": "Ordinary shares represented by one quoted unit; 1 for ordinary shares, the source-supported ADS ratio for ADRs."
+        },
+        "scenarios": {
+          "description": "Usually 2-3 distinct business paths. Empty only when the economic template cannot responsibly be applied; explain and still deliver qualitative research.",
+          "items": {
+            "$ref": "#/$defs/ForecastScenario"
+          },
+          "maxItems": 3,
+          "title": "Scenarios",
+          "type": "array"
+        },
+        "limitations": {
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 8,
+          "minItems": 1,
+          "title": "Limitations",
+          "type": "array"
+        }
+      },
+      "required": [
+        "business_model",
+        "reporting_currency",
+        "price_currency",
+        "amount_unit",
+        "earnings_basis",
+        "forecast_start",
+        "forecast_end",
+        "valuation_date",
+        "market_price_date",
+        "market_price",
+        "shares_per_traded_unit",
+        "scenarios",
+        "limitations"
+      ],
+      "title": "UnderwritingDraft",
+      "type": "object"
+    },
+    "ForwardAssessment": {
+      "additionalProperties": false,
+      "properties": {
+        "economic_conclusion": {
+          "description": "Explain drivers -> earnings/cash -> conditional price/return -> investment view. Use computed results; do not invent a second uncomputed scenario.",
+          "minLength": 1,
+          "title": "Economic Conclusion",
+          "type": "string"
+        },
+        "confidence_and_limits": {
+          "minLength": 1,
+          "title": "Confidence And Limits",
+          "type": "string"
+        },
+        "scenario_assessments": {
+          "items": {
+            "$ref": "#/$defs/ForwardScenarioAssessment"
+          },
+          "maxItems": 3,
+          "title": "Scenario Assessments",
+          "type": "array"
+        }
+      },
+      "required": [
+        "economic_conclusion",
+        "confidence_and_limits",
+        "scenario_assessments"
+      ],
+      "title": "ForwardAssessment",
+      "type": "object"
+    },
+    "ForwardScenarioAssessment": {
+      "additionalProperties": false,
+      "properties": {
+        "scenario_id": {
+          "title": "Scenario Id",
+          "type": "string"
+        },
+        "disposition": {
+          "enum": [
+            "use",
+            "conditional",
+            "reject"
+          ],
+          "title": "Disposition",
+          "type": "string"
+        },
+        "reason": {
+          "description": "Assess economics and parameter support, not just successful arithmetic. Reject price-fitted or unjustified multiples.",
+          "minLength": 1,
+          "title": "Reason",
+          "type": "string"
+        },
+        "what_changes_the_view": {
+          "minLength": 1,
+          "title": "What Changes The View",
+          "type": "string"
+        }
+      },
+      "required": [
+        "scenario_id",
+        "disposition",
+        "reason",
+        "what_changes_the_view"
+      ],
+      "title": "ForwardScenarioAssessment",
+      "type": "object"
+    },
+    "AttributionAmount": {
+      "additionalProperties": false,
+      "properties": {
+        "value": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Absolute nonnegative amount in millions, or null. Never copy a statement's deduction minus sign into this amount.",
+          "title": "Value"
+        },
+        "basis_type": {
+          "enum": [
+            "reported",
+            "company_guidance",
+            "reference_comparison",
+            "analyst_assumption"
+          ],
+          "title": "Basis Type",
+          "type": "string"
+        },
+        "reason": {
+          "description": "Explain the input, historical anchor and forward change; a cited historical number does not certify a forecast.",
+          "minLength": 1,
+          "title": "Reason",
+          "type": "string"
+        },
+        "evidence_refs": {
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 6,
+          "title": "Evidence Refs",
+          "type": "array"
+        }
+      },
+      "required": [
+        "value",
+        "basis_type",
+        "reason",
+        "evidence_refs"
+      ],
+      "title": "AttributionAmount",
+      "type": "object"
+    },
+    "NoncontrollingAttribution": {
+      "additionalProperties": false,
+      "properties": {
+        "nature": {
+          "description": "Economic nature: profit attributable to outside owners is deducted; their loss is added back. A statement may print a PROFIT deduction in parentheses; parentheses do not make it a loss.",
+          "enum": [
+            "profit",
+            "loss",
+            "unknown"
+          ],
+          "title": "Nature",
+          "type": "string"
+        },
+        "amount": {
+          "$ref": "#/$defs/AttributionAmount"
+        }
+      },
+      "required": [
+        "nature",
+        "amount"
+      ],
+      "title": "NoncontrollingAttribution",
+      "type": "object"
+    },
+    "InitialDecision": {
+      "additionalProperties": false,
+      "properties": {
+        "rating": {
+          "description": "Source-only research stance; use REVIEW when the price judgment lacks a defensible basis, not Hold as a placeholder.",
+          "enum": [
+            "Buy",
+            "Overweight",
+            "Hold",
+            "Underweight",
+            "Sell",
+            "REVIEW"
+          ],
+          "title": "Rating",
+          "type": "string"
+        },
+        "executive_summary": {
+          "description": "One concise reason grounded in the beliefs above. No second investment thesis or target-price essay.",
+          "minLength": 1,
+          "title": "Executive Summary",
+          "type": "string"
+        }
+      },
+      "required": [
+        "rating",
+        "executive_summary"
+      ],
+      "title": "InitialDecision",
+      "type": "object"
+    }
+  }
+}

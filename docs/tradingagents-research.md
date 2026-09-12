@@ -124,7 +124,7 @@ PYTHONPATH=src ../tmp/tradingagents-runtime/bin/python -m finauditgate.cli \
 
 初稿仍用于选择补查，并作为可能含错的候选分析保存供人审阅；它们不会作为最终判断的文字输入。这个设计减少一种观点直接传递路径，但不能证明模型固有偏好已消失，补查选择与最终解释仍需要业务检验。
 
-默认模型为 `deepseek-v4-pro`，可明确选择 `deepseek-v4-flash`。首次研究最多三个模型请求；带旧 Case 的新中期路线最多四个，最后一次仅解释已保存的新旧论点。原生路线最多二十四个；SDK 自动重试关闭。产品路线使用 DeepSeek JSON Output，随后本地检查约定结构、引用与文字限制，不再借函数调用承载报告。[JSON Output 官方说明](https://api-docs.deepseek.com/guides/json_mode/)
+默认模型为 `deepseek-flash`（DeepSeek-V4.1-Flash），可明确选择 `deepseek-v4-pro`；旧名 `deepseek-v4-flash` 保留为兼容选项。官方当前模型标识见[API说明](https://api-docs.deepseek.com/)。首次研究最多三个模型请求；带旧 Case 的新中期路线最多四个，最后一次仅解释已保存的新旧论点。原生路线最多二十四个；SDK 自动重试关闭。产品路线使用 DeepSeek JSON Output，随后本地检查约定结构、引用与文字限制，不再借函数调用承载报告。[JSON Output 官方说明](https://api-docs.deepseek.com/guides/json_mode/)
 
 `--max-output-tokens` 默认 8192，最多 16384；额度包含模型生成的推理与正文。`--reasoning-effort low/high/max` 设置默认推理强度，`--synthesis-effort` 可单独提高最终证据判断的推理强度。未填写则保留服务端默认值。SDK 不传递的 DeepSeek 专用配置由同一 HTTP Adapter 写入实际请求，逐次调用的显式值优先。返回用量超过额度、或回复已截断时，会保留返回并停止后续调用，不能让截断触发额外付费回退。
 

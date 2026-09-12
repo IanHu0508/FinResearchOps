@@ -1,9 +1,10 @@
 # Persisted artifacts and their schemas
 
-Every artifact the code reads or writes has exactly one schema version. When a
-shape changes, that artifact's version is bumped and the old branch is deleted;
-older numbers exist only in Git history and the archived pre-simplification
-tree. Version numbers are monotonic and may have gaps.
+Every artifact the code reads or writes has exactly one schema version. A shape
+change bumps that artifact's version. Superseded, unreleased formats need no
+compatibility branch; released formats retain the read/replay behavior documented
+below so historical records are not rewritten. Version numbers are monotonic
+and may have gaps.
 
 JSON Schema files exist for the artifacts that cross the Application or
 public boundary. Core run artifacts are defined by the code that writes and
@@ -11,10 +12,24 @@ replays them (`src/finauditgate/core/engine.py`).
 
 ## TradingAgents research artifacts
 
-The main research path uses `finresearchops.thesis-case/v1`
-(`thesis-case.v1.schema.json`). It stores original source text, independent
+The main research path writes `finresearchops.thesis-case/v10`
+(`thesis-case.v10.schema.json`); existing v1/v2 remain readable without rewriting
+their reports. V10 retains the v9 model-proposed forward draft and deterministic
+earnings/cash/conditional-return results that reach the final judge before its
+rating. Forecast assumptions and scenario acceptance are visible separately.
+It retains compact independent underwriting, belief-by-belief counterevidence
+updates, adopted assumptions and a program-computed rating comparison. The
+initial rating/summary and trigger fields are not final-judge inputs. Unreleased
+v3/v4/v5/v6/v7/v8/v9 trials and their original readers remain private development evidence.
+V2 introduced financial analysis covering operations, earnings quality,
+cash/capital allocation and valuation/price requirements, with source references.
+Financial prose and forecast assumptions remain model analyses; the deterministic
+calculator establishes arithmetic, not economic correctness. The Case stores original source text, independent
 initial claims, symmetric revisions, fresh assessments and actual model I/O.
-`finresearchops.thesis-sources/v1` describes the optional frozen input bundle;
+`finresearchops.thesis-sources/v2` describes the frozen input bundle with an
+explicit research/sensitivity use per source. Sensitivity notes are withheld
+from every rating request and displayed in a clearly labeled report appendix;
+their original text remains in the Case and reaches only post-report review. Legacy v1 inputs are accepted as unclassified research sources;
 `finresearchops.thesis-review/v1` is a separately saved post-report Agent opinion.
 Review state does not change the main Case hash. `finresearchops.thesis-runtime/v1`
 captures partial or complete model/tool/node activity and budget, including

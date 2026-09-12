@@ -1,9 +1,179 @@
 # Project Status
 
-> Updated 2026-09-09. This file is the only public status source; other
+> Updated 2026-09-12. This file is the only public status source; other
 > documents describe mechanisms and link here.
 
-## Current direction: lightweight review and opinion updates — 2026-09-09
+## Current slice: explicit research context and full-report checks — 2026-09-12
+
+The implementation and bounded check activity are complete; full three-condition
+report comparison and operational/financial reliability remain `PARTIAL`. Case
+v10 separates an explicitly recorded user view from substantive hypotheses and
+research constraints. The view is absent from all twelve main requests; free text
+is not automatically classified or rewritten. Five predefined conditions produced
+four complete reports after recovery and one final-assessment failure after two
+identical-setting output-limit attempts. The failure is retained, not scored as a
+successful report or an unbiased outcome.
+
+Actual complete synthetic reports respond to superseding operating-margin guidance
+by changing earnings and cash projections and rejecting the withdrawn guidance as
+a current baseline. This is a fictional financial-transmission control, not a
+forecast or trading-performance evaluation. Real-case inspection still found an
+incorrect historical minority-attribution anchor: the final judge flagged/rejected
+affected projections but did not repair the inputs and recalculate. Financial
+wording and valuation limits remain; optional review is not certification.
+
+A separate runtime defect was exposed: upstream free-text extraction selected Hold
+from prose although the explicit final model decision was REVIEW. The adapter now
+uses the validated structured final rating and retains upstream extraction in a
+private execution receipt. All twelve original responses were reused to assemble
+the affected Cases, without regenerating the final decisions. One uniquely misplaced
+manager valuation field is relocated verbatim; conflicting versions are rejected.
+Other extra fields and missing assessments remain recorded failures rather than
+silently trimmed or fabricated outputs.
+
+322 core tests and 63 integration checks pass. Of 48 bounded artifact checks, 47
+meet the listed conditions and one records the incomplete report; this is not a
+financial accuracy metric. Sixty-six new API requests have known-usage estimates
+of CNY15.109944 at configured rates plus three requests with unknown usage/cost
+(one connection failure and two truncations), not a provider invoice. No new role,
+mandatory financial gate, Daily Investment integration, commit, push, deployment
+or trading was introduced. The original v9 reader and reports remain private and
+unchanged. Next priorities are bounded correction/recalculation after a material
+parameter is rejected, and reducing the final step's excessive output burden.
+
+## Current model selection — 2026-09-11
+
+The CLI and research adapters now default to the exact `deepseek-flash` API
+identifier, currently DeepSeek-V4.1-Flash per the [official API documentation](https://api-docs.deepseek.com/).
+Explicit Pro and legacy Flash selections remain available. The new Flash name
+uses the existing conservative Flash configured-rate estimate, not Pro rates
+or a provider-invoice claim. Credentials and historical model records are unchanged.
+322 core tests and 58 integration checks pass, including the actual SDK's offline
+JSON request model name, reasoning effort and token limit. The pinned upstream
+client warns that the new name is absent from its model list but sends it unchanged.
+No paid API call, report rerun, commit or push was performed for this switch;
+the earlier Pro results below are not evidence of Flash research quality.
+
+## Previous slice: forward underwriting and report reliability — 2026-09-11
+
+Implementation, the real-model workflow and bounded artifact/content checks are
+`COMPLETED`; forecast stability, defensible pricing and financial-judgment
+reliability remain `PARTIAL`. Case v9 connects business-driven forecast proposals,
+deterministic annual profit/EPS and cash-flow bridges, conditional valuation and
+final scenario decisions within the existing portfolio-manager node. The native
+16-node / 30-edge graph remains, with twelve main model steps and an optional
+post-report review. No role or mandatory financial admission layer was added.
+Initial ratings/summaries and declared external scenarios remain isolated.
+
+Dates, annual earnings basis, ADS/FX, share-count proxies and missing inputs are
+explicit. Noncontrolling attribution distinguishes profit/loss nature from a
+nonnegative magnitude, fixing a trial's economically reversed deduction. Cash
+inputs separate non-working-capital adjustments from operating asset/liability
+effects. Source-based checking clarified the historical cash bridge, period
+comparisons and unsupported tax-causality claims. A compact independent response
+retains beliefs and a rating/reason, removing unused duplicate prose. Final-only
+reassessment reuses eleven valid, byte-matching preceding steps, including the
+forecast proposal; it recomputes the math without resampling forecast inputs.
+
+322 core tests, 57 integration checks and 35 bounded artifact/control checks pass.
+Actual requests contain the saved forecast and computed results before the final
+judgment. A fictional margin reduction transmits to earnings, cash and conditional
+break-even multiples under the production forecast instructions. Same-fact repeat
+and bullish/bearish wording probes still produce materially different forecast
+ranges; one call per condition cannot identify training bias or establish improved
+stability. These checks do not certify forecasts, fair values, ratings or returns.
+
+The current real case has no supported exit multiple or dividend forecast. It
+retains conditional earnings and price-only break-even multiples, leaving target
+prices and expected returns unset. Break-even multiples are neither fair multiples
+nor market consensus. The unchanged REVIEW label is not a measure of correctness.
+A separate local reading copy corrects identified source/wording issues without
+changing original model artifacts, forecast inputs, calculations or rating; it is
+not human sign-off or certification that the entire report is error-free.
+
+Across development trials, failures and probes, forty-four new API requests have
+known-usage configured-rate estimates of CNY37.128726 plus one connection-failed
+request with unknown usage/cost; this is not a provider invoice. Original filings,
+trial outputs, failures and v5-v8 readers are preserved privately; existing v1/v2
+remain readable. No Daily Investment integration, commit, push, deployment or
+trading was performed. Next priority is evidence-supported operating assumptions,
+then defensible pricing and checks of how conclusions change under reasonable
+alternative assumptions, rather than additional review roles.
+
+## Previous slice: initial-opinion and scenario isolation — 2026-09-11
+
+Implementation, offline checking and bounded real-model workflow checks are
+`COMPLETED`; general bias reduction and financial-rating reliability remain
+`PARTIAL`. Current Case v5 keeps the native
+16-node / 30-edge graph. Compact independent underwriting records beliefs and an
+initial rating; the final judge receives only beliefs, research/risk analysis and
+research sources. Initial ratings/summaries and prewritten trigger fields are
+not forwarded. Rating comparison is computed after both outputs exist.
+
+Declared sensitivity sources are report-only, visible to the optional post-report
+review but not to any rating request. The first development trial exposed that
+labeling a scenario as uncalibrated did not prevent its use in a rating rationale.
+Unreleased v3/v4 trials, their original readers, reports and failures remain
+private; they are not maintained as current public compatibility branches.
+Existing delivered v1/v2 Cases still reopen unchanged.
+
+273 core tests and 50 integration checks pass. Changed initial ratings or declared
+scenario notes leave the final request unchanged when beliefs/facts are fixed;
+reference-scope, belief-coverage, comparison, recovery and old-Case checks pass.
+No mandatory financial gate or new native graph role was added. These checks do
+not validate ratings, remove implicit beliefs in free text or prove trading gains.
+The source mappings remain case-specific, and financial-quality limitations from
+the preceding round still apply. A real source-coverage check preserved twenty
+original issuer/vendor records; the extra scenario remains in the report appendix.
+One targeted fictional liquidity update, without the prior rating in its input,
+revised all three independent beliefs to recognize the funding shortfall while
+its rating remained REVIEW. Earlier trial controls produced unchanged labels,
+but one trial rationale still used an explicitly uncalibrated scenario; the
+stronger routing policy was implemented after that observation. These are small
+known-case/protocol checks, not a causal performance estimate.
+
+Across trials, failures and targeted controls, twenty-five new API requests used
+configured-rate estimates totaling CNY22.436271, not a provider invoice. Two
+required chapter-reference-summary failures were retained; the redundant summary
+is now optional, without fabricated references or removal of per-claim reference
+checks. Current reports retain identified financial wording/valuation limits and
+are not accepted investment conclusions. No commit, push, deployment or trading
+was performed in this slice.
+
+## Previous slice: financial quality — 2026-09-10
+
+The bounded financial-content repair is `COMPLETED` as implementation and a
+known-case workflow check. Financial judgment reliability remains `PARTIAL`;
+investment-preference optimization is `DEFERRED` to the next requested round.
+Case v2 requires operating performance, earnings quality, cash/capital allocation
+and conditional valuation analysis. Released v1 reopens unchanged. No mandatory
+financial admission layer or new model role was added.
+
+A case-specific worksheet uses Codex-selected source mappings, deterministic
+arithmetic and the existing filing core. It reconciles operating-to-parent
+income, distinguishes company non-GAAP attribution and cash-flow adjustments,
+rebuilds explicit rolling periods, and shows operating assumptions behind
+conditional earnings requirements. Original sources remain intact. This is
+not an independent human sign-off or a general automatic financial extractor.
+
+The selected native graph retains 16 nodes and 30 edges. One fresh eleven-call
+research/review run and two final-assessment/review reruns made fifteen real API
+requests. Explicit `--reassess-final` reuse kept nine byte-matching upstream
+returns while producing new final judgments; earlier outputs were not rewritten.
+273 core tests and 46 integration checks pass, including financial-section
+binding, exact-prefix reassessment and standard-library reopening.
+
+Source-based checking corrected magnitude, accounting-label, forecast-period,
+share-count-causality and capital-expenditure wording problems. The optional
+reviewer missed some errors and gave inconsistent assurances; it remains a
+non-authoritative aid. The final report still makes safety-margin/value-language
+claims without calibrated valuation support. Those claims are not accepted as
+validated financial conclusions. The three final outputs were Hold, REVIEW and
+Hold under changed final instructions: this is neither a controlled consistency
+experiment nor evidence of better ratings. Model-input assumptions and threshold
+propagation remain material next-round questions.
+
+## Previous lightweight implementation — 2026-09-09
 
 The lightweight native research slice is `COMPLETED` as an implementation and
 one real-model workflow check. Financial reliability and bias-reduction claims

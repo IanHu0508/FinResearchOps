@@ -161,17 +161,21 @@ def _parser() -> argparse.ArgumentParser:
     thesis.add_argument("--symbol", required=True)
     thesis.add_argument("--as-of", required=True, type=date.fromisoformat)
     thesis.add_argument("--question", required=True)
+    thesis.add_argument("--hypothesis", action="append", default=[], help="A substantive hypothesis to test, not an established fact; repeat up to five times.")
+    thesis.add_argument("--research-constraint", action="append", default=[], help="Explicit research horizon/risk or other mandate context; repeat up to five times.")
+    thesis.add_argument("--user-view", help="Optional desired conclusion, recorded in the report but excluded from all main research requests. Keep factual reasons in --hypothesis or --sources.")
     thesis.add_argument("--horizon-months", type=int, default=12)
     thesis.add_argument("--sources", type=Path, help="Optional private frozen source bundle; without it native vendor tools are used.")
     thesis.add_argument("--no-review", action="store_true", help="Skip the post-report data review Agent; main research is unchanged.")
     thesis.add_argument("--resume-execution", type=Path, help="Reuse an interrupted frozen-source execution's exact completed model inputs/outputs.")
+    thesis.add_argument("--reassess-final", action="store_true", help="With --resume-execution, preserve the exact completed prefix through forward assumptions, recalculate them, then obtain a new final assessment and optional review.")
     _add_research_model_options(thesis, synthesis=False)
     thesis.set_defaults(max_spend_cny="unlimited", max_output_tokens=65536, reasoning_effort="max")
     return parser
 
 
 def _add_research_model_options(parser, *, synthesis=True):
-    parser.add_argument("--model", choices=("deepseek-v4-pro", "deepseek-v4-flash"), default="deepseek-v4-pro")
+    parser.add_argument("--model", choices=("deepseek-flash", "deepseek-v4-pro", "deepseek-v4-flash"), default="deepseek-flash")
     parser.add_argument("--env-file", type=Path, help="Optional private local configuration; never printed or recorded in model traces.")
     parser.add_argument("--max-spend-cny", default="50", help="Per-run conservative request reservation ceiling, or unlimited; not an account billing limit.")
     parser.add_argument("--max-output-tokens", type=int, default=8192, help="Maximum total generated tokens per request, up to 65536; enforced on DeepSeek's wire field.")
@@ -188,7 +192,7 @@ def _researcher(arguments):
     from finauditgate.adapters.model_budget import ModelBudget
     from finauditgate.adapters.tradingagents_research import TradingAgentsResearcher
     _load_model_environment(arguments)
-    flash = arguments.model == "deepseek-v4-flash"
+    flash = arguments.model in ("deepseek-flash", "deepseek-v4-flash")
     budget = ModelBudget(ceiling_cny=None if arguments.max_spend_cny == 'unlimited' else arguments.max_spend_cny,
         input_per_million="3" if flash else "9", output_per_million="9" if flash else "27",
         max_output_tokens=arguments.max_output_tokens,
@@ -315,7 +319,7 @@ def _execute(arguments: argparse.Namespace) -> int:
                 if source_path.stat().st_size > 256 * 1024:
                     raise ValueError("THESIS_SOURCE_BUNDLE_TOO_LARGE")
                 bundle = json.loads(source_path.read_text())
-            flash = arguments.model == "deepseek-v4-flash"
+            flash = arguments.model in ("deepseek-flash", "deepseek-v4-flash")
             resume = require_private_storage_root(arguments.resume_execution, purpose="thesis-resume", anchor=arguments.private_workspace_anchor) if arguments.resume_execution is not None else None
             budget = ModelBudget(ceiling_cny=None if arguments.max_spend_cny == "unlimited" else arguments.max_spend_cny,
                 input_per_million="3" if flash else "9", output_per_million="9" if flash else "27",
@@ -323,9 +327,11 @@ def _execute(arguments: argparse.Namespace) -> int:
             view = FinResearchOps(artifact_root=arguments.artifact_root,
                 private_workspace_anchor=arguments.private_workspace_anchor,
                 researcher=ThesisResearcher(model=arguments.model, live=True, budget=budget,
-                                           reasoning_effort=arguments.reasoning_effort, resume_from=resume)).handle(
+                                           reasoning_effort=arguments.reasoning_effort, resume_from=resume,
+                                           reassess_final=arguments.reassess_final)).handle(
                     ResearchThesis(arguments.symbol, arguments.as_of, arguments.question,
-                                   arguments.horizon_months, bundle, not arguments.no_review))
+                                   arguments.horizon_months, bundle, not arguments.no_review,
+                                   tuple(arguments.hypothesis), tuple(arguments.research_constraint), arguments.user_view))
         except ImportError as exc:
             raise ApplicationError("TRADINGAGENTS_INTEGRATION_ENV_REQUIRED") from exc
         except ValueError as exc:
@@ -388,8 +394,8 @@ def _execute(arguments: argparse.Namespace) -> int:
                 market_task = _native_market_task(arguments)
                 _load_model_environment(arguments)
                 budget = ModelBudget(ceiling_cny=None if arguments.max_spend_cny == 'unlimited' else arguments.max_spend_cny,
-                    input_per_million="3" if arguments.model == "deepseek-v4-flash" else "9",
-                    output_per_million="9" if arguments.model == "deepseek-v4-flash" else "27",
+                    input_per_million="3" if arguments.model in ("deepseek-flash", "deepseek-v4-flash") else "9",
+                    output_per_million="9" if arguments.model in ("deepseek-flash", "deepseek-v4-flash") else "27",
                     max_calls=24,max_input_bytes=524288,max_output_tokens=arguments.max_output_tokens)
                 adapter=NativeAuditAdapter({'deep_think_llm':arguments.model,'quick_think_llm':arguments.model,
                     'reasoning_effort':arguments.reasoning_effort},live=True,budget=budget)

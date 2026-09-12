@@ -209,8 +209,8 @@ class NativeAuditAdapter:
         request_snapshot = _json_safe(request)
         root = Path(output_root)
         config = deepcopy(DEFAULT_CONFIG)
-        config.update({"llm_provider": "deepseek", "deep_think_llm": "deepseek-v4-pro",
-                       "quick_think_llm": "deepseek-v4-pro", "backend_url": None})
+        config.update({"llm_provider": "deepseek", "deep_think_llm": "deepseek-flash",
+                       "quick_think_llm": "deepseek-flash", "backend_url": None})
         config.update(self._config)
         config.update({
             "output_language": "简体中文", "llm_max_retries": 0,

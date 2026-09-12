@@ -88,6 +88,9 @@ class ResearchThesis:
     horizon_months: int = 12
     sources: dict | None = None
     review: bool = True
+    hypotheses: tuple[str, ...] = ()
+    research_constraints: tuple[str, ...] = ()
+    user_view: str | None = None
 
     def __post_init__(self):
         RunTradingBaseline(self.symbol, self.as_of)
@@ -97,6 +100,21 @@ class ResearchThesis:
             raise ValueError("RESEARCH_HORIZON_INVALID")
         if type(self.review) is not bool or (self.sources is not None and type(self.sources) is not dict):
             raise ValueError("THESIS_OPTIONS_INVALID")
+        for values in (self.hypotheses, self.research_constraints):
+            if (type(values) is not tuple or len(values) > 5
+                    or any(type(v) is not str or not 1 <= len(v.strip()) <= 1000 for v in values)):
+                raise ValueError("THESIS_RESEARCH_CONTEXT_INVALID")
+        if self.user_view is not None and (type(self.user_view) is not str
+                or not 1 <= len(self.user_view.strip()) <= 1000):
+            raise ValueError("THESIS_USER_VIEW_INVALID")
+
+
+def thesis_request(command):
+    return {"symbol": command.symbol, "as_of": command.as_of.isoformat(),
+            "question": command.question, "horizon_months": command.horizon_months,
+            "data_mode": "FROZEN_SOURCES" if command.sources is not None else "LIVE_VENDOR",
+            "hypotheses": list(command.hypotheses),
+            "research_constraints": list(command.research_constraints), "user_view": command.user_view}
 
 
 @dataclass(frozen=True, slots=True)

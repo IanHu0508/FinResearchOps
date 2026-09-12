@@ -11,6 +11,25 @@ from finauditgate.adapters.model_http import model_http_client
 
 
 class DeepSeekWireTest(unittest.TestCase):
+    def test_flash_json_request_preserves_exact_model_and_thinking_effort(self):
+        captured = []
+        def handle(request):
+            captured.append(json.loads(request.content))
+            return httpx.Response(200, json={"id": "offline", "object": "chat.completion", "created": 0,
+                "model": "deepseek-flash", "choices": [{"index": 0,
+                "message": {"role": "assistant", "content": '{"ok":true}'}, "finish_reason": "stop"}],
+                "usage": {"prompt_tokens": 5, "completion_tokens": 4, "total_tokens": 9}})
+        with patch.dict(os.environ, {"DEEPSEEK_API_KEY": "synthetic-offline-key"}), \
+                model_http_client("deepseek", 64, transport=httpx.MockTransport(handle), reasoning_effort="max") as http:
+            llm = create_llm_client("deepseek", "deepseek-flash", max_tokens=64,
+                                   max_retries=0, http_client=http).get_llm()
+            result = llm.bind(response_format={"type": "json_object"}).invoke('Return JSON {"ok":true}.')
+        self.assertTrue(json.loads(result.content)["ok"])
+        self.assertEqual("deepseek-flash", captured[0]["model"])
+        self.assertEqual({"type": "json_object"}, captured[0]["response_format"])
+        self.assertEqual("max", captured[0]["reasoning_effort"])
+        self.assertEqual(64, captured[0]["max_tokens"])
+
     def test_new_client_for_update_does_not_overwrite_prior_wire_record(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

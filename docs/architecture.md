@@ -2,11 +2,28 @@
 
 The main research path crosses `handle(ResearchThesis(...))` and `read_case`.
 Its instance-local protocol keeps native graph routing while isolating initial
-drafts, limiting round-two discussion to sealed first drafts, and rebuilding
-the final assessment without upstream ratings or trader-authored thresholds. Original vendor fields remain
+drafts, limiting round-two discussion to sealed first drafts, and obtaining
+source-only independent underwriting before the portfolio manager sees peer
+opinions. Within the same portfolio-manager node, a separate forward draft
+proposes business-driven annual earnings/cash assumptions without seeing the
+independent rating or beliefs. The core calculates the profit/attribution/EPS
+and cash bridges, then conditional earnings-multiple prices and cumulative
+returns. The final judge receives the exact draft and results alongside independent
+beliefs and research/risk analysis, without the initial rating, summary or
+prewritten trigger fields. It assesses each forecast path and updates each
+belief; rating comparison is computed afterwards. Explicitly tagged
+sensitivity notes appear only in the report appendix and post-report review,
+never in a rating request. Untagged legacy
+sources are not semantically filtered. Original vendor fields remain
 available. The Application persists the main Case before the optional data
 review Agent, which receives the exact saved report text; review failure does not revoke the main opinion. FinAuditGate is
 an independent optional financial component, not this path's admission gate.
+The calculator is an ordinary operating-company arithmetic tool, not a
+valuation engine, assumption certifier or rating gate. Missing inputs preserve
+the calculations that remain possible. Dates, earnings denominator and ADS/FX
+units are explicit; no net cash is added to capitalized parent earnings. The
+Application verifies that the final model received the recomputed results and
+renders assumptions, source labels and final acceptance/rejection separately.
 See [thesis-research](thesis-research.md). The mechanisms below describe retained
 financial investigation and restricted audit routes.
 
@@ -203,3 +220,8 @@ CLI needs and is a candidate for later simplification; it is fully tested.
   fixes one workspace anchor and mixed workspaces are rejected.
 - The core is standard-library only. The local runtime is an external
   application, not a Python dependency.
+
+Research thesis requests distinguish substantive hypotheses and research constraints
+from an explicitly recorded user view. The latter remains in the Case/report but
+is excluded from the main model request projection. Free text is not automatically
+rewritten or certified as neutral; see [the input contract](thesis-research.md).

@@ -1,0 +1,71 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "FrozenThesisSources",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "symbol",
+    "as_of",
+    "identity",
+    "sources"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "finresearchops.thesis-sources/v2"
+    },
+    "symbol": {
+      "type": "string"
+    },
+    "as_of": {
+      "type": "string",
+      "format": "date"
+    },
+    "identity": {
+      "type": "object"
+    },
+    "sources": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 48,
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "origin",
+          "availability_note",
+          "content",
+          "sha256",
+          "use"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "origin": {
+            "type": "string",
+            "minLength": 1
+          },
+          "availability_note": {
+            "type": "string",
+            "minLength": 1
+          },
+          "content": {
+            "type": "string",
+            "minLength": 1
+          },
+          "sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "use": {
+            "enum": [
+              "research",
+              "sensitivity"
+            ]
+          }
+        }
+      }
+    }
+  }
+}

@@ -11,14 +11,16 @@ from finauditgate.adapters.tradingagents_native import (
     REPORT_FIELDS, UPSTREAM_COMMIT, _capture_handler, _topology,
 )
 from finauditgate.core.artifacts import canonical_json_bytes, sha256_hex, write_once
+from finauditgate.research import thesis_request
 
 
 class ThesisResearcher:
-    def __init__(self, *, model="deepseek-v4-pro", live=False, budget=None, reasoning_effort="high", resume_from=None):
+    def __init__(self, *, model="deepseek-flash", live=False, budget=None, reasoning_effort="high", resume_from=None, reassess_final=False):
         if live and budget is None:
             raise ValueError("THESIS_LIVE_BUDGET_REQUIRED")
         self.model, self.live, self.budget, self.effort = model, live, budget, reasoning_effort
         self.resume_from = resume_from
+        self.reassess_final = reassess_final
 
     def run_thesis(self, command, output_root, *, save_main):
         from langsmith import tracing_context
@@ -28,17 +30,15 @@ class ThesisResearcher:
         if version("tradingagents") != "0.4.0":
             raise ValueError("NATIVE_UPSTREAM_VERSION_MISMATCH")
         root = Path(output_root)
-        request = {"symbol": command.symbol, "as_of": command.as_of.isoformat(),
-                   "question": command.question, "horizon_months": command.horizon_months,
-                   "data_mode": "FROZEN_SOURCES" if command.sources is not None else "LIVE_VENDOR"}
+        request = thesis_request(command)
         bundle = deepcopy(command.sources) if command.sources is not None else {
-            "schema_version": "finresearchops.thesis-sources/v1", "symbol": request["symbol"],
+            "schema_version": "finresearchops.thesis-sources/v2", "symbol": request["symbol"],
             "as_of": request["as_of"], "identity": {}, "sources": []}
         if command.sources is not None:
             validate_sources(bundle, request)
         if self.resume_from is not None and command.sources is None:
             raise ValueError("THESIS_RESUME_REQUIRES_FROZEN_SOURCES")
-        completed = CompletedCalls(self.resume_from, request, bundle, self.model)
+        completed = CompletedCalls(self.resume_from, request, bundle, self.model, reassess_final=self.reassess_final)
         write_once(root / "request.json", canonical_json_bytes({"request": request, "sources": bundle}))
         trace_root = root / "model-traces"
         capture = _capture_handler(self.budget if self.live else None, trace_root)
@@ -84,9 +84,14 @@ class ThesisResearcher:
                 if _topology(graph.graph) != before:
                     raise ValueError("THESIS_TOPOLOGY_CHANGED")
                 graph.graph = graph.graph.with_config(callbacks=[capture], max_concurrency=1)
-                state, signal = graph.propagate(command.symbol, command.as_of.isoformat())
+                state, upstream_signal = graph.propagate(command.symbol, command.as_of.isoformat())
+                signal = session.final["decision"]["rating"]
+                write_once(root / "native-signal.json", canonical_json_bytes({
+                    "upstream_text_extraction": upstream_signal, "structured_final_rating": signal,
+                    "selection": "STRUCTURED_FINAL_DECISION"}))
                 validate_sources(session.bundle, request)
-                record = {"schema_version": "finresearchops.thesis-case/v1", "request": request,
+                record = {"schema_version": "finresearchops.thesis-case/v10", "request": request,
+                    "sensitivity_policy": "DECLARED_SCENARIOS_REPORT_ONLY",
                     "status": "COMPLETED", "review_status": "AWAITING_REVIEW", "upstream_commit": UPSTREAM_COMMIT,
                     "runtime_kind": "REAL_MODEL" if live else "OFFLINE_SYNTHETIC", "model": self.model,
                     "source_bundle": session.bundle, "topology": before,
@@ -94,6 +99,11 @@ class ThesisResearcher:
                     "initial": session.initial, "revisions": session.revisions,
                     "updated_claims": session.updated_claims(), "research_evaluation": session.research,
                     "execution_review": session.execution, "risk_briefs": session.risks,
+                    "independent_assessment": session.independent,
+                    "forward_draft": session.forward_draft, "forward_calculations": session.forward_calculations,
+                    "rating_comparison": {"before": session.independent["decision"]["rating"],
+                        "after": session.final["decision"]["rating"],
+                        "changed": session.independent["decision"]["rating"] != session.final["decision"]["rating"]},
                     "final_assessment": session.final, "exchanges": session.exchanges,
                     "model_calls": capture.model_calls, "tool_calls": capture.tool_calls,
                     "budget": self.budget.receipt() if live else None,

@@ -29,10 +29,12 @@ class _State(TypedDict, total=False):
 
 
 class TradingAgentsResearcher:
-    def __init__(self, *, provider="deepseek", model="deepseek-v4-pro", trace_root,
+    def __init__(self, *, provider="deepseek", model="deepseek-flash", trace_root,
                  budget=None, client=None, reasoning_effort=None, synthesis_effort=None):
         self.provider, self.model = provider, model
-        self.budget = budget or ModelBudget()
+        flash = provider == "deepseek" and model in ("deepseek-flash", "deepseek-v4-flash")
+        self.budget = budget or ModelBudget(input_per_million="3" if flash else "9",
+                                          output_per_million="9" if flash else "27")
         self.reasoning_effort = reasoning_effort
         self.synthesis_effort = synthesis_effort
         self.trace_root = Path(trace_root)

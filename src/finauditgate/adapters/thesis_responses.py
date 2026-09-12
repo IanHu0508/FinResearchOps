@@ -23,11 +23,20 @@ def response_candidate(outputs, kind):
         raise ValueError("THESIS_RESPONSE_COUNT_INVALID")
     text = outputs[0]["content"]
     try:
-        return json.loads(text)
+        candidate = json.loads(text)
     except json.JSONDecodeError:
         if kind != "ResearchEvaluation":
             raise
         return _research_markdown(text)
+    if (kind == "ResearchEvaluation" and isinstance(candidate, dict)
+            and isinstance(candidate.get("plan"), dict)
+            and "valuation_basis_and_gaps" in candidate["plan"]):
+        if "valuation_basis_and_gaps" in candidate:
+            raise ValueError("THESIS_RESEARCH_FIELD_LOCATION_CONFLICT")
+        # Observed Flash layout: move this uniquely named field verbatim.
+        # Never fill a missing value or choose between competing versions.
+        candidate["valuation_basis_and_gaps"] = candidate["plan"].pop("valuation_basis_and_gaps")
+    return candidate
 
 
 def _research_markdown(text):
@@ -61,10 +70,12 @@ class CompletedCalls:
     financial judgment. Original request/response IDs and receipts are kept.
     """
 
-    def __init__(self, root, request, sources, model):
+    def __init__(self, root, request, sources, model, *, reassess_final=False):
         self.rows = []
         self.used = 0
         self.receipt = None
+        if reassess_final and root is None:
+            raise ValueError("THESIS_REASSESS_REQUIRES_RESUME")
         if root is None:
             return
         root = Path(root)
@@ -85,7 +96,12 @@ class CompletedCalls:
             ("Bull Researcher", "RevisionBrief"), ("Bear Researcher", "RevisionBrief"),
             ("Research Manager", "ResearchEvaluation"), ("Trader", "ExecutionReview"),
             ("Aggressive Analyst", "RiskBrief"), ("Conservative Analyst", "RiskBrief"),
-            ("Neutral Analyst", "RiskBrief"), ("Portfolio Manager", "FinalAssessment")]
+            ("Neutral Analyst", "RiskBrief"), ("Portfolio Manager", "IndependentAssessment"),
+            ("Portfolio Manager", "UnderwritingDraft"), ("Portfolio Manager", "FinalAssessment")]
+        if reassess_final:
+            # Preserve the completed forward proposal, recalculate it, and get
+            # a fresh final judgment. Do not redraw assumptions to repair prose.
+            stages = stages[:11]
         for row, (node, kind) in zip(data["model_calls"], stages):
             if row.get("error_type") or not row.get("output"):
                 break
