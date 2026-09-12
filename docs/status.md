@@ -3,7 +3,47 @@
 > Updated 2026-09-12. This file is the only public status source; other
 > documents describe mechanisms and link here.
 
-## Current slice: explicit research context and full-report checks — 2026-09-12
+## Current slice: bounded forecast correction and compact final reporting — 2026-09-12
+
+The v10 source checkpoint was published as `0496ad0`. The v11 correction/reporting
+implementation and bounded checks are `COMPLETED`; financial judgment reliability
+and general truncation robustness remain `PARTIAL`. The native 16-node / 30-edge
+graph remains. One ForwardRevision inside the portfolio manager applies explicit
+field changes, preserves the original proposal, and recomputes before a compact
+FinalResearchReport. An empty change list preserves the original inputs/results.
+Published v1/v2/v10 readers remain compatible; v10 report bytes are unchanged.
+
+Main tables and metric references use the same effective results, with complete
+labels, units and periods. Effective share-count, FX, dividends, cash adjustments
+and other assumptions are displayed in the main report. Full original proposals
+and old process prose remain in a separately checked appendix. This binding does
+not certify free-text historical facts, economic interpretations or assumptions.
+
+Only a confirmed truncated final report may retry once at high effort after max,
+under the same output ceiling and accumulated budget. SDK failure bodies and
+provider usage/reasoning details are retained when available. Failed responses
+cannot be reused as valid outputs; semantically incomplete correction/report
+responses also stop prefix reuse. The recovery policy is tested offline and does
+not imply identical reasoning depth.
+
+Three bounded live checks completed. The known incorrect minority-attribution
+proposal was corrected and recalculated; its changed amount remains an analyst
+assumption, so effects cannot all be credited to sign correction. The previously
+twice-truncated case completed its new final report on the first max/65K attempt.
+A fresh synthetic full workflow required no corrections. Both issuer checks reused
+eleven original responses without redrawing forecasts; presentation refinement
+then reused thirteen valid responses per report with no new main model calls.
+This is not a general completion-rate, bias-reduction or financial-accuracy claim.
+
+378 core tests and 85 integration checks pass; 34 bounded artifact checks meet the
+listed conditions. Eighteen new API requests have a configured-rate estimate of
+CNY4.039467, with no missing usage in this slice, not a provider invoice. Historical
+prose still has identified attribution and measurement limits, and the simplified
+annual earnings bridge does not model every common-equity adjustment. These
+limits remain visible; no trading, deployment or Daily Investment integration
+was introduced.
+
+## Previous slice: explicit research context and full-report checks — 2026-09-12
 
 The implementation and bounded check activity are complete; full three-condition
 report comparison and operational/financial reliability remain `PARTIAL`. Case

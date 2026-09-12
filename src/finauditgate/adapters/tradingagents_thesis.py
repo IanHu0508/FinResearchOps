@@ -15,12 +15,15 @@ from finauditgate.research import thesis_request
 
 
 class ThesisResearcher:
-    def __init__(self, *, model="deepseek-flash", live=False, budget=None, reasoning_effort="high", resume_from=None, reassess_final=False):
+    def __init__(self, *, model="deepseek-flash", live=False, budget=None, reasoning_effort="high", resume_from=None, reassess_final=False, protocol_version=11):
         if live and budget is None:
             raise ValueError("THESIS_LIVE_BUDGET_REQUIRED")
         self.model, self.live, self.budget, self.effort = model, live, budget, reasoning_effort
         self.resume_from = resume_from
         self.reassess_final = reassess_final
+        if protocol_version not in (10, 11):
+            raise ValueError("THESIS_PROTOCOL_VERSION_INVALID")
+        self.protocol_version = protocol_version
 
     def run_thesis(self, command, output_root, *, save_main):
         from langsmith import tracing_context
@@ -38,7 +41,8 @@ class ThesisResearcher:
             validate_sources(bundle, request)
         if self.resume_from is not None and command.sources is None:
             raise ValueError("THESIS_RESUME_REQUIRES_FROZEN_SOURCES")
-        completed = CompletedCalls(self.resume_from, request, bundle, self.model, reassess_final=self.reassess_final)
+        completed = CompletedCalls(self.resume_from, request, bundle, self.model, reassess_final=self.reassess_final,
+                                   protocol_version=self.protocol_version)
         write_once(root / "request.json", canonical_json_bytes({"request": request, "sources": bundle}))
         trace_root = root / "model-traces"
         capture = _capture_handler(self.budget if self.live else None, trace_root)
@@ -72,6 +76,7 @@ class ThesisResearcher:
                     return build_instrument_context(ticker, asset_type, bundle["identity"])
                 return super().resolve_instrument_context(ticker, asset_type)
 
+        session = None
         try:
             with tracing_context(enabled=False):
                 graph = ResearchGraph(selected_analysts=["fundamentals", "market"], config=config, callbacks=[capture])
@@ -79,18 +84,19 @@ class ThesisResearcher:
                                        in (graph.quick_thinking_llm, graph.deep_thinking_llm)):
                     raise ValueError("NATIVE_OFFLINE_RUNTIME_REQUIRED")
                 before = _topology(graph.graph)
-                session = ThesisSession(request, bundle, graph.deep_thinking_llm, completed=completed, capture=capture)
+                session = ThesisSession(request, bundle, graph.deep_thinking_llm, completed=completed, capture=capture,
+                                        protocol_version=self.protocol_version, budget=self.budget)
                 session.install(graph)
                 if _topology(graph.graph) != before:
                     raise ValueError("THESIS_TOPOLOGY_CHANGED")
                 graph.graph = graph.graph.with_config(callbacks=[capture], max_concurrency=1)
                 state, upstream_signal = graph.propagate(command.symbol, command.as_of.isoformat())
-                signal = session.final["decision"]["rating"]
+                signal = session.final["decision"]["rating"] if self.protocol_version == 10 else session.final["rating"]
                 write_once(root / "native-signal.json", canonical_json_bytes({
                     "upstream_text_extraction": upstream_signal, "structured_final_rating": signal,
                     "selection": "STRUCTURED_FINAL_DECISION"}))
                 validate_sources(session.bundle, request)
-                record = {"schema_version": "finresearchops.thesis-case/v10", "request": request,
+                record = {"schema_version": f"finresearchops.thesis-case/v{self.protocol_version}", "request": request,
                     "sensitivity_policy": "DECLARED_SCENARIOS_REPORT_ONLY",
                     "status": "COMPLETED", "review_status": "AWAITING_REVIEW", "upstream_commit": UPSTREAM_COMMIT,
                     "runtime_kind": "REAL_MODEL" if live else "OFFLINE_SYNTHETIC", "model": self.model,
@@ -102,12 +108,18 @@ class ThesisResearcher:
                     "independent_assessment": session.independent,
                     "forward_draft": session.forward_draft, "forward_calculations": session.forward_calculations,
                     "rating_comparison": {"before": session.independent["decision"]["rating"],
-                        "after": session.final["decision"]["rating"],
-                        "changed": session.independent["decision"]["rating"] != session.final["decision"]["rating"]},
+                        "after": signal,
+                        "changed": session.independent["decision"]["rating"] != signal},
                     "final_assessment": session.final, "exchanges": session.exchanges,
                     "model_calls": capture.model_calls, "tool_calls": capture.tool_calls,
                     "budget": self.budget.receipt() if live else None,
                     "financial_gate": "NOT_REQUIRED", "automatic_trading": False}
+                if self.protocol_version == 11:
+                    record.pop("final_assessment")
+                    record.update(final_report=session.final, forward_revision=session.forward_revision,
+                        effective_forward_draft=session.effective_forward_draft,
+                        effective_forward_calculations=session.effective_forward_calculations,
+                        applied_changes=session.applied_changes, final_generation=session.final_generation)
                 if completed.receipt is not None:
                     record["reused_calls"] = {**completed.receipt, "used_calls": completed.used}
                 # Break every reference to the mutable session/callback lists
@@ -139,4 +151,5 @@ class ThesisResearcher:
                 "budget": self.budget.receipt() if live else None,
                 "reused_calls": {**completed.receipt, "used_calls": completed.used} if completed.receipt else None,
                 "model_calls": capture.model_calls, "tool_calls": capture.tool_calls,
-                "node_calls": capture.node_calls}))
+                "node_calls": capture.node_calls,
+                "final_generation": session.final_generation if session is not None else []}))

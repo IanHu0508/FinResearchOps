@@ -153,6 +153,28 @@ def _capture_handler(budget=None, trace_root=None):
 
         def on_llm_error(self, error, *, run_id, **kwargs):
             self._end(self._models, run_id, error_type=type(error).__name__)
+            key = str(run_id)
+            row = self._models.get(key)
+            if row is None or "failure_response" in row:
+                return
+            try:
+                from finauditgate.adapters.model_failure import completion_failure
+
+                failure = completion_failure(error)
+                if failure is None:
+                    return
+                # A parse error can carry a full SDK completion. Keep it as
+                # failure evidence, never as a successful/reusable output.
+                self._end(self._models, run_id, failure_response=failure)
+                if budget is not None:
+                    budget.record_usage(failure["usage"] or {}, truncated=failure["truncated"])
+                    write_once(trace_root / f"call-{self._numbers[key]:03d}-failure-response.json",
+                        canonical_json_bytes({"schema_version": "finresearchops.native-failure-response/v1",
+                            "error_type": type(error).__name__, "failure_response": failure,
+                            "budget": budget.receipt()}))
+            except Exception as capture_error:
+                # Recording trouble must not replace the original SDK error.
+                self._end(self._models, run_id, failure_capture_error_type=type(capture_error).__name__)
 
         def on_tool_start(self, serialized, input_str, *, run_id, metadata=None,
                           inputs=None, **kwargs):

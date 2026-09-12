@@ -168,7 +168,7 @@ def _parser() -> argparse.ArgumentParser:
     thesis.add_argument("--sources", type=Path, help="Optional private frozen source bundle; without it native vendor tools are used.")
     thesis.add_argument("--no-review", action="store_true", help="Skip the post-report data review Agent; main research is unchanged.")
     thesis.add_argument("--resume-execution", type=Path, help="Reuse an interrupted frozen-source execution's exact completed model inputs/outputs.")
-    thesis.add_argument("--reassess-final", action="store_true", help="With --resume-execution, preserve the exact completed prefix through forward assumptions, recalculate them, then obtain a new final assessment and optional review.")
+    thesis.add_argument("--reassess-final", action="store_true", help="With --resume-execution, preserve the completed prefix through the current protocol's parameter revision, recalculate, and regenerate only the final report and optional review.")
     _add_research_model_options(thesis, synthesis=False)
     thesis.set_defaults(max_spend_cny="unlimited", max_output_tokens=65536, reasoning_effort="max")
     return parser

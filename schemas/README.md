@@ -12,8 +12,8 @@ replays them (`src/finauditgate/core/engine.py`).
 
 ## TradingAgents research artifacts
 
-The main research path writes `finresearchops.thesis-case/v10`
-(`thesis-case.v10.schema.json`); existing v1/v2 remain readable without rewriting
+The main research path writes `finresearchops.thesis-case/v11`
+(`thesis-case.v11.schema.json`); published v1/v2/v10 remain readable without rewriting
 their reports. V10 retains the v9 model-proposed forward draft and deterministic
 earnings/cash/conditional-return results that reach the final judge before its
 rating. Forecast assumptions and scenario acceptance are visible separately.
@@ -141,3 +141,8 @@ Full behavior and limits: [cash-flow investigation](../docs/cashflow-investigati
 |---|---|
 | execution pair | `finresearchops.paired-execution/v2` |
 | human QA record | `finresearchops.paired-human-qa/v1` |
+
+V11 retains the original forward proposal and adds one explicit revision, effective
+inputs/computation, program-bound metric references and final-generation recovery
+records. The process appendix is separate from current conclusions. V10 remains
+a published compatibility format; its reader and rendering are unchanged.

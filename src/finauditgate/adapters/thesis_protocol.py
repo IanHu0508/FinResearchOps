@@ -334,11 +334,16 @@ class _PreparedReply:
 
 
 class ThesisSession:
-    def __init__(self, request, source_bundle, model, *, completed=None, capture=None):
+    def __init__(self, request, source_bundle, model, *, completed=None, capture=None, protocol_version=10, budget=None):
         self.request = deepcopy(request)
         self.bundle = deepcopy(source_bundle)
         self.model = model
         self.types = schemas()
+        self.protocol_version, self.budget = protocol_version, budget
+        if protocol_version == 11:
+            from finauditgate.adapters.thesis_correction import correction_schemas
+            self.types.update(correction_schemas(self.types))
+        self.final_generation = []
         self.initial = {}
         self.revisions = {}
         self.risks = {}
@@ -373,12 +378,35 @@ class ThesisSession:
             raw, prompt = reused
         else:
             model = self.model
-            if kind in ("IndependentAssessment", "UnderwritingDraft", "FinalAssessment", "DataReview") and hasattr(model, "reasoning_effort"):
+            if kind in ("IndependentAssessment", "UnderwritingDraft", "FinalAssessment", "ForwardRevision", "FinalResearchReport", "DataReview") and hasattr(model, "reasoning_effort"):
                 model = model.model_copy(update={"reasoning_effort": "max"})
-            response = model.with_structured_output(self.types[kind], method="json_mode", include_raw=True).invoke(prompt, config=config)
+            for attempt in range(2 if kind == "FinalResearchReport" else 1):
+                effort = "max" if attempt == 0 else "high"
+                if attempt and hasattr(model, "reasoning_effort"):
+                    model = model.model_copy(update={"reasoning_effort": effort})
+                try:
+                    response = model.with_structured_output(self.types[kind], method="json_mode", include_raw=True).invoke(prompt, config=config)
+                except Exception as exc:
+                    if kind != "FinalResearchReport":
+                        raise
+                    failure = self.capture.model_calls[-1].get("failure_response", {}) if self.capture and self.capture.model_calls else {}
+                    truncated = failure.get("truncated") is True
+                    self.final_generation.append({"attempt": attempt + 1, "reasoning_effort": effort,
+                        "status": "TRUNCATED" if truncated else "FAILED", "error_type": type(exc).__name__})
+                    permitted = truncated and attempt == 0 and (self.budget is None or self.budget.allow_truncated_retry())
+                    if not permitted:
+                        raise
+                    continue
+                if kind == "FinalResearchReport":
+                    self.final_generation.append({"attempt": attempt + 1, "reasoning_effort": effort,
+                        "status": "COMPLETED", "response_id": response["raw"].id})
+                break
             if not isinstance(response, dict) or response.get("raw") is None:
                 raise ValueError("THESIS_STRUCTURED_RESPONSE_REQUIRED")
             raw = response["raw"]
+        if reused is not None and kind == "FinalResearchReport":
+            self.final_generation = [{"status": "REUSED", "response_id": raw.id,
+                "prior_final_generation": deepcopy(self.completed.receipt.get("prior_final_generation"))}]
         # Some providers split one schema into multiple tool calls. Require
         # disjoint fields, then validate the full schema without filling gaps.
         candidate = response_candidate([{"content": raw.content, "tool_calls": raw.tool_calls}], kind)
@@ -497,6 +525,10 @@ class ThesisSession:
                 if self.forward_draft["valuation_date"] != valuation_date_for(self.request["as_of"], self.request["horizon_months"]):
                     raise ValueError("THESIS_FORWARD_HORIZON_MISMATCH")
                 self.forward_calculations = calculate_forward(self.forward_draft)
+                if self.protocol_version == 11:
+                    from finauditgate.adapters.thesis_correction import complete_corrected_report
+                    text = complete_corrected_report(self, node, config)
+                    return factories[node](_PreparedReply(text, None))(state)
                 payload["source_bundle"] = source_view(self.bundle)
                 payload["independent_beliefs"] = belief_view(self.independent)
                 payload["updated_claims"] = claim_view(self.updated_claims())

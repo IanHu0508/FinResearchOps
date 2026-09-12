@@ -70,7 +70,7 @@ class CompletedCalls:
     financial judgment. Original request/response IDs and receipts are kept.
     """
 
-    def __init__(self, root, request, sources, model, *, reassess_final=False):
+    def __init__(self, root, request, sources, model, *, reassess_final=False, protocol_version=10):
         self.rows = []
         self.used = 0
         self.receipt = None
@@ -92,23 +92,52 @@ class CompletedCalls:
                 raise ValueError("THESIS_RESUME_MODEL_MISMATCH")
         from finauditgate.adapters.thesis_protocol import schemas
         types = schemas()
+        if protocol_version == 11:
+            from finauditgate.adapters.thesis_correction import correction_schemas
+            types.update(correction_schemas(types))
         stages = [("Bull Researcher", "InitialBrief"), ("Bear Researcher", "InitialBrief"),
             ("Bull Researcher", "RevisionBrief"), ("Bear Researcher", "RevisionBrief"),
             ("Research Manager", "ResearchEvaluation"), ("Trader", "ExecutionReview"),
             ("Aggressive Analyst", "RiskBrief"), ("Conservative Analyst", "RiskBrief"),
             ("Neutral Analyst", "RiskBrief"), ("Portfolio Manager", "IndependentAssessment"),
             ("Portfolio Manager", "UnderwritingDraft"), ("Portfolio Manager", "FinalAssessment")]
+        if protocol_version == 11:
+            stages[-1:] = [("Portfolio Manager", "ForwardRevision"), ("Portfolio Manager", "FinalResearchReport")]
         if reassess_final:
             # Preserve the completed forward proposal, recalculate it, and get
             # a fresh final judgment. Do not redraw assumptions to repair prose.
-            stages = stages[:11]
-        for row, (node, kind) in zip(data["model_calls"], stages):
+            stages = stages[:-1]
+        # Failed attempts remain in their original receipt, never in reused outputs.
+        successful = (r for r in data["model_calls"] if not r.get("error_type"))
+        for row, (node, kind) in zip(successful, stages):
             if row.get("error_type") or not row.get("output"):
                 break
             if row["node"] != node:
                 raise ValueError("THESIS_RESUME_STAGE_ORDER_INVALID")
             try:
-                types[kind].model_validate(response_candidate(row["output"], kind))
+                parsed = types[kind].model_validate(response_candidate(row["output"], kind)).model_dump(mode="json")
+                if protocol_version == 11:
+                    from finauditgate.adapters.thesis_protocol import check_refs, source_view
+                    check_refs(parsed, {s["id"] for s in source_view(sources)["sources"]})
+                    payload = json.loads(row["messages"][0][1]["content"])
+                    if kind == "ForwardRevision":
+                        from finauditgate.core.forward_revision import apply_forward_revision
+                        apply_forward_revision(payload["forward_draft"], parsed["changes"])
+                        for key, field, expected in (
+                                ("claim_assessments", "claim_id", [c["id"] for c in payload["updated_claims"]]),
+                                ("belief_updates", "belief_id", [b["belief_id"] for b in payload["independent_beliefs"]])):
+                            if len(parsed[key]) != len(expected) or {r[field] for r in parsed[key]} != set(expected):
+                                raise ValueError("THESIS_RESUME_INCOMPLETE_REVISION")
+                        if any((u["status"] == "revise") != bool(u["new_statement"]) for u in parsed["belief_updates"]):
+                            raise ValueError("THESIS_RESUME_INCOMPLETE_REVISION")
+                    if kind == "FinalResearchReport":
+                        from finauditgate.application.research_numbers import render_research_block
+                        for block in (parsed["summary"], *parsed["financial_analysis"].values(), parsed["strongest_counterevidence"]):
+                            render_research_block(block, payload["effective_forward_draft"], payload["effective_forward_calculations"])
+                        expected = [s["scenario_id"] for s in payload["effective_forward_draft"]["scenarios"]]
+                        given = parsed["scenario_assessments"]
+                        if len(given) != len(expected) or {r["scenario_id"] for r in given} != set(expected):
+                            raise ValueError("THESIS_RESUME_INCOMPLETE_REPORT")
             except (ValueError, TypeError, KeyError):
                 # A returned but incomplete schema is paid evidence, not a
                 # completed step. Keep its original receipt; recompute here.
@@ -118,6 +147,8 @@ class CompletedCalls:
             raise ValueError("THESIS_RESUME_NO_COMPLETED_PREFIX")
         self.receipt = {"runtime_sha256": sha256_hex(raw), "available_calls": len(self.rows),
                         "prior_budget": data["budget"], "prior_reuse": data.get("reused_calls")}
+        if protocol_version == 11:
+            self.receipt["prior_final_generation"] = data.get("final_generation")
 
     def take(self, node, prompts, capture):
         if self.used == len(self.rows):

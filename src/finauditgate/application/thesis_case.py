@@ -20,6 +20,9 @@ STATUS = {"maintain": "维持", "revise": "修改", "withdraw": "撤回", "unres
 
 def validate(record):
     """Check protocol receipt bindings without certifying the financial opinion."""
+    if isinstance(record, dict) and record.get("schema_version") == "finresearchops.thesis-case/v11":
+        from finauditgate.application.thesis_case_v11 import validate as validate_v11
+        return validate_v11(record)
     if (not isinstance(record, dict) or record.get("schema_version") not in ("finresearchops.thesis-case/v1", "finresearchops.thesis-case/v2", "finresearchops.thesis-case/v10")
             or record.get("status") != "COMPLETED" or record.get("review_status") != "AWAITING_REVIEW"
             or record.get("financial_gate") != "NOT_REQUIRED" or record.get("automatic_trading") is not False):
@@ -165,6 +168,9 @@ def validate(record):
 
 
 def render(record):
+    if record["schema_version"] == "finresearchops.thesis-case/v11":
+        from finauditgate.application.thesis_report_v11 import render as render_v11
+        return render_v11(record)
     final = record["final_assessment"]
     parts = ["# 投研观点与反证更新", "", f"{record['request']['symbol']} · {record['request']['as_of']} · {record['request']['horizon_months']}个月", "",
              "研究草稿，待人工复核；评级由本次模型分析产生。未连接交易执行。", "",
@@ -282,6 +288,9 @@ def run(application, command):
         write_once(directory / "case.json", raw)
         report = render(record)
         write_once(directory / "report.md", report)
+        if record["schema_version"] == "finresearchops.thesis-case/v11":
+            from finauditgate.application.thesis_report_v11 import render_process
+            write_once(directory / "process-record.md", render_process(record))
         write_once(directory / "report.html", ("<!doctype html><meta charset=utf-8><title>投研观点与反证更新</title>"
             "<style>body{max-width:960px;margin:48px auto;padding:0 24px;background:#faf9f6;color:#17242d;font:17px/1.75 system-ui}"
             "pre{white-space:pre-wrap;font:inherit}</style><pre>" + html.escape(report.decode()) + "</pre>").encode())
@@ -320,6 +329,10 @@ def load(application, case_ref):
         validate(record)
         if (directory / "report.md").read_bytes() != render(record):
             raise ValueError("THESIS_REPORT_CHANGED")
+        if record["schema_version"] == "finresearchops.thesis-case/v11":
+            from finauditgate.application.thesis_report_v11 import render_process
+            if (directory / "process-record.md").read_bytes() != render_process(record):
+                raise ValueError("THESIS_PROCESS_RECORD_CHANGED")
         review = {"schema_version": "finresearchops.thesis-review/v1", "main_sha256": case_ref[5:],
                   "status": "PARTIAL", "reason": "REVIEW_NOT_SAVED", "findings": []}
         if (directory / "review.json").exists():

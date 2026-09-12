@@ -23,6 +23,7 @@ class ModelBudget:
         self.calls = 0
         self.usage = []
         self._blocked = None
+        self._truncated_retry_used = False
 
     def reserve(self, prompt):
         if self._blocked:
@@ -58,6 +59,14 @@ class ModelBudget:
                         for x in self.usage), Decimal(0)) / Decimal(1000000)
         self.reserved = max(self.reserved, observed)
         return self._blocked is None
+
+    def allow_truncated_retry(self) -> bool:
+        """Permit one explicit recovery without resetting usage or any limit."""
+        if self._blocked != "MODEL_OUTPUT_TRUNCATED" or self._truncated_retry_used:
+            return False
+        self._blocked = None
+        self._truncated_retry_used = True
+        return True
 
     def receipt(self):
         complete = bool(self.usage) and len(self.usage) == self.calls and all(

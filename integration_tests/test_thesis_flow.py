@@ -184,7 +184,7 @@ class ThesisFlowTest(unittest.TestCase):
     def run_thesis(self, model=None, frozen=True, review=True, root=None, resume=None, reassess=False, sources=None, **context):
         model = model or ThesisLLM()
         command = ResearchThesis("AURORA", date(2026, 3, 2), "经营与价格是否支持投资？", sources=(sources or source_bundle()) if frozen else None, review=review, **context)
-        application = FinResearchOps(artifact_root=root or self.root, researcher=ThesisResearcher(resume_from=resume, reassess_final=reassess))
+        application = FinResearchOps(artifact_root=root or self.root, researcher=ThesisResearcher(resume_from=resume, reassess_final=reassess, protocol_version=10))
         with patched_native_runtime(model) as data, patch.object(application._gate, "run", side_effect=AssertionError("CORE_NOT_A_PREREQUISITE")):
             view = application.handle(command)
         return view, model, data
