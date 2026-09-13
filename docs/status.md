@@ -5,8 +5,10 @@
 
 ## Current slice: v13 source delivery and offline acceptance — 2026-09-13
 
-Local implementation and acceptance are `COMPLETED`; source publication and
-hosted CI are `PARTIAL` until the corresponding remote checks complete.
+Local implementation, source publication and hosted offline acceptance are
+`COMPLETED`. The v13 source was published as `c0d1df2`; its
+[GitHub CI run](https://github.com/IanHu0508/FinResearchOps/actions/runs/34767668669)
+passed both core/wheel and native-integration jobs.
 Financial accuracy, general report-completion reliability, bias reduction and
 benefit over a simpler analyst remain `PARTIAL`. A usable paired-report
 comparison has not been established; the current evidence does not show that
@@ -17,8 +19,10 @@ source package in the test workspace; all 66 installed Python modules match
 source bytes. Both the current main-workflow synthetic demo and its unbound-number
 negative control also run from the installed wheel in a fresh integration runtime.
 The example's model responses are scripted, not live model-effectiveness evidence.
-The offline CI workflow is prepared and syntax checked; hosted CI is not claimed
-before publication and an actual GitHub run. Live hosted results are available
+The hosted run passed 391 core tests, the same 391 tests from the isolated wheel,
+99 native integration tests, and the positive/negative main-workflow demos.
+Dependency preparation uses the network; test steps use an isolated network
+namespace with loopback only. Subsequent hosted results are available
 on the [Actions page](https://github.com/IanHu0508/FinResearchOps/actions/workflows/offline.yml).
 
 The public delivery contains the v13 implementation, regression checks, a
