@@ -340,9 +340,9 @@ class ThesisSession:
         self.model = model
         self.types = schemas()
         self.protocol_version, self.budget = protocol_version, budget
-        if protocol_version == 11:
+        if protocol_version >= 11:
             from finauditgate.adapters.thesis_correction import correction_schemas
-            self.types.update(correction_schemas(self.types))
+            self.types.update(correction_schemas(self.types, bound=protocol_version >= 13))
         self.final_generation = []
         self.initial = {}
         self.revisions = {}
@@ -393,7 +393,8 @@ class ThesisSession:
                     truncated = failure.get("truncated") is True
                     self.final_generation.append({"attempt": attempt + 1, "reasoning_effort": effort,
                         "status": "TRUNCATED" if truncated else "FAILED", "error_type": type(exc).__name__})
-                    permitted = truncated and attempt == 0 and (self.budget is None or self.budget.allow_truncated_retry())
+                    permitted = truncated and attempt == 0 and (self.budget is None or self.budget.allow_truncated_retry(
+                        confirmed_length=self.protocol_version >= 13))
                     if not permitted:
                         raise
                     continue
@@ -525,7 +526,7 @@ class ThesisSession:
                 if self.forward_draft["valuation_date"] != valuation_date_for(self.request["as_of"], self.request["horizon_months"]):
                     raise ValueError("THESIS_FORWARD_HORIZON_MISMATCH")
                 self.forward_calculations = calculate_forward(self.forward_draft)
-                if self.protocol_version == 11:
+                if self.protocol_version >= 11:
                     from finauditgate.adapters.thesis_correction import complete_corrected_report
                     text = complete_corrected_report(self, node, config)
                     return factories[node](_PreparedReply(text, None))(state)

@@ -24,6 +24,7 @@ class ModelBudget:
         self.usage = []
         self._blocked = None
         self._truncated_retry_used = False
+        self._last_truncated = False
 
     def reserve(self, prompt):
         if self._blocked:
@@ -44,6 +45,7 @@ class ModelBudget:
         return self.calls
 
     def record_usage(self, usage, *, truncated=False):
+        self._last_truncated = truncated
         clean = {}
         for key in ("input_tokens", "output_tokens", "total_tokens"):
             value = usage.get(key)
@@ -60,9 +62,14 @@ class ModelBudget:
         self.reserved = max(self.reserved, observed)
         return self._blocked is None
 
-    def allow_truncated_retry(self) -> bool:
+    def allow_truncated_retry(self, *, confirmed_length=False) -> bool:
         """Permit one explicit recovery without resetting usage or any limit."""
-        if self._blocked != "MODEL_OUTPUT_TRUNCATED" or self._truncated_retry_used:
+        # A provider can report a length-finished response slightly above the
+        # requested cap. The final-report caller may explicitly recover that
+        # confirmed failure once; actual usage, spend and all caps remain intact.
+        recoverable = self._blocked == "MODEL_OUTPUT_TRUNCATED" or (
+            confirmed_length and self._last_truncated and self._blocked == "MODEL_OUTPUT_LIMIT_VIOLATION")
+        if not recoverable or self._truncated_retry_used:
             return False
         self._blocked = None
         self._truncated_retry_used = True

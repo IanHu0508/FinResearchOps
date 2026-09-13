@@ -40,6 +40,27 @@ class ModelBudgetRetryTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "MODEL_OUTPUT_LIMIT_VIOLATION"):
             budget.reserve("second")
 
+    def test_explicit_confirmed_length_recovery_preserves_provider_overrun(self):
+        budget = ModelBudget(ceiling_cny=None, max_calls=2, max_output_tokens=65536)
+        budget.reserve("first")
+        usage = {"input_tokens": 100, "output_tokens": 65550, "total_tokens": 65650}
+        budget.record_usage(usage, truncated=True)
+        self.assertFalse(budget.allow_truncated_retry())
+        before = deepcopy(budget.receipt())
+        self.assertTrue(budget.allow_truncated_retry(confirmed_length=True))
+        self.assertEqual(before, budget.receipt())
+        self.assertEqual(2, budget.reserve("last allowed call"))
+        budget.record_usage(usage, truncated=True)
+        self.assertFalse(budget.allow_truncated_retry(confirmed_length=True))
+        self.assertEqual([usage, usage], budget.receipt()["usage"])
+        self.assertEqual(65536, budget.max_output_tokens)
+
+    def test_confirmation_cannot_unlock_a_non_length_overrun(self):
+        budget = ModelBudget(max_output_tokens=10)
+        budget.reserve("first")
+        budget.record_usage({"input_tokens": 1, "output_tokens": 11}, truncated=False)
+        self.assertFalse(budget.allow_truncated_retry(confirmed_length=True))
+
     def test_retry_is_still_subject_to_original_call_limit(self):
         budget = ModelBudget(max_calls=1, max_output_tokens=10)
         budget.reserve("first")

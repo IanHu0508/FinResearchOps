@@ -15,13 +15,13 @@ from finauditgate.research import thesis_request
 
 
 class ThesisResearcher:
-    def __init__(self, *, model="deepseek-flash", live=False, budget=None, reasoning_effort="high", resume_from=None, reassess_final=False, protocol_version=11):
+    def __init__(self, *, model="deepseek-flash", live=False, budget=None, reasoning_effort="high", resume_from=None, reassess_final=False, protocol_version=13):
         if live and budget is None:
             raise ValueError("THESIS_LIVE_BUDGET_REQUIRED")
         self.model, self.live, self.budget, self.effort = model, live, budget, reasoning_effort
         self.resume_from = resume_from
         self.reassess_final = reassess_final
-        if protocol_version not in (10, 11):
+        if protocol_version not in (10, 11, 13):
             raise ValueError("THESIS_PROTOCOL_VERSION_INVALID")
         self.protocol_version = protocol_version
 
@@ -114,7 +114,7 @@ class ThesisResearcher:
                     "model_calls": capture.model_calls, "tool_calls": capture.tool_calls,
                     "budget": self.budget.receipt() if live else None,
                     "financial_gate": "NOT_REQUIRED", "automatic_trading": False}
-                if self.protocol_version == 11:
+                if self.protocol_version >= 11:
                     record.pop("final_assessment")
                     record.update(final_report=session.final, forward_revision=session.forward_revision,
                         effective_forward_draft=session.effective_forward_draft,

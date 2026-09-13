@@ -12,8 +12,8 @@ replays them (`src/finauditgate/core/engine.py`).
 
 ## TradingAgents research artifacts
 
-The main research path writes `finresearchops.thesis-case/v11`
-(`thesis-case.v11.schema.json`); published v1/v2/v10 remain readable without rewriting
+The main research path writes `finresearchops.thesis-case/v13`
+(`thesis-case.v13.schema.json`); published v1/v2/v10/v11 remain readable without rewriting
 their reports. V10 retains the v9 model-proposed forward draft and deterministic
 earnings/cash/conditional-return results that reach the final judge before its
 rating. Forecast assumptions and scenario acceptance are visible separately.
@@ -146,3 +146,10 @@ V11 retains the original forward proposal and adds one explicit revision, effect
 inputs/computation, program-bound metric references and final-generation recovery
 records. The process appendix is separate from current conclusions. V10 remains
 a published compatibility format; its reader and rendering are unchanged.
+
+V13 adds `source_quotes`, `change_explanations` and `belief_explanations` to the
+final report, without changing the published financial-revision response schema.
+All current narrative fields use numerical references, including scenario reasons
+and limitations. Source excerpts are locatable, not certified fact records.
+V11 remains a published compatibility format. The unreleased v12 pilot and its
+reader snapshot remain private development evidence, not a public read branch.

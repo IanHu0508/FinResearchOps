@@ -1,0 +1,82 @@
+name: Offline acceptance
+
+'on':
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  core-and-wheel:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: finaudit-gate
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          path: finaudit-gate
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.12'
+      - name: Prepare environments and build wheel
+        run: |
+          python -m venv .venv
+          python -m pip wheel --no-deps --wheel-dir "$RUNNER_TEMP/wheel" .
+          python -m venv "$RUNNER_TEMP/installed"
+          "$RUNNER_TEMP/installed/bin/python" -m pip install --no-index --no-deps "$RUNNER_TEMP"/wheel/*.whl
+      - name: Core acceptance without external networking
+        run: |
+          sudo unshare --net -- sh -c 'ip link set lo up; exec "$@"' sh \
+            env PYTHONPATH=src .venv/bin/python -W error::ResourceWarning -m unittest discover -s tests
+      - name: Installed wheel acceptance without source imports
+        run: |
+          sudo unshare --net -- sh -c 'ip link set lo up; exec "$@"' sh \
+            .venv/bin/python scripts/verify_installed.py --python "$RUNNER_TEMP/installed/bin/python" \
+            --receipt "$RUNNER_TEMP/installed-check.json"
+
+  native-integration:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    defaults:
+      run:
+        working-directory: finaudit-gate
+    env:
+      LANGSMITH_TRACING: 'false'
+      LANGCHAIN_TRACING_V2: 'false'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          path: finaudit-gate
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: finaudit-gate/requirements/tradingagents.lock
+      - name: Install fixed integration dependencies
+        run: |
+          mkdir -p ../private
+          python -m venv .venv
+          python -m venv ../tmp/tradingagents-runtime
+          ../tmp/tradingagents-runtime/bin/python -m pip install -r requirements/tradingagents.lock
+      - name: Native graph and API-contract tests with loopback only
+        run: |
+          sudo unshare --net -- sh -c 'ip link set lo up; exec "$@"' sh \
+            env PYTHONPATH=src:integration_tests LANGSMITH_TRACING=false LANGCHAIN_TRACING_V2=false \
+            ../tmp/tradingagents-runtime/bin/python -W error::ResourceWarning -m unittest discover -s integration_tests
+      - name: Current research workflow demo and negative control
+        run: |
+          sudo unshare --net -- sh -c 'ip link set lo up; exec "$@"' sh \
+            env PYTHONPATH=src LANGSMITH_TRACING=false LANGCHAIN_TRACING_V2=false \
+            ../tmp/tradingagents-runtime/bin/python scripts/thesis_offline_demo.py \
+            --artifact-root "$GITHUB_WORKSPACE/private/ci-thesis-demo"
+          sudo unshare --net -- sh -c 'ip link set lo up; exec "$@"' sh \
+            env PYTHONPATH=src LANGSMITH_TRACING=false LANGCHAIN_TRACING_V2=false \
+            ../tmp/tradingagents-runtime/bin/python scripts/thesis_offline_demo.py \
+            --artifact-root "$GITHUB_WORKSPACE/private/ci-thesis-negative" --bad-prose

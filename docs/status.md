@@ -1,9 +1,89 @@
 # Project Status
 
-> Updated 2026-09-12. This file is the only public status source; other
+> Updated 2026-09-13. This file is the only public status source; other
 > documents describe mechanisms and link here.
 
-## Current slice: bounded forecast correction and compact final reporting — 2026-09-12
+## Current slice: v13 source delivery and offline acceptance — 2026-09-13
+
+Local implementation and acceptance are `COMPLETED`; source publication and
+hosted CI are `PARTIAL` until the corresponding remote checks complete.
+Financial accuracy, general report-completion reliability, bias reduction and
+benefit over a simpler analyst remain `PARTIAL`. A usable paired-report
+comparison has not been established; the current evidence does not show that
+the full workflow earns its additional model calls. New product features are paused.
+
+The current v13 wheel passes the core suite in an isolated environment with no
+source package in the test workspace; all 66 installed Python modules match
+source bytes. Both the current main-workflow synthetic demo and its unbound-number
+negative control also run from the installed wheel in a fresh integration runtime.
+The example's model responses are scripted, not live model-effectiveness evidence.
+The offline CI workflow is prepared and syntax checked; hosted CI is not claimed
+before publication and an actual GitHub run. Live hosted results are available
+on the [Actions page](https://github.com/IanHu0508/FinResearchOps/actions/workflows/offline.yml).
+
+The public delivery contains the v13 implementation, regression checks, a
+synthetic main-workflow example, isolated-install verification and offline CI.
+Raw issuer inputs, model responses and private development records remain local.
+Observed model JSON/reference failures and financial interpretation errors are
+not covered by successful arithmetic or replay checks. Reports still require
+substantive human review; the numerical contract is not financial certification.
+
+## Previous slice: bound final narrative and revision attribution — 2026-09-12
+
+Implementation, offline verification and bounded live artifact checks are
+`COMPLETED`. Financial accuracy, bias reduction and comparative
+benefit remain `PARTIAL`. The main route writes v13; published v11/v10/v2/v1
+readers retain their original reports. The unreleased v12 pilot is preserved
+privately and is not a public compatibility branch.
+
+Final summaries, financial sections, counterevidence, scenario reasons/triggers,
+limitations, and explanations of parameter/belief changes reject unbound numeric
+literals. Forecast references resolve to effective values with fixed labels,
+units and periods. Dates and security codes have labelled context references.
+Historical quantities use uniquely located source excerpts. Only whitespace may
+be normalized when locating line-wrapped text; the original span is displayed.
+Neither quotation matching nor this numerical contract certifies economic
+meaning, source truth, or every possible misleading claim in natural language.
+
+The financial revision keeps its prior responsibility, schema, prompt and max
+configuration. Format constraints belong to the existing final-report step,
+which explains each applied change and recorded belief update without changing
+its status. Original proposal reasons and prior beliefs remain in the appendix.
+This avoids adding report-format work to financial correction or another Agent.
+
+The program decomposes a minority-attribution edit changing both direction and
+magnitude into direction-first and amount-second effects. Assumptions do not
+become facts because a model labels an edit as a source/accounting correction.
+Effects are computed in edit order and are not statistical causal attribution.
+
+The former number-consistency claim applies only to v11 generated tables and
+explicit metrics: free prose could contain contradictory/stale forecast numbers
+through save and reopen. The new regression checks cover that complete path,
+including empty metrics, scenario reasons and changed report artifacts. Results
+from previous versions are not relabelled as satisfying the new contract.
+
+391 core and 99 integration tests pass; 40 bounded artifact checks meet their
+listed conditions. The four known bad synthetic-response controls are rejected
+by v13 and accepted by v11; the qualitative control completes in both versions.
+This is a regression comparison, not a model-effectiveness benchmark.
+
+The issuer and synthetic control each generated a new final report while keeping
+the original twelve responses, including the financial revision. The issuer
+response was recovered without resampling after proving four extra selectors
+were exact duplicates of its inline references. Original output is retained and
+normalization is disclosed in the process appendix; values, prose and rating
+are not rewritten. Both reports reopen and retain their original forecasts.
+All trials and failures total ten new API requests, with a configured-rate
+estimate of CNY5.787495 and no unknown usage, not a provider invoice. The v12
+format-burden trials were not accepted as financial-quality improvements.
+
+A confirmed length-finished final response may use the existing single high
+recovery even if provider usage exceeds the requested cap; actual usage and
+limits remain recorded. Non-length overruns still stop. This condition is
+verified offline, not claimed as triggered by the final accepted live outputs.
+No commit, push, deployment, new data retrieval or trading occurred in this slice.
+
+## Previous slice: bounded forecast correction and compact final reporting — 2026-09-12
 
 The v10 source checkpoint was published as `0496ad0`. The v11 correction/reporting
 implementation and bounded checks are `COMPLETED`; financial judgment reliability

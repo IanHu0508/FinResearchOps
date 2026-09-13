@@ -7,7 +7,7 @@ from finauditgate.application.research_numbers import METRIC_KEYS, render_resear
 from finauditgate.core.forward_revision import apply_forward_revision
 
 
-def correction_schemas(base):
+def correction_schemas(base, *, bound=False):
     from typing import Literal
     from pydantic import BaseModel, ConfigDict, Field, StrictFloat
 
@@ -81,17 +81,44 @@ def correction_schemas(base):
         scenario_assessments: list[ScenarioUse] = Field(max_length=3)
         limitations: list[str] = Field(max_length=6)
 
+    if bound:
+        class SourceQuote(Strict):
+            id: str = Field(pattern=r"^Q[1-9][0-9]?$")
+            source_id: str
+            quote: str = Field(min_length=12, max_length=1200, description="Exact unique source excerpt, including period, unit and scope context. No paraphrase or invented numbers.")
+
+        class ChangeExplanation(Strict):
+            scenario_id: Literal["F1", "F2", "F3"] | None
+            field: ForwardChange.model_fields["field"].annotation
+            explanation: ResearchBlock
+
+        class BeliefExplanation(Strict):
+            belief_id: str
+            explanation: ResearchBlock
+
+        class FinalResearchReport(FinalResearchReport):
+            source_quotes: list[SourceQuote] = Field(max_length=12)
+            change_explanations: list[ChangeExplanation] = Field(max_length=12)
+            belief_explanations: list[BeliefExplanation] = Field(min_length=2, max_length=4)
+
     return {"ForwardRevision": ForwardRevision, "FinalResearchReport": FinalResearchReport}
 
 
-def render_decision(report, draft, calculations):
+def render_decision(report, draft, calculations, *, context=None):
+    if context is not None:
+        draft = deepcopy(draft)
+        for scenario in draft["scenarios"]:
+            scenario["name"] = "条件情景"
     return "\n".join(["**Rating**: " + report["rating"], "",
-                      *render_research_block(report["summary"], draft, calculations)])
+                      *render_research_block(context.block(report["summary"]) if context else report["summary"], draft, calculations)])
 
 
 def complete_corrected_report(session, node, config):
     from finauditgate.adapters.thesis_protocol import belief_view, claim_view, risk_view
 
+    bound = session.protocol_version >= 13
+    from finauditgate.application.research_narrative import NARRATIVE_INSTRUCTION, change_view, report_context
+    narrative_instruction = NARRATIVE_INSTRUCTION if bound else ""
     payload = session.corpus({})
     payload.update(independent_beliefs=belief_view(session.independent),
                    updated_claims=claim_view(session.updated_claims()), risk_briefs=risk_view(session.risks),
@@ -123,8 +150,10 @@ def complete_corrected_report(session, node, config):
                          effective_forward_calculations=session.effective_forward_calculations,
                          research_resolution={k: deepcopy(resolution[k]) for k in
                              ("claim_assessments", "belief_updates", "unresolved_issues")})
+    if bound:
+        final_payload["change_context"] = change_view(session.applied_changes)
     final = session.ask(node, "FinalResearchReport",
-        "依据原始资料、修正后的有效参数和程序复算，形成一份精简但完整的中文终判。没有初判评级、用户期待或原错误预测表。"
+        narrative_instruction + "依据原始资料、修正后的有效参数和程序复算，形成一份精简但完整的中文终判。没有初判评级、用户期待或原错误预测表。"
         "分别回答经营驱动、盈利质量、现金与资本配置、价格要求，再给最强反证与情景采纳。每段聚焦经济解释，不重复投资总论、估值长文和全部检查清单。"
         "关键前瞻数量必须通过metrics选择scenario_id和metric，由程序插入标签、数值、单位、期间；不要再在text里复制预测数值或发明未计算目标价。"
         "历史数字仍要核对来源中的期间和集团/分部、合并/归母口径。不要把公司经营利润说成未披露的分部经营利润。"
@@ -138,5 +167,8 @@ def complete_corrected_report(session, node, config):
         raise ValueError("THESIS_FORWARD_ASSESSMENT_COVERAGE_INVALID")
     for block in (final["summary"], *final["financial_analysis"].values(), final["strongest_counterevidence"]):
         render_research_block(block, session.effective_forward_draft, session.effective_forward_calculations)
+    context = report_context(final, session.effective_forward_draft, session.effective_forward_calculations,
+                             final_payload["source_bundle"], final_payload["request"],
+                             changes=final_payload["change_context"], beliefs=resolution["belief_updates"]) if bound else None
     session.final = final
-    return render_decision(final, session.effective_forward_draft, session.effective_forward_calculations)
+    return render_decision(final, session.effective_forward_draft, session.effective_forward_calculations, context=context)

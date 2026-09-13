@@ -36,7 +36,46 @@ def response_candidate(outputs, kind):
         # Observed Flash layout: move this uniquely named field verbatim.
         # Never fill a missing value or choose between competing versions.
         candidate["valuation_basis_and_gaps"] = candidate["plan"].pop("valuation_basis_and_gaps")
+    if kind == "FinalResearchReport":
+        echoes = scenario_metric_echoes(candidate)
+        for row in candidate.get("scenario_assessments", []) if echoes else []:
+            row.pop("metrics", None)
     return candidate
+
+
+def scenario_metric_echoes(value):
+    """Recognize only redundant v13 selector metadata already present inline.
+
+    No values, labels, prose, rating or novel references are removed. Original
+    provider output remains in model_calls; the process appendix records echoes.
+    """
+    if not isinstance(value, dict) or not {"source_quotes", "change_explanations", "belief_explanations"} <= value.keys():
+        return []
+    from finauditgate.application.research_numbers import METRIC_KEYS
+    rows = value.get("scenario_assessments")
+    if not isinstance(rows, list):
+        return []
+    echoes = []
+    for row in rows:
+        if not isinstance(row, dict):
+            return []
+        if "metrics" not in row:
+            continue
+        refs = row["metrics"]
+        reason, trigger = row.get("reason"), row.get("what_changes_the_view")
+        if not isinstance(refs, list) or len(refs) > 6 or not isinstance(reason, str) or not isinstance(trigger, str):
+            raise ValueError("THESIS_SCENARIO_METRIC_ECHO_CONFLICT")
+        for ref in refs:
+            if (not isinstance(ref, dict) or set(ref) != {"scenario_id", "metric"}
+                    or not isinstance(ref["scenario_id"], str) or ref["scenario_id"] not in {"F1", "F2", "F3"}
+                    or ref["scenario_id"] != row.get("scenario_id")
+                    or not isinstance(ref["metric"], str) or ref["metric"] not in METRIC_KEYS):
+                raise ValueError("THESIS_SCENARIO_METRIC_ECHO_CONFLICT")
+            token = "{{metric:" + ref["scenario_id"] + ":" + ref["metric"] + "}}"
+            if token not in reason and token not in trigger:
+                raise ValueError("THESIS_SCENARIO_METRIC_ECHO_CONFLICT")
+        echoes.append({"scenario_id": row.get("scenario_id"), "metrics": deepcopy(refs)})
+    return echoes
 
 
 def _research_markdown(text):
@@ -92,21 +131,22 @@ class CompletedCalls:
                 raise ValueError("THESIS_RESUME_MODEL_MISMATCH")
         from finauditgate.adapters.thesis_protocol import schemas
         types = schemas()
-        if protocol_version == 11:
+        if protocol_version >= 11:
             from finauditgate.adapters.thesis_correction import correction_schemas
-            types.update(correction_schemas(types))
+            types.update(correction_schemas(types, bound=protocol_version >= 13))
         stages = [("Bull Researcher", "InitialBrief"), ("Bear Researcher", "InitialBrief"),
             ("Bull Researcher", "RevisionBrief"), ("Bear Researcher", "RevisionBrief"),
             ("Research Manager", "ResearchEvaluation"), ("Trader", "ExecutionReview"),
             ("Aggressive Analyst", "RiskBrief"), ("Conservative Analyst", "RiskBrief"),
             ("Neutral Analyst", "RiskBrief"), ("Portfolio Manager", "IndependentAssessment"),
             ("Portfolio Manager", "UnderwritingDraft"), ("Portfolio Manager", "FinalAssessment")]
-        if protocol_version == 11:
+        if protocol_version >= 11:
             stages[-1:] = [("Portfolio Manager", "ForwardRevision"), ("Portfolio Manager", "FinalResearchReport")]
         if reassess_final:
             # Preserve the completed forward proposal, recalculate it, and get
             # a fresh final judgment. Do not redraw assumptions to repair prose.
             stages = stages[:-1]
+        prefix_stop = None
         # Failed attempts remain in their original receipt, never in reused outputs.
         successful = (r for r in data["model_calls"] if not r.get("error_type"))
         for row, (node, kind) in zip(successful, stages):
@@ -116,13 +156,13 @@ class CompletedCalls:
                 raise ValueError("THESIS_RESUME_STAGE_ORDER_INVALID")
             try:
                 parsed = types[kind].model_validate(response_candidate(row["output"], kind)).model_dump(mode="json")
-                if protocol_version == 11:
+                if protocol_version >= 11:
                     from finauditgate.adapters.thesis_protocol import check_refs, source_view
                     check_refs(parsed, {s["id"] for s in source_view(sources)["sources"]})
                     payload = json.loads(row["messages"][0][1]["content"])
                     if kind == "ForwardRevision":
                         from finauditgate.core.forward_revision import apply_forward_revision
-                        apply_forward_revision(payload["forward_draft"], parsed["changes"])
+                        revised = apply_forward_revision(payload["forward_draft"], parsed["changes"])
                         for key, field, expected in (
                                 ("claim_assessments", "claim_id", [c["id"] for c in payload["updated_claims"]]),
                                 ("belief_updates", "belief_id", [b["belief_id"] for b in payload["independent_beliefs"]])):
@@ -134,21 +174,30 @@ class CompletedCalls:
                         from finauditgate.application.research_numbers import render_research_block
                         for block in (parsed["summary"], *parsed["financial_analysis"].values(), parsed["strongest_counterevidence"]):
                             render_research_block(block, payload["effective_forward_draft"], payload["effective_forward_calculations"])
+                        if protocol_version >= 13:
+                            from finauditgate.application.research_narrative import report_context
+                            report_context(parsed, payload["effective_forward_draft"], payload["effective_forward_calculations"], sources, request,
+                                changes=payload["change_context"], beliefs=payload["research_resolution"]["belief_updates"])
                         expected = [s["scenario_id"] for s in payload["effective_forward_draft"]["scenarios"]]
                         given = parsed["scenario_assessments"]
                         if len(given) != len(expected) or {r["scenario_id"] for r in given} != set(expected):
                             raise ValueError("THESIS_RESUME_INCOMPLETE_REPORT")
-            except (ValueError, TypeError, KeyError):
+            except (ValueError, TypeError, KeyError) as exc:
                 # A returned but incomplete schema is paid evidence, not a
                 # completed step. Keep its original receipt; recompute here.
+                code = str(exc)
+                prefix_stop = {"node": node, "kind": kind,
+                               "error_code": code if re.fullmatch(r"[A-Z0-9_]{1,120}", code) else type(exc).__name__}
                 break
             self.rows.append(deepcopy(row))
         if not self.rows:
             raise ValueError("THESIS_RESUME_NO_COMPLETED_PREFIX")
         self.receipt = {"runtime_sha256": sha256_hex(raw), "available_calls": len(self.rows),
                         "prior_budget": data["budget"], "prior_reuse": data.get("reused_calls")}
-        if protocol_version == 11:
+        if protocol_version >= 11:
             self.receipt["prior_final_generation"] = data.get("final_generation")
+        if protocol_version >= 13:
+            self.receipt["prefix_stop"] = prefix_stop
 
     def take(self, node, prompts, capture):
         if self.used == len(self.rows):

@@ -27,7 +27,8 @@ def _coverage(rows, ids, key):
 
 
 def validate(record):
-    if (record.get("schema_version") != "finresearchops.thesis-case/v11"
+    bound = record.get("schema_version") == "finresearchops.thesis-case/v13"
+    if (record.get("schema_version") not in ("finresearchops.thesis-case/v11", "finresearchops.thesis-case/v13")
             or record.get("status") != "COMPLETED" or record.get("review_status") != "AWAITING_REVIEW"
             or record.get("financial_gate") != "NOT_REQUIRED" or record.get("automatic_trading") is not False
             or record.get("sensitivity_policy") != "DECLARED_SCENARIOS_REPORT_ONLY"):
@@ -86,6 +87,9 @@ def validate(record):
                         effective_forward_calculations=record["effective_forward_calculations"],
                         research_resolution={k: record["forward_revision"][k] for k in
                             ("claim_assessments", "belief_updates", "unresolved_issues")})
+            if bound:
+                from finauditgate.application.research_narrative import change_view
+                base["change_context"] = change_view(record["applied_changes"])
             if payload != base:
                 raise ValueError("THESIS_EFFECTIVE_NUMBERS_NOT_DELIVERED")
     if order != sorted(set(order)):
@@ -141,10 +145,15 @@ def validate(record):
     _coverage(report["scenario_assessments"], [s["scenario_id"] for s in draft["scenarios"]], "scenario_id")
     for block in (report["summary"], *report["financial_analysis"].values(), report["strongest_counterevidence"]):
         render_research_block(block, draft, calc)
+    context = None
+    if bound:
+        from finauditgate.application.research_narrative import change_view, report_context
+        context = report_context(report, draft, calc, sources, request,
+                                 changes=change_view(record["applied_changes"]), beliefs=resolution["belief_updates"])
     before, after = record["independent_assessment"]["decision"]["rating"], report["rating"]
     if record["rating_comparison"] != {"before": before, "after": after, "changed": before != after}:
         raise ValueError("THESIS_RATING_COMPARISON_INVALID")
-    if record["signal"] != after or record["reports"]["final_trade_decision"] != render_decision(report, draft, calc):
+    if record["signal"] != after or record["reports"]["final_trade_decision"] != render_decision(report, draft, calc, context=context):
         raise ValueError("THESIS_FINAL_REPORT_BINDING_INVALID")
     attempts = record["final_generation"]
     if len(attempts) == 1 and attempts[0]["status"] == "REUSED":

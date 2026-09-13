@@ -41,6 +41,36 @@ and historical uses; they are not steps inside `research-thesis`. In particular,
 the old typed route's compatibility Hold must not be treated as an investment
 rating. All model-backed routes use the separate integration environment.
 
+## Try the current research workflow offline
+
+This example follows `research-thesis`, including a scripted parameter correction,
+program recomputation, final-report number references, saving and reopening.
+It uses synthetic model responses and blocks external network paths; it is a
+mechanism demonstration, not a model-quality or investment-performance result.
+
+From a checkout named `finaudit-gate`, prepare the separate integration environment:
+
+```bash
+mkdir -p ../private
+python3.12 -m venv ../tmp/tradingagents-runtime
+../tmp/tradingagents-runtime/bin/python -m pip install -r requirements/tradingagents.lock
+PYTHONPATH=src ../tmp/tradingagents-runtime/bin/python scripts/thesis_offline_demo.py \
+  --artifact-root ../private/thesis-demo
+```
+
+Dependency installation uses the network. Running the example needs no API key,
+model download or issuer filing. It shows a minority-profit attribution correction:
+EPS changes from 1.7 to 1.3 while consolidated operating cash flow remains 16.
+Add `--bad-prose` and use a new output directory to demonstrate rejection of an
+unbound forecast number. Original inputs and failed responses remain available.
+
+The [research workflow guide](docs/thesis-research.md) describes the request,
+correction and report contracts. [Offline CI](.github/workflows/offline.yml)
+covers the core, isolated wheel installation, native integration and these demos;
+its execution status is recorded in [project status](docs/status.md).
+
+The following cash-flow and profile examples are retained component workflows.
+
 ## Run a cash-flow investigation
 
 ```bash

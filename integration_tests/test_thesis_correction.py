@@ -142,7 +142,7 @@ class ThesisCorrectionTest(unittest.TestCase):
         model = model or CorrectionLLM()
         command = ResearchThesis("AURORA", date(2026, 3, 2), "经营与价格是否支持投资？",
             sources=correction_sources(), review=review, **context)
-        application = FinResearchOps(artifact_root=root, researcher=ThesisResearcher(live=live, budget=budget))
+        application = FinResearchOps(artifact_root=root, researcher=ThesisResearcher(live=live, budget=budget, protocol_version=11))
         with patched_native_runtime(model), patch.object(application._gate, "run",
                 side_effect=AssertionError("CORE_NOT_A_PREREQUISITE")), \
                 patch("finauditgate.adapters.model_http.model_http_client",
