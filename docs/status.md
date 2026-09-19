@@ -1,9 +1,158 @@
 # Project Status
 
-> Updated 2026-09-13. This file is the only public status source; other
+> Updated 2026-09-18. This file is the only public status source; other
 > documents describe mechanisms and link here.
 
-## Current slice: v13 source delivery and offline acceptance — 2026-09-13
+## Current slice: real daily market-data pipeline — 2026-09-18
+
+Acquisition, fixed-factor calculation and arithmetic review are `COMPLETED`.
+**The current panel and its IC results are `INVALIDATED` for V1 research
+acceptance because historical old/new ticker aliases were counted as separate
+securities.** The temporary follow-up is paused and all batch processes have
+ended. No corrected-universe rerun, learned model or Agent integration was started.
+
+The raw archive covers 1,133 sessions from 2016-07-01 to 2021-02-26. There are
+4,010,812 raw code-days, 4,010,145 normalized records and 667 recorded data
+issues. The 4,240 identifiers are code counts, not verified distinct economic
+securities. Likewise, 246 observed codes have an outDate in the current master;
+this count includes old codes retired during ticker changes, not necessarily
+246 economically delisted companies. Reconciliation with the same provider's
+master did not reveal that shared identity error.
+
+Official implementation notices confirm that 000043.SZ changed to 001914.SZ
+on 2019-12-16 and 000022.SZ to 001872.SZ on 2018-12-26 while existing public
+A-share holdings retained their category and quantity
+([001914 notice](https://disc.static.szse.cn/download/disc/disk02/finalpage/2019-12-16/a5a3d55e-cc2e-42e6-91c1-ea98235594fb.PDF),
+[001872 notice](https://static.cninfo.com.cn/finalpage/2018-12-26/1205690369.PDF)). The first pair appears
+twice in 601 study-date pools; the second in 214 study-date pools, or 278 dates
+including warm-up. This changes universe membership, market context, rank
+labels and evaluation weights. These two confirmed cases are not an exhaustive
+security-identity audit. Price continuity and other corporate actions still
+require source reconciliation before linking series.
+
+Across the frozen 2017–2020 window, 614 of 974 scoring dates have complete
+outcomes; 359 have incomplete outcomes and one additional date is purged.
+Only 92 of 243 test-year dates are scored. Of 40 boundary-overlapping dates,
+39 were already excluded for incomplete outcomes and one was separately purged.
+Original pools and missing outcomes were retained; missing stocks were not
+removed to rerank survivors. Reported ICs remain in the original artifacts for
+audit but are not validated model or full-year performance conclusions.
+
+All 974 daily artifact hashes, original code-pool coverage and label windows
+were checked. Independent recomputation of 2,456 daily Rank ICs differs by at
+most approximately 1.11e-16; date-equal, annual and quantile calculations agree.
+The first date's disk and in-memory IDs, labels and scores match exactly for
+2,729 original rows. This proves reproducible arithmetic on the same inputs,
+not correct economic-security grain or historical vendor vintage.
+
+The existing engineering checks remain 391 core tests and 93 Quant tests,
+including 93 with site packages disabled. Core/Application/Agent code and
+dependency declarations remain unchanged. This source checkpoint contains
+original Quant code, synthetic checks, schemas, CI and reviewed documentation;
+it does not publish the private dataset or invalidate the recorded data failure.
+Raw responses, failed attempts, code snapshots,
+first-date outputs and the original generated report are preserved.
+
+The V1 target, study years, four fixed factor directions and theoretical
+ex-reference-price convention remain unchanged. Historical availability is an
+explicit reconstruction assumption, not verified vendor PIT. There is no
+actual cash-flow/tax/execution return, stable-alpha claim, trained-model efficacy
+or tradable Sharpe. Portfolio execution remains `DEFERRED`.
+
+The next repair is a stable security identity and effective-dated ticker map,
+with reconciled overlapping quotes and cross-code reference continuity. The
+universe, market features, labels and diagnostics must then be rebuilt using
+the same study definitions. Missing exit outcomes also need documented data and
+semantics; they must not be hidden by future-based filtering or invented values.
+Commands and method boundaries remain in the [Quant guide](../quant/README.md)
+and [contracts](../quant/CONTRACTS.md).
+
+## Previous slice: market-only Quant V1 contract migration — 2026-09-18
+
+The user-approved contract migration is locally `COMPLETED`. The shared model
+now targets the daily cross-sectional percentile of the holding return from the
+next session's open to the twentieth subsequent session's close, using declared
+total-return reference prices. Industry-relative labels and required financial,
+valuation, disclosure and industry records were removed from the V1 input.
+
+The shared panel supplies individual price/volume/amount, risk and liquidity
+features, a 60-session sequence, relative-market features and four market-state
+values. Historical market statistics use each historical day's eligible pool
+and available inputs. Explicit scoring dates separate outputs from context
+warm-up. Stock-only and stock+context use identical samples, labels and splits;
+stock-only excludes every market/relative feature. A linear input view exposes
+stock-by-market interactions without stand-alone market main-effect columns.
+This view does not implement a new linear estimator.
+
+Prediction evaluation uses raw holding returns for daily Rank IC, day-equal
+aggregation, yearly summaries and forward-return quantile diagnostics. These
+overlapping holding-period returns are not daily portfolio P&L. Execution rules
+and a tradable portfolio Sharpe remain `DEFERRED`.
+
+The core suite passes 391 tests; Quant passes 78, including the same 78 with
+site packages disabled. Both synthetic ablations use the same dataset ID,
+900 prepared rows and the same purged date split, with 270 training, 186
+validation and 180 test rows. Each stored input/model reopens and reproduces
+all 180 signals identically with network connections disabled. These checks
+establish contract behavior and replay, not predictive or investment efficacy.
+
+Research scope remains V1. Changed persisted input/dataset/fold/model/result
+formats and the public QuantSignal are v2; the unchanged generic run manifest
+retains v1. The two signal fields are `predicted_target_percentile` and
+`cross_sectional_model_rank`, with a separate declared `feature_ablation`.
+Old unreleased input/model/signal formats and industry target IDs are rejected;
+prior private evidence and the pre-migration source snapshot are preserved.
+
+Core/Application/Agent implementation and dependency declarations are unchanged.
+No XGBoost, TCN/GRU, provider SDK, Agent integration, dependency installation,
+new real-data acquisition or training was introduced by this migration. The
+existing mean/neighbor models remain synthetic plumbing references. Work is
+uncommitted; hosted CI for this slice is `NOT_STARTED`.
+
+Earlier bounded source probes are only a `PARTIAL` data-readiness assessment;
+no validated multi-year full-market canonical panel exists. The next work is
+the real daily-data pipeline: calendar, point-in-time eligibility, corporate
+actions, missing/suspended/delisted outcomes and reproducible panel preparation,
+then the first real baseline Rank IC. PIT financials and historical industry
+are not prerequisites for this V1. Real XGBoost/DL experiments, OOS efficacy
+and Agent consumption remain `NOT_STARTED`.
+
+Commands and boundaries are in the [Quant guide](../quant/README.md);
+the [contracts](../quant/CONTRACTS.md) define the current semantics.
+
+## Previous slice: independent Quant infrastructure v0 — 2026-09-17
+
+The local independent Quant scaffold, six research contracts and synthetic
+pipeline verification are `COMPLETED`. It has a shared point-in-time panel,
+20-session leave-one-out industry-relative percentile labels, purged date
+splits, day-equal training weights, a replaceable model Interface, separate
+prediction/daily-P&L evaluation, versioned private artifacts and QuantSignal v1.
+The [Quant guide](../quant/README.md) provides commands and explicit limits;
+the [contracts](../quant/CONTRACTS.md) define the semantics.
+
+The core suite passes 391 tests. The separate Quant suite passes 65 tests,
+including a run with Python site packages disabled. The synthetic reference
+pipeline produces 900 rows, with 270 training, 186 validation and 180 test rows;
+120 training rows are purged at the validation boundary. The stored normalized
+inputs and reference model reopen and reproduce all 180 test signals.
+The constant-model control leaves Rank IC undefined rather than inventing zero.
+These are engineering checks on original synthetic data, not financial results.
+
+Existing core/Application/Agent implementation and core dependency declarations
+are byte-unchanged. The existing public-contract test adds the requested schema
+to its exact catalog, retaining all previous entries and assertions. CI includes
+the independent offline Quant step; the updated workflow parses locally but
+its hosted execution is `NOT_STARTED`. This work is not committed or published.
+
+Actual provider acquisition, PIT data audit, XGBoost/DL execution and real-data
+out-of-sample efficacy are `NOT_STARTED`. A real execution simulator is `DEFERRED`;
+the portfolio Interface evaluates supplied daily P&L and does not simulate
+tradability, short availability or capital allocation. No signal is consumed by
+`research-thesis`, and no real-time data, paid model call or trade was introduced.
+The next work is a bounded real-data availability/PIT audit before model trials;
+the existing Agent workflow keeps its prior scope and limitations.
+
+## Previous slice: v13 source delivery and offline acceptance — 2026-09-13
 
 Local implementation, source publication and hosted offline acceptance are
 `COMPLETED`. The v13 source was published as `c0d1df2`; its

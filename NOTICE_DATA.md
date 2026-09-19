@@ -53,6 +53,20 @@ and third-party notices remain applicable. DeepSeek is an external model
 service. Provider responses, data caches and real research reports stay private.
 This project is an independent integration and does not imply upstream endorsement.
 
+## Optional Quant market-data research
+
+The independent `quant/` module includes original, standard-library code that
+uses BaoStock's published anonymous protocol when explicitly invoked. It does
+not vendor or install the provider SDK, redistribute market-data collections,
+or acquire issuer filings. The provider's data rights and usage terms remain
+separate from this repository's code license.
+
+Original market responses, normalized databases, model artifacts and research
+outputs belong in the sibling private workspace. Public tests use synthetic
+records. Historical reconstruction and a successful code run do not establish
+point-in-time correctness, security-identity validity or investment performance;
+see [the project status](docs/status.md) for the current research boundaries.
+
 ## Prohibited public material
 
 Do not commit credentials, cookies, private paths, customer or portfolio data,

@@ -26,6 +26,13 @@ source references nor agreement among agents establish financial truth.
 Current scope, evidence and remaining work are maintained only in
 [`docs/status.md`](docs/status.md).
 
+An independent experimental [Quant research module](quant/README.md) defines shared as-of
+market-only inputs, 20-session cross-sectional holding-return percentile labels,
+historical market context, stock-only/context ablations and research signals.
+Its offline synthetic example does not call or alter the Agent workflow.
+Read the [current scope and data limitations](docs/status.md) before using the
+real-data commands for research evaluation.
+
 ## TradingAgents research integration
 
 Use [`research-thesis`](docs/thesis-research.md) for the main workflow. It keeps

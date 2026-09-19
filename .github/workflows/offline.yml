@@ -39,6 +39,10 @@ jobs:
           sudo unshare --net -- sh -c 'ip link set lo up; exec "$@"' sh \
             .venv/bin/python scripts/verify_installed.py --python "$RUNNER_TEMP/installed/bin/python" \
             --receipt "$RUNNER_TEMP/installed-check.json"
+      - name: Independent Quant contracts without external networking
+        run: |
+          sudo unshare --net -- sh -c 'ip link set lo up; exec "$@"' sh \
+            env PYTHONPATH=. .venv/bin/python -W error::ResourceWarning -m unittest discover -s quant/tests
 
   native-integration:
     runs-on: ubuntu-24.04

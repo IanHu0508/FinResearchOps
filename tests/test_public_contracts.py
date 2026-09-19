@@ -240,6 +240,10 @@ class PublicContractTest(unittest.TestCase):
 
     def test_schema_files_freeze_the_public_contracts(self) -> None:
         expected = {
+            "quant-signal.v2.schema.json": (
+                "urn:finresearchops:schema:quant-signal:v2",
+                "finresearchops.quant-signal/v2",
+            ),
             "investment-research-case.v5.schema.json": (
                 "urn:finresearchops:schema:investment-research-case:v5",
                 "finresearchops.investment-research-case/v5",
@@ -296,6 +300,7 @@ class PublicContractTest(unittest.TestCase):
                 "investment-research-case.v7.schema.json",
                 "native-audited-case.v1.schema.json",
                 "native-audited-case.v2.schema.json", "native-audited-case.v4.schema.json", "native-audited-case.v5.schema.json",
+                "quant-signal.v2.schema.json",
                 "replay-record.v3.schema.json",
                 "replay-report.v5.schema.json",
                 "research-change-packet.v1.schema.json",

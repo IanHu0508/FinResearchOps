@@ -17,9 +17,12 @@ htmlcov/
 # Local artifacts and private material
 .local/
 artifacts/
+# quant/artifacts contains persistence code, never generated research artifacts.
+!quant/artifacts/
+quant/artifacts/*
+!quant/artifacts/*.py
 runs/
 data/private/
 data/held_out/
 *.pdf
 *.docx
-

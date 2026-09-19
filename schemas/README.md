@@ -10,6 +10,30 @@ JSON Schema files exist for the artifacts that cross the Application or
 public boundary. Core run artifacts are defined by the code that writes and
 replays them (`src/finauditgate/core/engine.py`).
 
+## Independent Quant artifacts
+
+These artifacts belong to the independent `quant/` research Module. They do not
+alter the Agent Case formats or connect a signal to `research-thesis`.
+
+| Artifact | Schema version | Definition |
+|---|---|---|
+| normalized input snapshot | `quant.research-input/v2` | `quant/data/records.py` and `quant/data/serialization.py`; market bars, dated universes and explicit scoring dates |
+| shared panel and labels | `quant.prepared-dataset/v2` | `quant/contracts.py`, `quant/features/`, `quant/labels/`; stock, relative and market feature blocks |
+| purged training/validation/test fold | `quant.prepared-fold/v2` | `quant/splits/walk_forward.py` |
+| standard-library reference model | `quant.reference-model/v2` | `quant/models/baseline/reference.py`; view/ablation bound to state, no pickle |
+| experiment result | `quant.experiment/v2` | `quant/pipeline.py`; day-equal Rank IC, yearly summaries and forward quantile returns, no implied execution backtest |
+| research signal | `finresearchops.quant-signal/v2` | `quant-signal.v2.schema.json`; separate predicted target percentile and cross-sectional model rank |
+| append-once run manifest | `quant.run-manifest/v1` | `quant/artifacts/store.py`; content hashes for private run files |
+
+The normalized snapshot and model state stay under the sibling private tree.
+The market-only research scope is V1; serialized formats are v2 because the
+unreleased industry-relative input/model/signal shapes were replaced. Old records
+remain historical evidence; current input/model/signal readers reject their v1
+formats instead of silently interpreting them under the new target. The generic
+run manifest is unchanged in shape and retains v1.
+See [Quant contracts](../quant/CONTRACTS.md) for availability-time semantics,
+20-session labels, missing outcomes, ranking conventions and evaluation limits.
+
 ## TradingAgents research artifacts
 
 The main research path writes `finresearchops.thesis-case/v13`

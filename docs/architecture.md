@@ -57,6 +57,19 @@ availability only after persisting the new judgment. See the
 Status is tracked in [`status.md`](status.md); this document describes only
 how the current code works.
 
+## Independent Quant research
+
+`quant/` is a separate, standard-library research Module outside the core wheel.
+Its `prepare_dataset` and `run_experiment` Interface centralizes point-in-time
+market-only features, 20-session holding-return percentile labels, purged date splits
+and evaluation. Historical market context uses each historical day's eligible pool;
+model Adapters declare stock-only or stock+context and receive the same prepared
+rows through `fit/predict`. Linear views include stock-by-market interactions. Research
+signals carry explicit target/ranking and availability-time meanings. No Agent
+route imports or consumes this module. Mechanism details and the offline
+synthetic example are in [Quant contracts](../quant/CONTRACTS.md) and the
+[Quant guide](../quant/README.md).
+
 ## TradingAgents research
 
 The TradingAgents integration adds native-baseline and evidence-led research
