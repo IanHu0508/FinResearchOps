@@ -1,37 +1,53 @@
-# FinResearchOps / FinAuditGate
+# FinResearchOps
 
-A local investment-research workflow built on the pinned TradingAgents graph,
-with independent first drafts, explicit counterevidence updates and a fresh
-final assessment. A separate, optional data-review Agent checks the saved report.
+Financial research engineering built around two deliberately separate pieces:
 
-## Why this project
+1. a TradingAgents-based investment-research workflow whose information flow and financial calculations are constrained for review; and
+2. an experimental A-share quantitative-research module for causal market features, forward labels and walk-forward evaluation.
 
-项目重点是避免初始投资倾向一路变成最终结论。多空首轮各自成稿，第二轮
-对称回应对方初稿，记录每条论点维持、修改、撤回或未解决的原因；最终经理
-从原始资料、更新论据和风险分析重新判断，不接收前序评级、交易方向或交易员自设门槛。
-资料复核放在主体报告保存之后，其失败或不同意见不会改写主结论。
+The Quant module does **not** feed the Agent workflow, and neither component is presented as a trading system or as evidence of investment performance.
 
-The workflow addresses two sources of research error:
+## What changes relative to the TradingAgents baseline
 
-- **Opinion propagation:** independent drafts, itemized revision reasons and final judgment without upstream ratings.
-- **Financial inputs:** complete source access and optional review of dates, currencies, measurement and unsupported inferences.
+The upstream graph, role topology and native tools are retained. This project changes what roles see, how they revise claims, and how final financial numbers are produced:
 
-This is a research prototype for human review. It does not establish investment
-performance, eliminate model bias, or provide a complete valuation system.
+- bull and bear researchers write independent first drafts from the same source material;
+- each side then responds to the other side's sealed draft and records what it maintains, changes or leaves unresolved;
+- the final assessment does not inherit earlier ratings or trader-defined thresholds;
+- forward assumptions are stored explicitly and recalculated in Python before the final report is written;
+- report figures reference the effective recalculated outputs rather than free-form numbers copied by the model;
+- model traces, failed outputs and saved cases are retained so completed steps can be reopened or replayed.
 
-FinAuditGate remains available for standalone filing and cash-flow checks. Its
-limited coverage is not a prerequisite for the main research path. Neither
-source references nor agreement among agents establish financial truth.
+These controls narrow specific failure modes; they do not prove that the model's research judgment is correct.
 
-Current scope, evidence and remaining work are maintained only in
-[`docs/status.md`](docs/status.md).
+## One concrete offline example
 
-An independent experimental [Quant research module](quant/README.md) defines shared as-of
-market-only inputs, 20-session cross-sectional holding-return percentile labels,
-historical market context, stock-only/context ablations and research signals.
-Its offline synthetic example does not call or alter the Agent workflow.
-Read the [current scope and data limitations](docs/status.md) before using the
-real-data commands for research evaluation.
+The public synthetic demo exercises a minority-interest correction through the current research path:
+
+- the original scenario produces EPS of **1.7**;
+- correcting minority-profit attribution changes EPS to **1.3**;
+- consolidated operating cash flow remains **16**, because that correction does not change the consolidated cash-flow calculation;
+- an intentionally unbound forecast number is rejected instead of being saved into the report.
+
+Run it without an API key or live model:
+
+```bash
+mkdir -p ../private
+python3.12 -m venv ../tmp/tradingagents-runtime
+../tmp/tradingagents-runtime/bin/python -m pip install -r requirements/tradingagents.lock
+PYTHONPATH=src ../tmp/tradingagents-runtime/bin/python scripts/thesis_offline_demo.py \
+  --artifact-root ../private/thesis-demo
+```
+
+This is a scripted engineering demonstration, not a model-quality or investment-performance evaluation.
+
+## Separate A-share Quant module
+
+The independent [Quant module](quant/README.md) defines 60-session market inputs, 20-session forward-return targets, purged date splits, stock-only/context ablations, Rank IC evaluation and versioned research signals.
+
+The first real-data panel processed more than four million code-day records, but its research results were **invalidated** after old and new ticker aliases for the same securities were counted separately. That error changes universe membership, market context, labels and evaluation weights, so the affected IC results are retained only for audit rather than presented as performance.
+
+See [current status](docs/status.md) for the exact evidence, limitations and next repair.
 
 ## TradingAgents research integration
 
