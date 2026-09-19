@@ -1,53 +1,39 @@
 # FinResearchOps
 
-Financial research engineering built around two deliberately separate pieces:
+**Financial research workflow engineering on top of TradingAgents, plus a separate A-share quantitative-research module.**
 
-1. a TradingAgents-based investment-research workflow whose information flow and financial calculations are constrained for review; and
-2. an experimental A-share quantitative-research module for causal market features, forward labels and walk-forward evaluation.
+The upstream TradingAgents graph and role topology are retained. This project changes the information flow, revision process and handling of financial numbers; the Quant module is independent and does not feed the Agent workflow.
 
-The Quant module does **not** feed the Agent workflow, and neither component is presented as a trading system or as evidence of investment performance.
+## What I changed
 
-## What changes relative to the TradingAgents baseline
+- Bull and bear researchers write independent first drafts from the same source material, then respond to each other's sealed draft.
+- The final assessment does not inherit earlier ratings or trader-defined thresholds.
+- Forward assumptions are stored explicitly and recalculated in Python before the final report is produced.
+- Report figures reference the effective recalculated outputs rather than free-form numbers copied by the model.
+- Saved cases, traces and failed outputs can be reopened or replayed for review.
 
-The upstream graph, role topology and native tools are retained. This project changes what roles see, how they revise claims, and how final financial numbers are produced:
+These controls narrow specific failure modes; they do not establish that the model's investment judgment is correct.
 
-- bull and bear researchers write independent first drafts from the same source material;
-- each side then responds to the other side's sealed draft and records what it maintains, changes or leaves unresolved;
-- the final assessment does not inherit earlier ratings or trader-defined thresholds;
-- forward assumptions are stored explicitly and recalculated in Python before the final report is written;
-- report figures reference the effective recalculated outputs rather than free-form numbers copied by the model;
-- model traces, failed outputs and saved cases are retained so completed steps can be reopened or replayed.
+## Example: a financial correction changes EPS, not consolidated cash flow
 
-These controls narrow specific failure modes; they do not prove that the model's research judgment is correct.
+The public offline demo applies a minority-interest correction through the current research path:
 
-## One concrete offline example
+| Metric | Before | After |
+| --- | ---: | ---: |
+| EPS | 1.7 | 1.3 |
+| Consolidated operating cash flow | 16 | 16 |
 
-The public synthetic demo exercises a minority-interest correction through the current research path:
+An intentionally unbound forecast number is rejected instead of being saved into the report. The example is synthetic and demonstrates workflow behavior, not model quality or investment performance.
 
-- the original scenario produces EPS of **1.7**;
-- correcting minority-profit attribution changes EPS to **1.3**;
-- consolidated operating cash flow remains **16**, because that correction does not change the consolidated cash-flow calculation;
-- an intentionally unbound forecast number is rejected instead of being saved into the report.
-
-Run it without an API key or live model:
-
-```bash
-mkdir -p ../private
-python3.12 -m venv ../tmp/tradingagents-runtime
-../tmp/tradingagents-runtime/bin/python -m pip install -r requirements/tradingagents.lock
-PYTHONPATH=src ../tmp/tradingagents-runtime/bin/python scripts/thesis_offline_demo.py \
-  --artifact-root ../private/thesis-demo
-```
-
-This is a scripted engineering demonstration, not a model-quality or investment-performance evaluation.
+[Run the offline demo](#try-the-current-research-workflow-offline) ·
+[Research workflow](docs/thesis-research.md) ·
+[Current status](docs/status.md)
 
 ## Separate A-share Quant module
 
 The independent [Quant module](quant/README.md) defines 60-session market inputs, 20-session forward-return targets, purged date splits, stock-only/context ablations, Rank IC evaluation and versioned research signals.
 
-The first real-data panel processed more than four million code-day records, but its research results were **invalidated** after old and new ticker aliases for the same securities were counted separately. That error changes universe membership, market context, labels and evaluation weights, so the affected IC results are retained only for audit rather than presented as performance.
-
-See [current status](docs/status.md) for the exact evidence, limitations and next repair.
+Its first real-data panel processed more than four million code-day records, but the research results were **invalidated** after old and new ticker aliases for the same securities were counted separately. Because that changes the universe, market context, labels and evaluation weights, the affected IC results are retained only for audit.
 
 ## TradingAgents research integration
 
