@@ -49,25 +49,44 @@ def audit_store(store_path, raw_root, master_documents):
                 "master_expected_not_returned": sorted(expected - symbols),
                 "raw_not_in_master": sorted(symbols - set(master)),
                 "outside_master_listing_interval": sorted(symbols - expected),
-                "later_delisted_observed": sum(bool(master[s]["outDate"]) and master[s]["outDate"] > text
+                "codes_with_later_master_outdate": sum(bool(master[s]["outDate"]) and master[s]["outDate"] > text
                                                 for s in symbols if s in master)})
         issue_counts = dict(store.connection.execute("SELECT reason,COUNT(*) FROM issues GROUP BY reason"))
-        valid = store.connection.execute("SELECT COUNT(*),COUNT(DISTINCT symbol) FROM bars").fetchone()
-        eligible = store.connection.execute("SELECT COUNT(*),COUNT(DISTINCT symbol) FROM bars WHERE eligible=1").fetchone()
+        outcome_counts = store.connection.execute(
+            "SELECT COUNT(*),SUM(price_only),SUM(confirmation_at IS NOT NULL) FROM outcome_prices").fetchone()
+        outcome_issues = dict(store.connection.execute(
+            "SELECT reason,COUNT(*) FROM outcome_price_issues GROUP BY reason"))
+        valid = store.connection.execute("SELECT COUNT(*),COUNT(DISTINCT security_id) FROM bars").fetchone()
+        eligible = store.connection.execute("SELECT COUNT(*),COUNT(DISTINCT security_id) FROM bars WHERE eligible=1").fetchone()
         st_eligible = store.connection.execute("SELECT COUNT(*) FROM bars WHERE eligible=1 AND is_st='1'").fetchone()[0]
         counts = [{"date": d, "raw_rows": raw, "valid_rows": bars, "eligible_rows": pool, "issue_rows": issues}
                   for d, raw, bars, pool, issues in store.connection.execute("SELECT * FROM day_counts ORDER BY session")]
-        observed = {r[0] for r in store.connection.execute("SELECT DISTINCT symbol FROM bars")}
-        delisted = sorted(s for s in observed if s in master and master[s]["outDate"])
+        observed = {r[0] for r in store.connection.execute("SELECT DISTINCT trading_symbol FROM bars")}
+        retired_codes = sorted(s for s in observed if s in master and master[s]["outDate"])
         absent = Counter(s for day in coverage for s in day["master_expected_not_returned"])
-        return {"schema_version": "quant.market-quality-report/v1",
+        decisions = [json.loads(r[0]) for r in store.connection.execute("SELECT document FROM identity_decisions")]
+        return {"schema_version": "quant.market-quality-report/v3",
             "source_snapshot_id": store.metadata["source_snapshot_id"], "master_source_pages": pages,
-            "raw_sessions": len(store.sessions), "valid_bars": valid[0], "observed_symbols": valid[1],
-            "eligible_stock_dates_including_warmup_and_tail": eligible[0], "ever_eligible_symbols": eligible[1],
-            "st_eligible_stock_dates": st_eligible, "later_delisted_observed_symbols": delisted,
+            "raw_sessions": len(store.sessions), "valid_bars": valid[0], "observed_security_ids": valid[1],
+            "observed_trading_symbols": len(observed),
+            "eligible_stock_dates_including_warmup_and_tail": eligible[0], "ever_eligible_security_ids": eligible[1],
+            "st_eligible_stock_dates": st_eligible, "observed_codes_with_master_outdate": retired_codes,
+            "identity_map_id": store.metadata["identity_map_id"],
+            "all_security_identities_verified": False,
+            "identity_decision_count": len(decisions),
+            "identity_conflict_dates": sum(bool(d["conflicting_fields"]) for d in decisions),
+            "reconciled_extra_alias_rows_removed": sum(len(d["provider_symbols"])-1 for d in decisions if d["selected_symbol"] is not None),
+            "incomplete_alias_observations": sum(len(d["incomplete_symbols"]) for d in decisions),
             "normalization_issues": issue_counts, "daily_counts": counts, "listing_coverage": coverage,
+            "outcome_price_rows": outcome_counts[0],
+            "outcome_price_only_rows": outcome_counts[1] or 0,
+            "outcome_rows_requiring_later_confirmation": outcome_counts[2] or 0,
+            "outcome_price_issues": outcome_issues,
             "master_expected_absent_counts": dict(absent),
             "limitations": ["Master listing dates are current-vintage retrospective corroboration.",
                             "No name or current listing status is used for sample eligibility.",
+                            "Master outDate counts are retired codes, including ticker changes, not confirmed economic delistings.",
+                            "Raw code/master coverage is separate from stable-security grain; unmapped identities remain provisional.",
                             "Coverage differences are reported, not silently repaired or filtered.",
-                            "Unverified prices, company actions, mergers and vendor revisions remain data-quality risks."]}
+                            "Unverified prices, company actions, mergers and vendor revisions remain data-quality risks.",
+                            "Outcome-only prices never restore missing feature activity; later confirmations delay label availability and do not certify listing continuity or historical vendor vintage."]}

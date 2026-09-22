@@ -1,9 +1,445 @@
 # Project Status
 
-> Updated 2026-09-18. This file is the only public status source; other
+> Updated 2026-09-22. This file is the only public status source; other
 > documents describe mechanisms and link here.
 
-## Current slice: real daily market-data pipeline — 2026-09-18
+## Current slice: completed fixed research study — 2026-09-22
+
+The user authorized research-grade admission and immediate execution of the
+registered 18 window comparisons. Coherent historical observations may be
+SUPPORTED without a per-event original PDF; known identity, time and price
+conflicts still require resolution. The broad observed eligibility rules remain;
+no Top-N, new liquidity threshold or current-survival filter was added.
+
+<!-- QUANT_PUBLIC_EXECUTION_START -->
+The authorized A→B→C→D study is COMPLETED. Temporary automated follow-up is PAUSED; no new stage is underway. All six fitted models and four fixed rules, including unfavorable results and the earlier numerical failure, are retained. Production screening and portfolio evaluation remain DEFERRED.
+
+This public checkpoint distributes the security-identity and outcome-price handling, interval-label/evaluation contracts, optional XGBoost adapter, synthetic tests, schemas and reviewed aggregate findings. Ridge/GRU fitting adapters, stage runners, market inputs, trained weights and detailed execution evidence remain in the private research workspace. The results below describe that local study; this checkout alone does not reproduce its full real-data A–D execution. Public offline tests validate the distributed engineering mechanisms, not the reported investment-research findings.
+
+B completed the original 18 window comparisons and selected expanding by the preregistered IC lower-bound rule. Its development bounds were [0.125715, 0.126342], compared with [0.116918, 0.117470] for 2Y and [0.119542, 0.120118] for 5Y. The 2Y window had lower daily variability; the expanding-versus-2Y HAC intervals included zero. C completed all 60 annual candidate results, with 42 successful new fitting cells and six B model reuses. Its 14,370 candidate-days were replayed with zero prediction difference and metrics recomputed. C remains development evidence.
+
+D completed on 2026-09-22 across 485 dates and 2,424,608 member-days: 12 fitted models and 20 annual candidate results. All 4,850 candidate-day forecasts were persisted and exactly replayed before one-way performance reveal, then daily metrics were computed and recomputed from saved forecasts. Delivery checks rehashed all prediction/model files, verified epochs and training cutoffs, and rebuilt aggregate, annual/monthly, HAC20/60, fixed-regime and paired summaries from persisted daily metrics at 1e-12 tolerance, with no additional fitting.
+
+| Model | Final 2024–2025 mean IC identification bounds |
+|---|---:|
+| Ridge stock-only | [0.114675, 0.116168] |
+| Ridge with context | [0.123408, 0.124880] |
+| XGBoost stock-only | [0.124132, 0.125637] |
+| XGBoost with context | [0.132942, 0.134366] |
+| GRU stock-only | [0.109123, 0.110558] |
+| GRU with context | [0.135314, 0.136623] |
+
+The stock-only GRU's development advantage did not persist: its mean IC was lower than stock-only XGBoost in both final years. Context improved GRU relative to its stock-only version in this period; the small mean lead over context XGBoost remained uncertain under both HAC lag choices. The context block includes relative-strength and market-state inputs, so these comparisons do not isolate a single causal mechanism. Identification bounds are not confidence intervals or returns.
+
+All fitted models had positive annual mean IC bounds, yet shared negative-IC months in May 2024, September 2024 and December 2025. The 198 complete-outcome days were sensitivity only; their ranking differed, and the stock-only GRU's theoretical top-minus-bottom reference-return difference was negative despite positive IC. All four original fixed rules remain reported, including negative momentum results. No candidate, sample or direction was changed after viewing performance.
+
+The frozen method retained expanding annual refits, the user-authorized Ridge iteration ceiling of 1,000 with unchanged tolerances, and four/three GRU epochs with no final-stage early stopping. The 2025 fit used only then-mature historical observations. Reveal occurred only after every forecast case passed, and 2024–2025 are permanently seen evidence. Seven D synthetic checks and the 391-test core suite passed as engineering checks. Historical vendor vintage and exhaustive lifecycle coverage are not certified; nonrandom missing supervision remains a limitation. Reference returns are not executable account P&L. Portfolio P&L, Sharpe and Agent integration remain DEFERRED.
+<!-- QUANT_PUBLIC_EXECUTION_END -->
+
+The following paragraph records the earlier admission and first-run state.
+
+Research admission completed on 2026-09-21 after validating the actual frozen
+bundle, 3,886 prepared dates, all shared-label checks and 35 direct boundary
+replays. The pool retains 1,434 unknown outcome windows with explicit
+classification and interval labels. The first fixed study run uses 2016–2017
+training history and evaluates 2018; no study result or winner is claimed yet.
+
+Sixty-five verified dated events exclude 964 contemporaneously ineligible
+member dates, with original prices and identity fields unchanged. A historical
+alias-anchor check was corrected without changing the pool. Prior failures,
+raw data, candidates and verdicts are retained. Historical vendor vintage and
+exhaustive lifecycle coverage are not claimed; returns are theoretical references.
+
+## Previous slice: authorized full-universe rank intervals — 2026-09-21
+
+The user has adopted full-universe rank intervals / partial identification.
+Unknown outcomes stay in historical/inference universes and full prediction
+coverage, but have no supervised-loss rows. Known outcomes have original-pool
+rank intervals; no midpoint, zero return or terminal value is imputed.
+The preregistered window-selection criterion is date-equal mean daily Rank IC
+conservative lower bound; complete days are sensitivity only. All other Phase A
+identity, time, qualification and economic-endpoint requirements remain in force.
+
+Contracts and synthetic checks are completed: core 391, Quant 170,
+no-site Quant 170, and isolated synthetic ML 9 passed. Independent Standards/Spec
+review findings on admission evidence, evaluation cutoffs and cached input
+identity were repaired and checked. Real label-only coverage and deterministic
+replay completed for all 3,886 dates and 12,828,289 member dates in the unchanged
+base candidate. Six dates exactly match the full feature pipeline's labels.
+Development retains 1,437 mature dates, including 780 complete-day sensitivity
+dates; 20 horizon-crossing dates are purged and seven dates have late-confirmed
+members censored. The 18 folds' persisted coverage was independently checked,
+with no performance computation. Historical qualification evidence remains incomplete; a new
+bounded primary-source batch is awaiting explicit authorization after prior
+batches were closed. Unknown terminal values alone no longer force whole-date
+loss or a fabricated target. The data-only process has exited; temporary
+follow-up is paused pending that source-budget decision. Phase A is still partial; no accepted frozen panel,
+real-data model fit, new factor/model IC or final-holdout performance exists.
+The prior decision pause is superseded by the user's explicit choice. Historical
+point-label studies and all original data/candidate/failure artifacts remain.
+
+## Previous slice: gated A–D execution; Phase A data audit — 2026-09-20
+
+The user has authorized automatic A → B → C → D execution, conditional on
+evidence-based acceptance at each transition. Phase A remains `PARTIAL`: no new
+model fit, Rank IC, factor performance or final-holdout evaluation is being
+performed. The expanded panel is not frozen or accepted; B/C/D are `NOT_STARTED`.
+Authorization, successful downloading and passing engineering tests do not
+constitute data acceptance.
+
+The temporary heartbeat is paused at a concrete research-definition decision,
+not at a successful data freeze. All started reconstruction/replay and bounded
+source-review work has finished. Under the non-applied 65-event shadow,
+1,434 unknown member windows out of 12,827,325 (0.0112%) invalidate 734 of 3,886
+whole dates (18.89%) under the current exact full-pool rank contract. Material
+nonrandom date loss has not been accepted. The user has been asked to choose
+between evaluating an explicit missing-label/rank-interval design, retaining
+the strict design while addressing missing facts/references, or formally limiting
+research to common complete dates. No alternative has been adopted or coded.
+A count-only mathematical identifiability note computes no real returns/ranks
+or IC and confers no model or data-validity claim. Existing conditional A–D
+authorization remains in place; no repeated model-stage permission is sought.
+
+Ten additional primary exit notices were read: eight describe no liquidation
+trading period and two retrospectively describe one. They postdate the relevant
+scoring dates and provide no definite terminal reference. Two reference-change
+cases remain only partially evidenced; a retrospective corporate-action notice
+cannot establish earlier public availability. All closed access batches stay
+closed without retries. Lifecycle/qualification and special-reference work is
+not claimed complete.
+
+The verified exchange calendar has 4,024 sessions from 2009-09-01 through
+2026-03-31. The first 2010 scoring day, 2010-01-04, has 82 preceding sessions;
+the last 2025 scoring day's twentieth subsequent session is 2026-01-30.
+Thirteen bounded source requests completed without retries. Four new daily
+responses and 1,133 hash/content-verified reused daily responses provide the
+initial cache. Collection has now completed all 4,024 sessions with 2,889 new
+daily requests and two budgeted transport recoveries. The original collector
+exited with its success receipt and must not be restarted. A full raw-field
+audit covers 13,996,851 rows and reproduces exactly from the same input manifest.
+
+All 5,558 SH/SZ-prefix candidates in the current vendor master have a CNINFO
+issuer anchor; one is explicitly a CDR rather than an ordinary A share. Eight
+multi-code issuer groups require distinctions between renaming, mergers and
+relisting. An issuer anchor is not sufficient proof of economic-security
+continuity or historical listing membership. Primary notices are being retained
+for the complex cases. Existing bounded-period mappings cannot be silently
+extended to all historical listing episodes.
+
+Raw originals, acquisition times and earlier candidates remain unchanged. The
+v9 offline diagnostic reconstruction has completed; its supervisor exited and
+must not be restarted. This candidate still uses the base observed universe,
+not a complete historical lifecycle policy, and is ineligible for training.
+The label-only price chain preserves complete feature bars and the original
+61-session qualification rule. Narrow sparse halted quotes remain pending until
+same-chain positive trading confirms them; dependent availability is delayed.
+Unconfirmed tails and unresolved identity/reference changes remain unavailable.
+Confirmed trading does not itself prove a continuous economic listing episode.
+
+Independent checks found exact equality of all 13,972,785 feature bars, 3,964
+universe records and 13 legacy exit references between v8 and v9. All 13,984,038
+outcome records passed structural/chain/confirmation checks; every one of the
+11,279 sparse outcome records matched its raw prices and source. All 4,024 raw
+frame hashes were verified. Exact all-field replay currently covers 32 fixed
+securities and 105,426 outcomes, not yet the whole market. The 13 new conversion
+references also passed independent basis and availability calculations.
+
+The base diagnostic has 2,791 complete endpoint dates out of 3,886, recovering
+542 dates from v8. Missing member windows fell from 33,399 to 2,074; 1,095 dates
+remain incomplete. Delayed evidence affects 530 complete dates and can span
+587 calendar days, requiring separate lifecycle review. Four dates whose
+20-session endpoints end in 2023 but confirmations occur in 2024 are additionally
+excluded from development. These are data availability checks, not performance.
+
+Sixty-three previously verified liquidation-entry facts and two newly read
+early notices provide 65 dated facts, not a complete eligibility catalog.
+A non-applied shadow calculation using only the original 63 facts removes both
+known- and unknown-outcome members under the existing publication/effectiveness
+predicate. It yields 3,112 complete dates, with 1,474 member-window gaps remaining.
+Neither features/context nor the stored universe have been changed by this
+counterfactual. The current master has 259 in-window exit candidates; the earlier
+236-code boundary inventory was only the subset with raw rows on outDate.
+Present-day status is never used as a historical universe filter. Full identity,
+listing intervals, exit rights and nonrandom missingness remain unresolved.
+
+The bounded proxy check executed ten of twelve permitted requests: nine daily
+calls returned 56 rows (36 economic-security dates), then a suspension request
+returned HTTP 503 upstream_pool_exhausted. It stopped without retries; the final
+two requests were not sent. All closed acquisition/source batches stay closed.
+Three newly scoped, uncached primary early notices were subsequently retrieved
+successfully from an exact allowlist, without further metadata or market queries.
+No source substitution, unknown activity fill or terminal-value invention occurred.
+
+The identical price/activity coupling regression fails on archived v8 and passes
+on v9. Core 391, Quant 147, and no-site Quant 147 checks pass. Engineering success
+is not data acceptance. Historical vendor vintage remains unverified; the
+historical 21:00 availability convention is an explicit reconstruction assumption.
+The complete candidate replay is now verified; the unresolved lifecycle/reference audits continue.
+There is no accepted frozen dataset and no B/C/D execution. No new dependency,
+Agent integration, commit or push has occurred. The temporary heartbeat pauses at the research-definition decision above. It advances only after
+actual phase acceptance and pauses after final delivery or a concrete blocker
+requiring external facts or a user decision; standards are not silently relaxed.
+
+A further narrow repair separates exact agreed prices from unresolved amount-only
+alias disputes. It requires reviewed identity, complete aliases, exact raw price/
+volume/status agreement and positive activity in the original numeric domain.
+It selects no amount and restores no feature bar or universe membership.
+Independent review found and resolved an overflow/underflow admission bug.
+Core 391, Quant 153 and no-site Quant 153 final checks pass. The separately
+versioned outcome method v2 has completed offline reconstruction, endpoint
+checks and complete streaming replay. All 4,024 sessions, 13,972,785 feature rows,
+3,964 universes and 13,984,044 outcomes reproduced exactly, including persisted
+reviewed choices and repairs. Independent source/chain checks confirm six new
+price observations and changes restricted to their reviewed identity chain.
+Twenty 2013 dates recovered; the candidate now has 2,811 complete dates out of
+3,886, with 2,054 missing member windows. Development evaluation dates and the
+four late-2023 confirmation exclusions remain unchanged.
+The prior candidate and its method-v1 reader remain preserved. The remaining
+1,474 shadow member windows have been classified, including 260 reference changes
+and 40 status/activity conflicts, but their economic causes are not yet certified.
+Long reference confirmation delays can end in liquidation trading, which is not
+proof of normal listing or continuous holder rights. Phase A remains partial.
+
+The latest supervisor has exited successfully and must not be restarted.
+Full-calendar controls for the five reviewed ticker changes and three separate
+relistings also pass, without certifying other identities. A non-applied 65-event
+shadow has 3,152 complete dates and 1,434 missing member windows; it remains
+ineligible as a final pool or accepted missingness mask. Further primary-source
+lifecycle and reference-change audits continue without model performance.
+
+C now has a finite preregistration: four fixed rules and two ablations each of
+Ridge, the same fixed XGBoost, and a one-layer 32-unit GRU. Its 48 protocol fits
+include six reusable B models, leaving at most 42 new fits under strict reuse.
+GRU early stopping uses earlier inner development folds only; the final epoch
+count is frozen from those folds before D, with no holdout-based early stopping.
+These are specifications, not implemented-adapter or evaluation-completion
+claims. Portfolio evaluation and Agent integration remain outside this run.
+
+## Previous slice: four-phase training-window research plan — 2026-09-20
+
+The next research design has been documented (`COMPLETED` as planning work).
+New data acquisition/freeze, window comparisons, model development and final
+evaluation remain `NOT_STARTED`. No source, contract implementation, model or
+past result was modified by this document-only task.
+
+Phase A covers a candidate raw interval of September 2009 through March 2026,
+with exact trading-calendar boundaries still to be verified. The current shared
+panel requires 79 preceding sessions to prepare both individual history and
+20 historical market universes. Expanding-window training starts in 2010;
+2026Q1 is reserved for completing the final 2025 labels. The longer period
+requires renewed identity, instrument-type and lifecycle audits; existing
+liquidation exclusions cannot be extrapolated to all later exit/relisting cases.
+
+Phase B compares exactly 2Y rolling, 5Y rolling and 2010-anchored expanding
+histories across 2018–2023 development years, for 18 annual fixed-config
+stock-only XGBoost fits. Daily date-equal mean Rank IC is the sole primary
+selection metric. Prespecified stability, paired HAC, regime and quintile
+reference-return diagnostics remain secondary. Training labels must be mature
+before each annual fit; development labels crossing the start of 2024 are
+excluded identically across candidates.
+
+Phase C uses the same development period for predeclared model/context
+comparisons and inner chronological early-stopping or tuning. Phase D reserves
+2024–2025 pending exposure review and complete protocol freeze. Its annual
+refitting schedule is fixed before performance is opened; 2025 may use already
+mature 2024 data automatically, without researcher adaptation to its performance.
+Portfolio evaluation remains `DEFERRED`; any portfolio rules must be frozen
+before opening the final period. Once viewed, final results remain seen evidence.
+
+This specification is not implemented enforcement or an executable data job.
+At that historical planning step, implementation scope was Phase A only.
+The current conditional A–D authorization is recorded above. The
+completed 2020 prototype remains valid under its original stated limitations,
+and is now seen development evidence for future choices. All past artifacts
+and the paused automation remain unchanged; no commit or push was performed.
+
+## Previous slice: confirmed eligibility and first real XGBoost result — 2026-09-19
+
+The user-confirmed eligibility migration, rebuilt data, fixed-factor run and
+first real XGBoost experiment are `COMPLETED`. Research interpretation remains
+limited to this historical reconstruction; historical vendor PIT and complete
+security identity are not certified. The original rejected panel/IC remain
+`INVALIDATED`, with prior candidates and failure evidence preserved.
+
+The current v6 input excludes only publicly announced and effective liquidation
+stages, conservatively delaying date-only publications to the next session.
+A 395-record disclosure-query pagination covers 34 securities, with primary
+notices and observed-master retirement cases checked. The rule excludes 897
+otherwise eligible member-days across the stored calendar, including 845 in
+the scoring window. All 4,007,805 quote records retain their non-eligibility
+fields and earlier history; all 1,073 historical pools follow the same rule.
+Out of 974 scoring dates, 929 are usable, 32 purged and 13 remain unavailable.
+
+XGBoost uses 463 training dates / 1,442,826 samples from 2017–2018; validation
+has 224 dates / 800,945 samples in 2019, and testing has 242 dates / 918,929
+samples in 2020. The latest training-label availability is 2018-12-27 at 21:00
+Asia/Shanghai. The stock-only configuration is fixed at 200 rounds, depth 4,
+learning rate 0.05 and seed 20260919, without tuning or early stopping.
+
+| Method | 2019 mean daily Rank IC | 2020 mean daily Rank IC |
+|---|---:|---:|
+| 20-session momentum | -0.08568 | -0.02430 |
+| 5-session reversal | 0.05343 | 0.00962 |
+| 20-session low volatility | 0.08029 | 0.08909 |
+| Three-factor equal-weight score | 0.04288 | 0.05960 |
+| Fixed-config XGBoost | 0.10373 | 0.10796 |
+
+These are date-equal descriptive ordering diagnostics on identical available
+cross-sections. In these two periods XGBoost exceeds the four predeclared
+rules; this does not establish stable incremental alpha, statistical
+significance under dependent observations, or executable portfolio returns.
+Twenty-session outcomes overlap, 13 missing dates are not random, and the
+reference-price convention does not implement trading costs, cash elections,
+taxes, fractional-share settlement or actual fills.
+
+Final checks pass 391 core, 127 Quant, the same 127 without site packages, and
+seven isolated ML synthetic tests. Six selected real dates reproduce from the
+source store; saved/restored model predictions agree. Independent recomputation
+of 3,716 factor-day ICs and 466 model-day ICs differs by at most 1.67e-16, with
+matching target percentiles, sample dates, labels and dataset identifiers.
+A native-library launch failure before fitting was repaired by starting the
+existing isolated runtime directly; its failed attempt is preserved and no
+parameters, samples or dependencies were changed for the continuation.
+
+The run has ended. No market-context ablation, DL experiment, Agent integration,
+tradable Sharpe, commit or push was performed. Further research needs a new
+user-selected scope; the temporary heartbeat remains paused.
+
+## Previous slice: missing-outcome supplementation — 2026-09-19
+
+Evidence-backed supplementation is `COMPLETED`; full research-data readiness
+remains `PARTIAL`. Three exact, reviewed full-day suspension records now have
+zero trading activity while their source prices are preserved. This restores
+eight complete scoring dates. Two verified share conversions add 13 exit-only
+reference values and restore another 13 dates. Original raw files and earlier
+candidates remain unchanged; normalization now contains 4,007,805 bars.
+
+The current v5 candidate has 677 available dates, 296 incomplete-outcome dates
+and one additional purged date out of 974. Available dates by year are
+233 / 199 / 149 / 96. The remaining 557 security-date gaps comprise 544 windows
+for 29 securities already in publicly announced liquidation periods, plus 13
+conversion/first-listing gaps. Twenty-one of these windows also lack the next
+session's entry quote. More download attempts cannot provide a designated
+exchange price after that security has stopped trading.
+
+Conversion values assume passive public holdings without electing cash rights,
+using fractional theoretical units and observed successor reference quotes.
+They can include a halted successor's reference mark; they are not executable
+prices or actual account proceeds. They never create entries, raw stock bars,
+volume, universe membership or model features. Late confirmation participates
+in label availability and the existing purge. Unimplemented conversion claims
+and not-yet-listed successor shares remain missing.
+
+A read-only feasibility calculation excludes only the 29 affected companies'
+publicly known liquidation phases, consistently including phase rows with
+known outcomes. It would leave 929 available dates, 32 purged and 13 missing;
+2020 would have 242/243 available dates. This is a proposed eligibility change,
+not an applied filter, rebuilt model input, or exhaustive market status table.
+Normal history before the phase would remain. User confirmation is needed
+before changing this research scope and accepting the remaining date gaps.
+
+Final offline checks pass 391 core tests, 124 Quant tests, the same 124 with
+site packages disabled, and seven isolated ML tests on synthetic data with
+network connections disabled. Six real-date feature/label replays agree with
+independent SQL coverage, including two intentionally unavailable controls.
+All 13 stored exit references reproduce exactly. An initial schema-whitelist
+test failure is preserved alongside its corrected final checks.
+
+The real fixed-factor rerun and A-share model fit remain `NOT_STARTED`. There
+is no new alpha, model-performance or tradable-Sharpe result. Historical vendor
+vintage and complete security identity remain unverified; the original panel
+and IC acceptance remain `INVALIDATED`. No dependency installation, Agent
+integration, commit or push was performed in this supplementation task.
+
+## Previous slice: corrected data and first XGBoost preparation — 2026-09-19
+
+Reviewed quote choices and two full cache rebuilds are `COMPLETED`. The latest
+candidate resolves three known ticker identities and applies 107 exact,
+hash-bound source-row choices without changing raw observations. It contains
+4,007,802 normalized rows and 4,237 stable/provisional IDs across 1,133 sessions.
+No unresolved known alias quote conflicts or further repeated identical
+positive-volume OHLC candidates remain in the limited scan; this is not an
+exhaustive certification of all security identities or historical vendor PIT.
+
+The full scan added 300114.SZ / 302132.SZ to the earlier two mappings. An
+[official implementation notice](https://disc.static.szse.cn/download/disc/disk03/finalpage/2025-02-15/cedb693a-f5ee-4463-9682-ea33d406b569.PDF)
+confirms a code change effective 2025-02-17 with existing holding category and
+quantity preserved. The future code's backfilled history must not add a second
+security in the 2017–2020 study. The first rebuilt candidate that exposed this
+third pair is preserved; only the subsequent revision is current.
+
+Data readiness remains `PARTIAL`: the 974 scoring dates contain 656 available
+dates, 317 with incomplete full-pool outcomes and one additional purged date.
+Available training/validation/test dates are 415 / 149 / 92, representing
+1,293,607 / 530,160 / 348,119 labeled samples. Test-year coverage is 92/243
+(37.86%). No stocks are removed using future survival, and no terminal proceeds
+are fabricated. Four preselected dates pass the shared full feature/label
+preparation and agree with independent coverage checks.
+
+The optional XGBoost adapter, streaming experiment entry point and isolated
+CPU runtime are implemented. They use the shared views, purged TrainingBatch,
+date-equal weights, native model JSON and date-equal evaluation. Tests pass:
+391 core, 114 Quant, the same 114 without site packages, and seven optional
+ML integration tests on synthetic data with network connections disabled.
+The core runtime remains free of NumPy/XGBoost; native ML dependencies live
+in a separate private environment. A failed synthetic test-fixture attempt
+is preserved together with the corrected check.
+
+The full real-data fixed-factor rerun and real A-share model fit remain
+`NOT_STARTED`. The user is choosing between explicitly limited exploratory
+training on complete-label dates and resolving missing outcomes first. The
+runner rejects incomplete-date scope unless it is explicitly accepted.
+There is no real trained-model result, DL experiment, Agent integration,
+tradable Sharpe, new quote acquisition, commit or push in this slice. The old
+panel/IC acceptance remains `INVALIDATED`; repaired data does not retroactively
+validate its old calculations.
+
+## Previous slice: shared security-identity repair — 2026-09-19
+
+The local identity implementation and bounded replay checks are `COMPLETED`;
+research-data readiness remains `PARTIAL`, and the original full panel/IC
+acceptance remains `INVALIDATED`. No replacement full-market panel or factor
+experiment has been built in this slice.
+
+An explicit evidence-backed identity map now separates stable security IDs,
+session-effective trading tickers and observed vendor aliases. Equivalent
+aliases count once before normalization and universe construction. Missing
+fields are not zeros: one actual complete observation may be selected when
+other observed values agree, but partial records are never spliced together.
+Conflicting observed quotes remain issues and break the reference chain.
+
+Canonical store v2 keys quotes and history by security ID, records alias
+decisions, and projects history/outcomes to the scoring-date ticker for the
+existing research interfaces. Map contents and source choices are included
+in provenance. Old stores are preserved and explicitly rejected by this reader.
+Unknown codes have provisional identities; the supplied map is not a complete
+market identity audit. Quality-report v2 distinguishes retired codes from
+confirmed economic delistings.
+
+The two previously confirmed identities were replayed from 1,133 already
+cached sessions, checking raw-response hashes. Their 3,719 code rows yielded
+2,160 security-day observations, with 1,347 extra alias rows reconciled and
+106 security-days retained as unresolved quote conflicts (105 amount-only;
+one close/volume conflict). Both actual code-change boundaries preserve the
+reference factor and consecutive history. The same resolver reduces 17 saved
+proxy code-day observations to 15 security-days. These are limited identity
+checks, not full-universe acceptance or return-performance evidence.
+
+The final offline checks pass 391 core tests and 108 Quant tests, including
+the same 108 with site packages disabled. Tests cover cross-code lookbacks and
+forward labels, date-effective display, incomplete aliases, conflicting
+quotes, original-pool retention, map provenance and legacy-store rejection.
+Core/Application/Agent source and dependency files are unchanged. No network
+requests, dependency installation, trained models, Agent integration, commit
+or push were performed in this slice.
+
+The next data work is to resolve or explicitly account for the retained quote
+conflicts, examine remaining identities and exit outcomes, then rebuild a new
+full panel under the unchanged study window, factors and theoretical return
+convention. The previous rejected dataset and all failure evidence remain
+available for audit; passing engineering checks does not rehabilitate them.
+
+## Previous slice: real daily market-data pipeline — 2026-09-18
 
 Acquisition, fixed-factor calculation and arithmetic review are `COMPLETED`.
 **The current panel and its IC results are `INVALIDATED` for V1 research

@@ -1,5 +1,5 @@
 # Market-only Quant V1 contracts have no third-party runtime dependencies.
 # Python >=3.12,<3.13. This file intentionally resolves to an empty environment.
 # Do not install ML/data-provider packages into the FinAuditGate core environment.
-# XGBoost, TCN/GRU, provider adapters and their separate runtime lock are deferred
-# until data/ML runtime requirements are selected and compatible versions tested.
+# Optional XGBoost dependencies are isolated in quant-ml.lock.
+# TCN/GRU and provider SDKs are not core dependencies.

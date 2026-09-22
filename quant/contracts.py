@@ -8,7 +8,7 @@ import math
 from zoneinfo import ZoneInfo
 
 CHINA = ZoneInfo("Asia/Shanghai")
-TARGET_ID = "cn-a-holding-return-20d-percentile/v1"
+TARGET_ID = "cn-a-holding-return-20d-rank-interval/v2"
 FEATURE_DEFINITION_ID = "cn-a-daily-price-volume-market-context/v1"
 SCALAR_NAMES = (
     "return_1", "return_5", "return_20", "return_60", "overnight_gap",
@@ -53,6 +53,11 @@ def session_of(value):
 
 def market_time(session, hour=18, minute=0):
     return datetime.combine(session, time(hour, minute), CHINA)
+
+
+def evaluation_cutoff(phase):
+    require(phase in ('development','final'), 'UNKNOWN_EVALUATION_PHASE')
+    return market_time(date(2024,1,1) if phase=='development' else date(2026,4,1),0)
 
 
 def primitive(value):
@@ -171,26 +176,54 @@ class LabelRow:
     label_end_date: date | None
     available_at: datetime | None
     raw_return: float | None
-    target_percentile: float | None
+    target_interval: tuple[float, float] | None
+    universe_size: int
+    observed_count: int
+    knowledge_cutoff: datetime
+    outcome_available_at: datetime | None
     missing_reason: str | None = None
 
     def __post_init__(self):
-        for value in (self.raw_return, self.target_percentile):
-            require(value is None or finite(value), "NONFINITE_LABEL")
-        if self.target_percentile is not None:
-            require(0 <= self.target_percentile <= 1 and self.missing_reason is None,
-                    "LABEL_PERCENTILE_INVALID")
+        require(self.raw_return is None or finite(self.raw_return), "NONFINITE_LABEL")
+        require(type(self.universe_size) is int and self.universe_size >= 2
+                and type(self.observed_count) is int and 0 <= self.observed_count <= self.universe_size,
+                "LABEL_POOL_COUNTS_INVALID")
+        aware(self.knowledge_cutoff)
+        if self.available_at is not None:
+            aware(self.available_at)
+        if self.target_interval is not None:
+            require(type(self.target_interval) is tuple and len(self.target_interval) == 2
+                    and all(finite(x) for x in self.target_interval)
+                    and 0 <= self.target_interval[0] <= self.target_interval[1] <= 1
+                    and self.missing_reason is None, "LABEL_INTERVAL_INVALID")
             require(self.entry_date is not None and self.label_end_date is not None
                     and session_of(self.key.as_of) < self.entry_date <= self.label_end_date,
                     "LABEL_WINDOW_INVALID")
             require(self.available_at is not None
-                    and aware(self.available_at) >= market_time(self.label_end_date, 15),
+                    and self.outcome_available_at is not None
+                    and market_time(self.label_end_date, 15) <= aware(self.outcome_available_at)
+                    <= self.available_at < self.knowledge_cutoff
+                    and self.label_end_date < session_of(self.knowledge_cutoff),
                     "LABEL_AVAILABILITY_INVALID")
             require(self.raw_return is not None, "LABEL_RETURN_MISSING")
+        else:
+            require(self.raw_return is None and self.outcome_available_at is None
+                    and identifier(self.missing_reason), "UNKNOWN_OUTCOME_MUST_NOT_HAVE_POINT_VALUE")
+
+    @property
+    def supervised(self):
+        return self.target_interval is not None
+
+    @property
+    def target_percentile(self):
+        """A point exists only for an identified rank, never an interval midpoint."""
+        if self.target_interval is not None and self.target_interval[0] == self.target_interval[1]:
+            return self.target_interval[0]
+        return None
 
     @property
     def complete(self):
-        return self.missing_reason is None and self.target_percentile is not None
+        return self.supervised and self.observed_count == self.universe_size
 
 
 @dataclass(frozen=True)
@@ -203,16 +236,31 @@ class LabeledDataset:
                 "LABELS_MUST_BE_IMMUTABLE")
         require(tuple(r.key for r in self.panel.rows) == tuple(r.key for r in self.labels),
                 "LABEL_SAMPLE_ALIGNMENT_INVALID")
-        require(all(y.complete or y.missing_reason is not None for y in self.labels),
+        require(all(y.supervised or y.missing_reason is not None for y in self.labels),
                 "UNEXPLAINED_MISSING_LABEL")
-        coverage = {}
-        for label in self.labels:
-            coverage.setdefault(label.key.as_of, set()).add(label.complete)
-        require(all(len(v) == 1 for v in coverage.values()), "MIXED_LABEL_COVERAGE_WITHIN_DATE")
+        validate_label_groups(self.labels)
 
     @property
     def dataset_id(self):
         return fingerprint(self)
+
+
+def validate_label_groups(rows):
+    require(len({y.key for y in rows})==len(rows),'DUPLICATE_LABEL_SAMPLE')
+    groups = {}
+    for label in rows:
+        groups.setdefault(label.key.as_of, []).append(label)
+    from quant.labels.intervals import percentile_intervals
+    for labels in groups.values():
+        observed = sum(y.supervised for y in labels)
+        require(all(y.universe_size == len(labels) and y.observed_count == observed for y in labels),
+                "LABEL_FULL_UNIVERSE_ALIGNMENT_INVALID")
+        require(len({(y.entry_date, y.label_end_date, y.knowledge_cutoff, y.available_at)
+                     for y in labels}) == 1, "MIXED_LABEL_INFORMATION_SET")
+        expected = percentile_intervals(tuple(y.raw_return for y in labels))
+        require(tuple(y.target_interval for y in labels) == expected, "LABEL_INTERVAL_RANK_MISMATCH")
+        require(labels[0].available_at == max((y.outcome_available_at for y in labels
+                if y.supervised), default=None), "LABEL_DEPENDENCY_AVAILABILITY_MISMATCH")
 
 
 @dataclass(frozen=True)

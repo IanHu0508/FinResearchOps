@@ -23,9 +23,11 @@ def _name(name):
             and name != "manifest.json", "ARTIFACT_FILENAME_INVALID")
 
 
-def write_run(root, documents, *, data_kind, dataset_id):
+def write_run(root, documents, *, data_kind, dataset_id, data_audit_status="NOT_STARTED"):
     root = _private_root(root)
     require(data_kind in ("SYNTHETIC", "REAL_DATA"), "ARTIFACT_DATA_KIND_INVALID")
+    require(data_audit_status in ("NOT_STARTED", "PARTIAL", "COMPLETED", "INVALIDATED", "DEFERRED", "SCAFFOLD"),
+            "ARTIFACT_AUDIT_STATUS_INVALID")
     require(isinstance(dataset_id, str) and re.fullmatch(r"[0-9a-f]{64}", dataset_id),
             "ARTIFACT_DATASET_ID_INVALID")
     require(bool(documents), "ARTIFACTS_EMPTY")
@@ -45,7 +47,7 @@ def write_run(root, documents, *, data_kind, dataset_id):
         hashes[name] = hashlib.sha256(content).hexdigest()
     manifest = {"schema_version": "quant.run-manifest/v1", "data_kind": data_kind,
                 "dataset_id": dataset_id, "artifacts": hashes,
-                "data_audit_status": "NOT_STARTED", "investment_effectiveness": "NOT_STARTED"}
+                "data_audit_status": data_audit_status, "investment_effectiveness": "NOT_STARTED"}
     with (root / "manifest.json").open("x", encoding="utf-8") as stream:
         stream.write(canonical(manifest) + "\n")
     return manifest

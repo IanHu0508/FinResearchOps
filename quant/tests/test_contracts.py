@@ -15,8 +15,10 @@ class DataContractTests(unittest.TestCase):
         cls.data, cls.spec = make_synthetic_data(score_start=60, score_end=62)
 
     def test_input_has_no_fundamental_valuation_or_industry_dependencies(self):
-        self.assertEqual({"sessions", "bars", "universes", "scoring_dates", "data_kind", "price_basis"},
+        self.assertEqual({"sessions", "bars", "universes", "scoring_dates", "data_kind", "price_basis", "exit_references",
+                          "outcome_prices", "outcome_prices_enabled"},
                          {f.name for f in fields(self.data)})
+        self.assertEqual((), self.data.exit_references)
         panel = build_panel(self.data, self.spec)
         self.assertFalse(hasattr(panel.rows[0], "industry"))
         self.assertFalse(any(word in name for name in SCALAR_NAMES

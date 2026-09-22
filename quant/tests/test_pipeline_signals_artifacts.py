@@ -79,7 +79,7 @@ class PipelineSignalArtifactTests(unittest.TestCase):
                 validate_signal({**signal, **updates})
 
     def test_signal_schema_matches_public_validator_fields_and_constants(self):
-        schema = json.loads((ROOT / "schemas/quant-signal.v2.schema.json").read_text())
+        schema = json.loads((ROOT / "schemas/quant-signal.v3.schema.json").read_text())
         self.assertFalse(schema["additionalProperties"])
         self.assertEqual(FIELDS, set(schema["required"]))
         self.assertEqual(FIELDS, set(schema["properties"]))

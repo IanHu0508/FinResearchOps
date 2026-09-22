@@ -1,20 +1,31 @@
 """The shared preparation and experiment Interface, independent of agents."""
 
 from quant.artifacts import write_run
-from quant.contracts import fingerprint, primitive, require
+from quant.contracts import evaluation_cutoff, fingerprint, market_time, primitive, require
 from quant.data.serialization import to_document
 from quant.evaluation import evaluate_predictions
 from quant.features import build_panel
 from quant.inference import build_signals
 from quant.labels import build_labels
 from quant.splits import prepare_fold
+from quant.splits.walk_forward import split_kind
 
 
-def prepare_dataset(data, spec):
-    return build_labels(data, build_panel(data, spec))
+def prepare_dataset(data, spec, *, knowledge_cutoff=None):
+    return build_labels(data, build_panel(data, spec), knowledge_cutoff=knowledge_cutoff)
+
+
+def prepare_window_day(data, spec, window, *, evaluation_phase='development'):
+    require(len(data.scoring_dates)==1,"SINGLE_SCORING_DAY_REQUIRED")
+    kind=split_kind(data.scoring_dates[0],window)
+    cap=evaluation_cutoff(evaluation_phase)
+    cutoff=(market_time(window.validation_start,0) if kind=='train' else
+            min(market_time(window.test_start,0),cap) if kind=='validation' else cap)
+    return prepare_dataset(data,spec,knowledge_cutoff=cutoff)
 
 
 def run_experiment(data, spec, window, model, *, artifact_root=None):
+    require(data.data_kind=='SYNTHETIC','REAL_EXPERIMENT_REQUIRES_FROZEN_ADMISSION_RUNNER')
     dataset = prepare_dataset(data, spec)
     fold = prepare_fold(dataset, window)
     fitted = model.fit(fold.train)
@@ -25,7 +36,7 @@ def run_experiment(data, spec, window, model, *, artifact_root=None):
     as_ofs = tuple(sorted({row.key.as_of for row in fold.test.rows}))
     signals = build_signals(test_predictions, dataset.panel, as_ofs=as_ofs, model=fitted,
                             dataset_id=dataset.dataset_id)
-    result = {"schema_version": "quant.experiment/v2", "data_kind": data.data_kind,
+    result = {"schema_version": "quant.experiment/v3", "data_kind": data.data_kind,
         "dataset_id": dataset.dataset_id, "source_snapshot_id": fingerprint(data),
         "spec": primitive(spec), "model_version": fitted.model_version,
         "feature_ablation": fitted.ablation, "input_view": fitted.view,
@@ -33,6 +44,7 @@ def run_experiment(data, spec, window, model, *, artifact_root=None):
             "train": len(fold.train.rows), "validation": len(fold.validation.rows),
             "test": len(fold.test.rows), "purged_train": len(fold.purged_train),
             "purged_validation": len(fold.purged_validation),
+            "purged_test": len(fold.purged_test),
             "unavailable_labels": len(fold.unavailable_labels)},
         "validation": validation, "test": test,
         "portfolio": {"status": "DEFERRED", "reason": "EXECUTION_RULES_NOT_IMPLEMENTED"},
@@ -42,8 +54,8 @@ def run_experiment(data, spec, window, model, *, artifact_root=None):
     if artifact_root is not None:
         manifest = write_run(artifact_root, {
             "input.json": to_document(data),
-            "dataset.json": {"schema_version": "quant.prepared-dataset/v2", **primitive(dataset)},
-            "split.json": {"schema_version": "quant.prepared-fold/v2", **primitive(fold)},
+            "dataset.json": {"schema_version": "quant.prepared-dataset/v3", **primitive(dataset)},
+            "split.json": {"schema_version": "quant.prepared-fold/v3", **primitive(fold)},
             "model.json": fitted.artifact, "result.json": result,
         }, data_kind=data.data_kind, dataset_id=dataset.dataset_id)
         require(manifest["dataset_id"] == result["dataset_id"], "PERSISTED_DATASET_MISMATCH")

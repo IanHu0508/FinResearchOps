@@ -49,7 +49,9 @@ class LabelTests(unittest.TestCase):
         labels = prepare_dataset(data, self.spec).labels
         self.assertEqual(6, len(labels))
         self.assertTrue(all(y.target_percentile is None for y in labels))
-        self.assertTrue(all(y.missing_reason == "CROSS_SECTION_OUTCOME_INCOMPLETE" for y in labels))
+        self.assertEqual(5,sum(y.supervised for y in labels))
+        self.assertEqual("OUTCOME_PRICE_UNAVAILABLE",labels[0].missing_reason)
+        self.assertTrue(all(y.universe_size==6 and y.observed_count==5 for y in labels))
 
     def test_end_of_history_stays_unlabeled_instead_of_zero_return(self):
         data, spec = make_synthetic_data(score_start=220, score_end=229)
@@ -123,10 +125,15 @@ class SplitTests(unittest.TestCase):
 
     def test_delayed_label_publication_is_purged_even_if_end_date_is_earlier(self):
         cutoff = market_time(self.window.validation_start, 0)
-        labels = tuple(replace(y, available_at=cutoff) if y.key.as_of.date() == self.data.sessions[80]
-                       else y for y in self.dataset.labels)
-        fold = prepare_fold(replace(self.dataset, labels=labels), self.window)
-        self.assertEqual(126, len(fold.purged_train))
+        data = replace(self.data, bars=tuple(replace(b,available_at=cutoff)
+            if b.session==self.data.sessions[100] else b for b in self.data.bars))
+        # Future evidence is a label dependency, not a future feature input;
+        # construct the latest labels on the unchanged historical panel.
+        from quant.labels.forward import build_labels
+        changed=build_labels(data,self.dataset.panel)
+        fold = prepare_fold(changed, self.window)
+        self.assertEqual(120, len(fold.purged_train))
+        self.assertTrue(all(r.key.as_of.date()!=self.data.sessions[80] for r in fold.train.rows))
 
     def test_equal_date_weights_with_changing_universe_size(self):
         # Vary historical membership without changing equal total date weight.
@@ -141,7 +148,7 @@ class SplitTests(unittest.TestCase):
             self.assertAlmostEqual(1.0, total)
 
     def test_empty_training_after_purge_is_rejected(self):
-        with self.assertRaisesRegex(ContractError, "EMPTY_SPLIT"):
+        with self.assertRaisesRegex(ContractError, "EMPTY_TRAINING"):
             prepare_fold(self.dataset, replace(self.window, train_start=self.data.sessions[120]))
 
     def test_date_windows_must_be_ordered(self):
@@ -165,8 +172,9 @@ class SplitTests(unittest.TestCase):
         self.assertFalse(groups[0] & groups[1] or groups[0] & groups[2] or groups[1] & groups[2])
 
     def test_partial_outcome_availability_cannot_silently_filter_one_stock(self):
-        labels = (replace(self.dataset.labels[0], target_percentile=None, missing_reason="MISSING"),) + self.dataset.labels[1:]
-        with self.assertRaisesRegex(ContractError, "MIXED_LABEL_COVERAGE"):
+        labels = (replace(self.dataset.labels[0], target_interval=None, raw_return=None,
+                          outcome_available_at=None, missing_reason="MISSING"),) + self.dataset.labels[1:]
+        with self.assertRaisesRegex(ContractError, "FULL_UNIVERSE"):
             replace(self.dataset, labels=labels)
 
 

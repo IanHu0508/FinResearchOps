@@ -33,7 +33,7 @@ An intentionally unbound forecast number is rejected instead of being saved into
 
 The independent [Quant module](quant/README.md) defines 60-session market inputs, 20-session forward-return targets, purged date splits, stock-only/context ablations, Rank IC evaluation and versioned research signals.
 
-Its first real-data panel processed more than four million code-day records, but the research results were **invalidated** after old and new ticker aliases for the same securities were counted separately. Because that changes the universe, market context, labels and evaluation weights, the affected IC results are retained only for audit.
+The data pipeline resolves dated security identities before constructing historical universes and uses full-universe rank intervals when outcomes remain unknown. An earlier ticker-alias failure and its invalidated outputs are retained in the research history. See [current research results and limitations](docs/status.md) for the fixed window, model and final-period comparisons, and the distinction between public code and private execution artifacts.
 
 ## TradingAgents research integration
 

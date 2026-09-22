@@ -4,12 +4,14 @@ from dataclasses import fields
 from datetime import date, datetime
 
 from quant.contracts import primitive, require
-from .records import MarketBar, ResearchData, UniverseSnapshot
+from .records import ExitReference, MarketBar, OutcomePrice, ResearchData, UniverseSnapshot
 
-SCHEMA_VERSION = "quant.research-input/v2"
+SCHEMA_VERSION = "quant.research-input/v4"
 TABLES = {
     "bars": (MarketBar, ("session",), ("available_at",)),
     "universes": (UniverseSnapshot, (), ("as_of", "available_at")),
+    "exit_references": (ExitReference, ("session",), ("available_at",)),
+    "outcome_prices": (OutcomePrice, ("session",), ("available_at",)),
 }
 
 
@@ -22,7 +24,7 @@ def from_document(document):
             "INPUT_SCHEMA_INVALID")
     require(set(document) == {f.name for f in fields(ResearchData)} | {"schema_version"},
             "INPUT_FIELDS_INVALID")
-    values = {name: document[name] for name in ("data_kind", "price_basis")}
+    values = {name: document[name] for name in ("data_kind", "price_basis", "outcome_prices_enabled")}
     values["sessions"] = tuple(date.fromisoformat(d) for d in document["sessions"])
     values["scoring_dates"] = tuple(date.fromisoformat(d) for d in document["scoring_dates"])
     for name, (cls, dates, times) in TABLES.items():

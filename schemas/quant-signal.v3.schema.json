@@ -1,0 +1,109 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:finresearchops:schema:quant-signal:v3",
+  "title": "Quant research signal; no trading action or probability claim",
+  "description": "Cross-field time ordering and complete-universe coverage are additionally enforced by quant.inference.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "symbol",
+    "market",
+    "as_of",
+    "universe_id",
+    "universe_size",
+    "horizon",
+    "horizon_unit",
+    "target_id",
+    "predicted_target_percentile",
+    "cross_sectional_model_rank",
+    "feature_ablation",
+    "model_version",
+    "dataset_id",
+    "training_cutoff",
+    "data_cutoff",
+    "data_kind",
+    "usage"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "finresearchops.quant-signal/v3"
+    },
+    "symbol": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "\\S"
+    },
+    "market": {
+      "const": "CN_A"
+    },
+    "as_of": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "universe_id": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "\\S"
+    },
+    "universe_size": {
+      "type": "integer",
+      "minimum": 2
+    },
+    "horizon": {
+      "type": "integer",
+      "const": 20
+    },
+    "horizon_unit": {
+      "const": "trading_sessions"
+    },
+    "target_id": {
+      "const": "cn-a-holding-return-20d-rank-interval/v2"
+    },
+    "feature_ablation": {
+      "enum": [
+        "stock-only",
+        "stock+context"
+      ]
+    },
+    "predicted_target_percentile": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1,
+      "description": "Model estimate of a future target percentile. Not P(up), P(outperform) or a calibrated probability."
+    },
+    "cross_sectional_model_rank": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1,
+      "description": "Average-tie percentile (rank-1)/(N-1) of model scores in the complete declared daily universe."
+    },
+    "model_version": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "\\S"
+    },
+    "dataset_id": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "training_cutoff": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Latest information availability of training outcomes, not merely the last training feature date."
+    },
+    "data_cutoff": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "data_kind": {
+      "enum": [
+        "SYNTHETIC",
+        "REAL_DATA"
+      ]
+    },
+    "usage": {
+      "const": "RESEARCH_ONLY_NOT_TRADE_OR_PROBABILITY"
+    }
+  }
+}

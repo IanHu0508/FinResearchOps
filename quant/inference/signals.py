@@ -5,7 +5,7 @@ import re
 from quant.contracts import ABLATIONS, TARGET_ID, aware, finite, require
 from quant.labels.ranks import percentiles
 
-SCHEMA_VERSION = "finresearchops.quant-signal/v2"
+SCHEMA_VERSION = "finresearchops.quant-signal/v3"
 FIELDS = {"schema_version", "symbol", "market", "as_of", "universe_id", "universe_size",
           "horizon", "horizon_unit", "target_id", "predicted_target_percentile", "cross_sectional_model_rank",
           "feature_ablation",

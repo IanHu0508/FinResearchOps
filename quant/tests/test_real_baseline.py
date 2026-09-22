@@ -40,7 +40,8 @@ class FixedFactorTests(unittest.TestCase):
             build_store(root, store)
             window = FoldWindow(sessions[80], sessions[110], sessions[139], sessions[140], sessions[149])
             output = root.parent / "evaluation"
-            result = evaluate_store(store, output, window)
+            from quant.tests.freeze_fixtures import synthetic_freeze
+            result = evaluate_store(store, output, window,frozen_review=synthetic_freeze(store,window))
             self.assertEqual("NONE_FIXED_RULES", result["training"])
             self.assertEqual({"AVAILABLE": 30, "PURGED": 40}, result["coverage_date_counts"])
             self.assertEqual(10, result["metrics"]["test"]["momentum_20"]["days"])

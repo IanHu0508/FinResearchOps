@@ -121,19 +121,19 @@ class ModelAndEvaluationTests(unittest.TestCase):
         result = evaluate_predictions(values, self.fold.test)
         self.assertEqual(0, result["valid_days"])
         self.assertIsNone(result["mean_rank_ic"])
-        self.assertIsNone(result["rank_icir"])
+        self.assertFalse(result["selection_eligible"])
         self.assertIsNone(result["date_equal_top_minus_bottom_forward_return"])
         self.assertEqual(0, result["daily"][0]["quantiles"][0]["count"])
 
     def test_quantile_returns_use_raw_holding_returns_and_are_not_daily_pnl(self):
         as_of = self.fold.test.rows[0].key.as_of
         rows = tuple(r for r in self.fold.test.rows if r.key.as_of == as_of)
-        labels = tuple(replace(y, raw_return=i / 10, target_percentile=i / 5)
+        labels = tuple(replace(y, raw_return=i / 10, target_interval=(i / 5,i / 5))
                        for i, y in enumerate(y for y in self.fold.test.labels if y.key.as_of == as_of))
         batch = EvaluationBatch(rows, labels)
         predictions = tuple(Prediction(y.key, y.target_percentile) for y in labels)
         result = evaluate_predictions(predictions, batch, quantile_groups=2)
-        self.assertEqual("holding_return_rank_ic", result["metric"])
+        self.assertEqual("full_universe_rank_ic_outer_bounds", result["metric"])
         self.assertAlmostEqual(0.1, result["quantile_returns"][0]["date_equal_mean_forward_return"])
         self.assertAlmostEqual(0.4, result["quantile_returns"][1]["date_equal_mean_forward_return"])
         self.assertAlmostEqual(0.3, result["date_equal_top_minus_bottom_forward_return"])
@@ -145,14 +145,14 @@ class ModelAndEvaluationTests(unittest.TestCase):
         dates = sorted({r.key.as_of for r in self.fold.test.rows})[:2]
         first = [(r, y) for r, y in zip(self.fold.test.rows, self.fold.test.labels) if r.key.as_of == dates[0]]
         second = [(r, y) for r, y in zip(self.fold.test.rows, self.fold.test.labels) if r.key.as_of == dates[1]][:2]
-        second = [(r, replace(y, raw_return=float(i), target_percentile=float(i)))
+        second = [(r, replace(y, raw_return=float(i), target_interval=(float(i),float(i)), universe_size=2, observed_count=2))
                   for i, (r, y) in enumerate(second)]
         batch = EvaluationBatch(tuple(r for r, _ in first + second), tuple(y for _, y in first + second))
         predictions = tuple(Prediction(y.key, y.target_percentile) for _, y in first)
         predictions += tuple(Prediction(y.key, 1 - y.target_percentile) for _, y in second)
         result = evaluate_predictions(predictions, batch)
         self.assertAlmostEqual(0.0, result["mean_rank_ic"])
-        self.assertAlmostEqual(0.5, result["date_equal_mse"])
+        self.assertAlmostEqual(0.5, result["date_equal_interval_mse"])
 
     def test_yearly_summary_does_not_hide_a_reversed_later_period(self):
         as_of = self.fold.test.rows[0].key.as_of
@@ -163,7 +163,8 @@ class ModelAndEvaluationTests(unittest.TestCase):
             key = replace(row.key, as_of=row.key.as_of + shift)
             later.append((replace(row, key=key), replace(label, key=key,
                           entry_date=label.entry_date + shift, label_end_date=label.label_end_date + shift,
-                          available_at=label.available_at + shift)))
+                          available_at=label.available_at + shift,
+                          outcome_available_at=label.outcome_available_at+shift, knowledge_cutoff=label.knowledge_cutoff+shift)))
         batch = EvaluationBatch(tuple(r for r, _ in first + later), tuple(y for _, y in first + later))
         predictions = tuple(Prediction(y.key, y.target_percentile) for _, y in first)
         predictions += tuple(Prediction(y.key, 1 - y.target_percentile) for _, y in later)

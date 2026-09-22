@@ -1,0 +1,8 @@
+# Optional isolated Quant ML runtime; never install into the core environment.
+# Verified on CPython 3.12 / macOS arm64 CPU. Native OpenMP is a separate
+# private runtime dependency; installation provenance belongs in private runs.
+xgboost==3.4.1
+numpy==2.5.3
+scipy==1.18.1
+# Installation helper for extracting the private OpenMP package.
+zstandard==0.25.0

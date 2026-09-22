@@ -244,6 +244,10 @@ class PublicContractTest(unittest.TestCase):
                 "urn:finresearchops:schema:quant-signal:v2",
                 "finresearchops.quant-signal/v2",
             ),
+            "quant-signal.v3.schema.json": (
+                "urn:finresearchops:schema:quant-signal:v3",
+                "finresearchops.quant-signal/v3",
+            ),
             "investment-research-case.v5.schema.json": (
                 "urn:finresearchops:schema:investment-research-case:v5",
                 "finresearchops.investment-research-case/v5",
@@ -301,6 +305,7 @@ class PublicContractTest(unittest.TestCase):
                 "native-audited-case.v1.schema.json",
                 "native-audited-case.v2.schema.json", "native-audited-case.v4.schema.json", "native-audited-case.v5.schema.json",
                 "quant-signal.v2.schema.json",
+                "quant-signal.v3.schema.json",
                 "replay-record.v3.schema.json",
                 "replay-report.v5.schema.json",
                 "research-change-packet.v1.schema.json",
