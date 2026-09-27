@@ -7,11 +7,13 @@ import os
 from pathlib import Path
 import subprocess
 import unittest
+from unittest.mock import patch
 
 # Import modules, not TestCase classes, so discovery does not rerun their tests.
 import test_four_analyst_flow as four
 import test_thesis_delivery as delivery
 from finauditgate.application import ApplicationError, FinResearchOps
+from finauditgate.application import research_report
 from finauditgate.research import RenderResearchReport
 import finauditgate.cli as cli
 
@@ -61,7 +63,9 @@ class ResearchReportFlowTest(unittest.TestCase):
                        "reason": "UNBOUND_RESEARCH_NUMBER_PENDING"}, view.latest_report["evidence_check"]["findings"])
         formal = Path(view.research_report_path).read_text()
         self.assertIn("DDR5〔待核〕需求仍需观察", formal)
-        self.assertIn("部分引用或数字未能由程序绑定到原文或计算", formal)
+        pending = len(view.latest_report["evidence_check"]["findings"])
+        self.assertIn(f"本报告{pending}个数字未经程序计算或来源绑定，模型评级不能视为获准结论", formal)
+        self.assertIn(f"| 未绑定数字 | {pending}项待核，见附录二 |", formal)
         workpaper = Path(view.report_path).read_text()
         self.assertIn("## 待核证据项", workpaper)
         self.assertIn("未绑定数字：未经程序计算或来源绑定", workpaper)
@@ -92,6 +96,33 @@ class ResearchReportFlowTest(unittest.TestCase):
         with self.assertRaises(ApplicationError):
             app.read_case(view.case_ref)
         page.write_bytes(html)
+        self.assertEqual(view, app.read_case(view.case_ref))
+
+    def test_saved_v1_formal_report_keeps_verifying_in_its_own_format(self):
+        original = research_report.render
+        with patch.object(research_report, "render", lambda record, version=research_report.V1: original(record, version)):
+            view, app, _ = self.run_v17(PendingNumeralLLM())
+        markdown = Path(view.research_report_path)
+        page = markdown.with_suffix(".html")
+        saved = markdown.read_bytes(), page.read_bytes()
+        self.assertEqual(research_report.V1, research_report.markdown_version(saved[0]))
+        self.assertIn("部分引用或数字未能由程序绑定到原文或计算", saved[0].decode())
+        offline = FinResearchOps(artifact_root=self.root)
+        self.assertEqual(view.research_report_path, offline.read_case(view.case_ref).research_report_path)
+        self.assertEqual(view.research_report_path, offline.handle(RenderResearchReport(view.case_ref)).research_report_path)
+        self.assertEqual(saved, (markdown.read_bytes(), page.read_bytes()))  # never rewritten as v2
+        markdown.unlink()  # interrupted after the HTML file
+        self.assertIsNone(offline.read_case(view.case_ref).research_report_path)
+        offline.handle(RenderResearchReport(view.case_ref))
+        self.assertEqual(saved, (markdown.read_bytes(), page.read_bytes()))  # finished in the HTML's format
+        for forged in (saved[0].replace(research_report.V1.encode(), b"finresearchops.research-report/v9", 1),
+                       saved[0].replace(research_report.V1.encode(), research_report.V2.encode(), 1),
+                       original(view.latest_report, research_report.V2)[0]):
+            with self.subTest(marker=research_report.markdown_version(forged)):
+                markdown.write_bytes(forged)
+                with self.assertRaises(ApplicationError):
+                    offline.read_case(view.case_ref)
+        markdown.write_bytes(saved[0])
         self.assertEqual(view, app.read_case(view.case_ref))
 
     def test_saved_case_gains_the_formal_report_offline_without_touching_other_files(self):

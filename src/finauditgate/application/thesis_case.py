@@ -372,13 +372,16 @@ def _write_research_report(directory, payloads):
 
 
 def _research_report_path(directory, record):
-    """Verify an existing formal report against a fresh deterministic rendering."""
+    """Verify an existing formal report against a fresh rendering in its recorded format."""
     from . import research_report
     markdown, page = (directory / name for name in research_report.FILES)
     if not markdown.exists():
         return None  # never written, or interrupted before completion
-    if (record["schema_version"] not in research_report.SUPPORTED or not page.exists()
-            or (markdown.read_bytes(), page.read_bytes()) != research_report.render(record)):
+    text = markdown.read_bytes()
+    version = research_report.markdown_version(text)
+    if (record["schema_version"] not in research_report.SUPPORTED or version not in research_report.VERSIONS
+            or not page.exists() or research_report.html_version(page.read_bytes()) != version
+            or (text, page.read_bytes()) != research_report.render(record, version)):
         raise ValueError("THESIS_RESEARCH_REPORT_CHANGED")
     return str(markdown)
 
@@ -393,14 +396,21 @@ def render_research_report(application, command):
     view = load(application, command.case_ref)
     if view.latest_report["schema_version"] not in research_report.SUPPORTED:
         raise ApplicationError("RESEARCH_REPORT_CASE_VERSION_UNSUPPORTED")
+    markdown, page = (directory / name for name in research_report.FILES)
+    if markdown.exists():
+        return view  # complete; load() verified it in its recorded format
+    version = research_report.VERSION
+    if page.exists():
+        # An interrupted write kept only the HTML: finish it in that file's format.
+        version = research_report.html_version(page.read_bytes())
+        if version not in research_report.VERSIONS:
+            raise ApplicationError("RESEARCH_REPORT_CONFLICT")
     try:
-        payloads = research_report.render(view.latest_report)
+        payloads = research_report.render(view.latest_report, version)
     except (ValueError, KeyError, TypeError) as exc:
         raise ApplicationError("RESEARCH_REPORT_RENDER_FAILED") from exc
-    for name, payload in zip(research_report.FILES, payloads):
-        path = directory / name
-        if path.exists() and path.read_bytes() != payload:
-            raise ApplicationError("RESEARCH_REPORT_CONFLICT")
+    if page.exists() and page.read_bytes() != payloads[1]:
+        raise ApplicationError("RESEARCH_REPORT_CONFLICT")
     _write_research_report(directory, payloads)
     return load(application, command.case_ref)
 

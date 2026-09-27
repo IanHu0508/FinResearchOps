@@ -59,14 +59,18 @@ reports. Runtime v3 records protocol 17 explicitly and refuses cross-version
 reuse; the four reports and Quant/input-flow display survive optional aftercare.
 Default v16 and historical Cases remain readable without changing their bytes.
 
-`finresearchops.research-report/v1` is the formal reading layout of a v16/v17 Case:
+`finresearchops.research-report/v1` and `/v2` are the formal reading layouts of a v16/v17 Case
+(new Cases write v2, which lists citation findings and unbound-number findings apart on the
+cover, notice and appendix; v1 files stay as saved):
 `research-report.md` plus `research-report.html`, written at save or later by the offline
 `render-research-report` command. It contains only final-report prose that passes the
 existing numeric/source contract, effective program calculations and source metadata;
 citations are numbered, excerpts and stage outputs stay in `report.md` / `process-record.md`.
-It adds no Case field, so the Case hash is unchanged. When the Markdown file exists, reopen
-recomputes both files byte for byte; the Markdown is written last, so an interrupted HTML-only
-write is treated as absent. Layout is not financial approval.
+It adds no Case field, so the Case hash is unchanged. Both files record their format version;
+when the Markdown file exists, reopen re-renders both in that recorded version and compares them
+byte for byte, refusing unknown or mismatched versions. The Markdown is written last, so an
+interrupted HTML-only write is treated as absent and is completed in the HTML's version. Layout is
+not financial approval.
 
 In v16/v17 `evidence_check.findings`, reason `UNBOUND_RESEARCH_NUMBER_PENDING` records a
 numeral the program did not bind that is not in a value position (for example an unregistered

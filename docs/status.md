@@ -68,6 +68,20 @@ result is claimed; that narrow repair did not change the source, prompt or retry
 still reads no quant signal directly.
 
 
+### Current formal report format v2 — 2026-09-27
+
+Implementation and tests are COMPLETED. Newly saved v16/v17 Cases write
+`finresearchops.research-report/v2`. Its rating card shows citation location (evidence blocks
+located in the sources, and any citation findings; "no evidence-block citations" when none were
+used) and unbound numbers on separate rows, and its notice and appendix list citation findings
+and number findings apart. In-text markers are unchanged. Both files record their format
+version; reopen re-renders in the recorded version and compares bytes, refusing unknown or
+mismatched versions. Saved v1 files keep verifying as v1 and are never rewritten, and an
+interrupted HTML-only write is completed in the HTML's version. Tests pin the v1 output of four
+synthetic record shapes to the bytes produced before the change. Core 473, integration 236 and
+Quant 186 checks pass; all 21 saved v13/v16/v17 Cases reopen and existing formal reports are
+byte-identical. This changes presentation only, not ratings, calculations or findings.
+
 ### Current larger source bundle and paid verification — 2026-09-27
 
 The authorized verification is COMPLETED as a recovered delivery; its research question is
@@ -103,8 +117,9 @@ The saved Case is PARTIAL: 23 source bindings have no binding findings, and ten 
 numerals are marked for checking in the formal report. Some of those marks are source IDs and
 period labels that a later rule could recognize. Core 470, integration 235 and Quant 186 checks
 pass, all 21 saved v13/v16/v17 Cases including the new one reopen, and earlier run files are unchanged. This is one
-recovered case, not a delivery rate or evidence of investment quality; manual financial review
-remains unsigned.
+recovered case, not a delivery rate or evidence of investment quality. The user has since
+reviewed this case's formal report and signed it without reservations; the sign-off covers this
+one report only.
 
 ### Numeric-contract failure mode — 2026-09-27
 

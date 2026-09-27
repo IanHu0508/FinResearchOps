@@ -7,7 +7,9 @@ import unittest
 
 from finauditgate.application.research_delivery import evidence_catalog, normalize_report, report_context
 from finauditgate.application.research_narrative import change_view
-from finauditgate.application.research_report import FILES, SUPPORTED, VERSION, render
+from finauditgate.application.research_report import (
+    FILES, SUPPORTED, V1, V2, VERSION, VERSIONS, html_version, markdown_version, render,
+)
 from finauditgate.core.artifacts import sha256_hex
 from finauditgate.core.forward_revision import apply_forward_revision
 
@@ -194,8 +196,14 @@ class ResearchReportTest(unittest.TestCase):
         self.assertEqual("PARTIAL", value["evidence_check"]["status"])
         markdown = render(value)[0].decode()
         self.assertIn("经营判断待核〔证据待核：E9999〕。", markdown)
-        self.assertIn("部分引用或数字未能由程序绑定到原文或计算", markdown)
-        self.assertIn("### 待核项", markdown)
+        self.assertIn("本报告2项引用未能定位到所给资料原文，模型评级不能视为获准结论", markdown)
+        self.assertIn("| 引用定位 | 2个证据块定位到原文，2项引用待核，见附录二 |", markdown)
+        self.assertIn("| 未绑定数字 | 无 |", markdown)
+        self.assertIn("### 引用待核", markdown)
+        self.assertNotIn("### 数字待核", markdown)
+        legacy = render(value, V1)[0].decode()
+        self.assertIn("部分引用或数字未能由程序绑定到原文或计算", legacy)
+        self.assertIn("### 待核项", legacy)
         forged = deepcopy(value)
         forged["evidence_check"]["findings"] = []
         forged["evidence_check"]["status"] = forged["status"] = "COMPLETED"
@@ -208,9 +216,65 @@ class ResearchReportTest(unittest.TestCase):
         markdown, page = (part.decode() for part in render(value))
         self.assertIn("DDR5〔待核〕与LPDDR5X〔待核〕需求仍需观察［1］。", markdown)
         self.assertIn('title="未经程序计算或来源绑定的数字，需核对">DDR5</span>', page)
-        self.assertIn("| 引用定位 | 2项待核，见附录二 |", markdown)
-        self.assertIn("| summary | DDR5 | 未绑定数字：未经程序计算或来源绑定，需核对是否为金融数值 |", markdown)
-        self.assertIn("部分引用或数字未能由程序绑定到原文或计算", markdown)
+        self.assertIn("| 引用定位 | 2个证据块均定位到原文，不等于事实核验 |", markdown)
+        self.assertIn("| 未绑定数字 | 2项待核，见附录二 |", markdown)
+        self.assertIn("本报告2个数字未经程序计算或来源绑定，模型评级不能视为获准结论", markdown)
+        self.assertIn("### 数字待核", markdown)
+        self.assertIn("| summary | DDR5 | 未经程序计算或来源绑定，需核对是否为金融数值 |", markdown)
+        legacy = render(value, V1)[0].decode()
+        self.assertIn("| 引用定位 | 2项待核，见附录二 |", legacy)
+        self.assertIn("| summary | DDR5 | 未绑定数字：未经程序计算或来源绑定，需核对是否为金融数值 |", legacy)
+        self.assertIn("部分引用或数字未能由程序绑定到原文或计算", legacy)
+
+    def test_v1_output_is_byte_identical_for_saved_reports(self):
+        # sha256 of Markdown and HTML rendered by the released v1 code, before v2 existed.
+        expected = {
+            "completed": ("51dacda284a8c9038a578026e4706fec340e626d4d710854028b8d30aa30acc7",
+                          "57b40bd2bcc30c4e27d8a99cd328fe129b9356886feb2b5a408070f33100eb40"),
+            "number_pending": ("27baa393227e241f87edab8ea41896e8ea37c8d4a3e449c76c4f12bdc18729d6",
+                               "be197cf3eecfbbdb466b6acde751d44bb82593c2ff9526f188216cfe4e18dbf7"),
+            "citation_pending": ("54f7866b7d13766b5d07a0b53d9051c88b6a3ee6d1d1f42ed76ea2c6b9dbda5d",
+                                 "1cc51136e59d51ed72a2985bbaa5dfae58a9398c854ce503d4d4a6c68c71d051"),
+            "v16": ("b5b92df8decb73c4780a4b098696bba18da9bb2da2a79dc7d4691b4bb78a3c2e",
+                    "2e50016ed90dc282dc0a141b7e00747c0b70d6cb0f5046470b1fd995d65a6736"),
+        }
+        records = {"completed": record(),
+                   "number_pending": record(summary="DDR5与LPDDR5X需求仍需观察（{{source:E0001}}）。结论：维持研究观察。"),
+                   "citation_pending": record(summary="经营判断待核（{{source:E9999}}）。结论：维持研究观察。"),
+                   "v16": record("finresearchops.thesis-case/v16")}
+        for name, value in records.items():
+            with self.subTest(name=name):
+                self.assertEqual(expected[name], tuple(sha256_hex(part) for part in render(value, V1)))
+
+    def test_v2_cover_counts_citations_and_unbound_numbers_apart(self):
+        markdown = render(record())[0].decode()
+        self.assertIn("| 引用定位 | 3个证据块均定位到原文，不等于事实核验 |", markdown)
+        self.assertIn("| 未绑定数字 | 无 |", markdown)
+        self.assertNotIn("模型评级不能视为获准结论", body(markdown))
+
+        def uncited(candidate):
+            candidate["financial_analysis"]["operating_performance"]["text"] = "经营表现仍需观察。"
+            candidate["strongest_counterevidence"]["text"] = "最强反证：价格先行。"
+            candidate["limitations"] = ["研究假设不是事实。"]
+            candidate["belief_explanations"][0]["explanation"]["text"] = "维持D1。"
+        value = record(summary="经营判断保持稳定。结论：维持研究观察。", edit=uncited)
+        self.assertEqual([], value["evidence_check"]["bindings"])
+        self.assertIn("| 引用定位 | 未使用证据块引用 |", render(value)[0].decode())
+        self.assertIn("| 引用定位 | 0个证据块均定位到原文，不等于事实核验 |", render(value, V1)[0].decode())
+
+    def test_format_version_is_recorded_in_both_files_and_unknown_versions_are_refused(self):
+        self.assertEqual((V1, V2), VERSIONS)
+        self.assertEqual(V2, VERSION)
+        for version in VERSIONS:
+            with self.subTest(version=version):
+                markdown, page = render(record(), version)
+                self.assertEqual(version, markdown_version(markdown))
+                self.assertEqual(version, html_version(page))
+                self.assertIn("报告格式 " + version, markdown.decode())
+        self.assertIsNone(markdown_version(b"# no marker\n"))
+        self.assertIsNone(html_version(b"<html></html>"))
+        with self.assertRaisesRegex(ValueError, "RESEARCH_REPORT_VERSION_UNSUPPORTED"):
+            render(record(), "finresearchops.research-report/v9")
 
     def test_program_context_values_are_not_reclassified_as_prose_numbers(self):
         value = record(summary="标的{{context:symbol}}研究截止{{context:as_of}}，期限{{context:horizon_months}}个月。结论：观察。")

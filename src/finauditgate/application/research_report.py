@@ -20,7 +20,11 @@ from .research_narrative import _TOKEN, _escape, change_view
 from .research_numbers import _INPUT_KEYS, _METRICS
 
 
-VERSION = "finresearchops.research-report/v1"
+V1 = "finresearchops.research-report/v1"
+V2 = "finresearchops.research-report/v2"  # citation and unbound-number counts shown apart
+VERSIONS = (V1, V2)
+VERSION = V2  # written for newly saved Cases; saved files keep their recorded version
+NUMBER_PENDING = "UNBOUND_RESEARCH_NUMBER_PENDING"
 SUPPORTED = ("finresearchops.thesis-case/v16", "finresearchops.thesis-case/v17")
 FILES = ("research-report.md", "research-report.html")
 
@@ -83,10 +87,25 @@ _SOURCE = r"\{\{source:[^{}:]+\}\}"
 _PIECE = re.compile(r"[（(][ \t]*(" + _SOURCE + r"(?:[ \t]*[、，,；;][ \t]*" + _SOURCE + r")*)[ \t]*[）)]|" + _TOKEN.pattern)
 
 
+def markdown_version(data):
+    """The format version recorded on the first line of a saved Markdown report, or None."""
+    match = re.match(rb"<!-- (finresearchops\.research-report/v[0-9]+) -->\n", data)
+    return match.group(1).decode() if match else None
+
+
+def html_version(data):
+    """The format version recorded in a saved HTML report, or None."""
+    match = re.search(rb'<meta name="generator" content="(finresearchops\.research-report/v[0-9]+)">', data)
+    return match.group(1).decode() if match else None
+
+
 class _Report:
-    def __init__(self, record):
+    def __init__(self, record, version=VERSION):
         if record.get("schema_version") not in SUPPORTED:
             raise ValueError("RESEARCH_REPORT_CASE_VERSION_UNSUPPORTED")
+        if version not in VERSIONS:
+            raise ValueError("RESEARCH_REPORT_VERSION_UNSUPPORTED")
+        self.version = version
         self.record = record
         self.draft = record["effective_forward_draft"]
         self.calculations = record["effective_forward_calculations"]
@@ -98,6 +117,8 @@ class _Report:
         check = self.context.evidence_check()
         if record["evidence_check"] != check or record["status"] != check["status"]:
             raise ValueError("THESIS_EVIDENCE_CHECK_CHANGED")
+        self.number_findings = [f for f in check["findings"] if f["reason"] == NUMBER_PENDING]
+        self.citation_findings = [f for f in check["findings"] if f["reason"] != NUMBER_PENDING]
         self.scenarios = {s["scenario_id"]: s for s in self.draft["scenarios"]}
         self.results = {r["scenario_id"]: r for r in self.calculations["scenario_results"]}
         reporting = self.draft.get("reporting_currency") or ""
@@ -248,7 +269,7 @@ class _Report:
         subtitle = " ｜ ".join(x for x in (f"研究截止日 {request['as_of']}", f"研究期限 {request['horizon_months']}个月", venue) if x)
         blocks = [("title", title, subtitle)]
         if record["evidence_check"]["status"] != "COMPLETED":
-            blocks.append(("notice", "部分引用或数字未能由程序绑定到原文或计算，模型评级不能视为获准结论；待核项见附录二。"))
+            blocks.append(("notice", self.notice()))
         blocks.append(("lead", self.facts(), self.paragraphs(final["summary"]["text"], field="summary")))
         blocks += self.forecast_table()
         for key, heading in _SECTIONS:
@@ -268,6 +289,27 @@ class _Report:
         blocks.append(("disclaimer", self.disclaimer()))
         return title, blocks
 
+    def notice(self):
+        if self.version == V1:
+            return "部分引用或数字未能由程序绑定到原文或计算，模型评级不能视为获准结论；待核项见附录二。"
+        parts = ([f"{len(self.citation_findings)}项引用未能定位到所给资料原文"] if self.citation_findings else []) + \
+                ([f"{len(self.number_findings)}个数字未经程序计算或来源绑定"] if self.number_findings else [])
+        return "本报告" + "、".join(parts) + "，模型评级不能视为获准结论；待核项见附录二。"
+
+    def binding_rows(self, check):
+        if self.version == V1:
+            return [("引用定位", f"{len(check['bindings'])}个证据块均定位到原文，不等于事实核验" if check["status"] == "COMPLETED"
+                     else f"{len(check['findings'])}项待核，见附录二")]
+        bound = len(check["bindings"])
+        if self.citation_findings:
+            located = f"{bound}个证据块定位到原文，{len(self.citation_findings)}项引用待核，见附录二"
+        elif bound:
+            located = f"{bound}个证据块均定位到原文，不等于事实核验"
+        else:
+            located = "未使用证据块引用"
+        numbers = f"{len(self.number_findings)}项待核，见附录二" if self.number_findings else "无"
+        return [("引用定位", located), ("未绑定数字", numbers)]
+
     def facts(self):
         record, draft = self.record, self.draft
         rating = record["final_report"]["rating"]
@@ -285,8 +327,7 @@ class _Report:
                 ("起点价格", start),
                 ("独立初判→终稿", f"{comparison['before']} → {comparison['after']}"),
                 ("研究资料", f"{mode}，{research}项" + (f"（另有{scenario_notes}项情景附录）" if scenario_notes else "")),
-                ("引用定位", f"{len(check['bindings'])}个证据块均定位到原文，不等于事实核验" if check["status"] == "COMPLETED"
-                    else f"{len(check['findings'])}项待核，见附录二"),
+                *self.binding_rows(check),
                 ("人工复核", "待复核，未签署")]
         return {"rating": rating, "rating_label": _RATINGS.get(rating, rating), "rows": rows}
 
@@ -453,9 +494,19 @@ class _Report:
                        "THESIS_UNKNOWN_SOURCE_REFERENCE": "来源不存在或不在本次研究资料范围",
                        "RESEARCH_SOURCE_QUOTE_NOT_UNIQUE": "原文未找到唯一匹配，出处仍需核对",
                        "UNBOUND_RESEARCH_NUMBER_PENDING": "未绑定数字：未经程序计算或来源绑定，需核对是否为金融数值"}
-            blocks += [("h3", "待核项"),
-                       ("table", ["位置", "引用", "问题"], [[r["field"], r["reference"], reasons.get(r["reason"], "证据关联需要复核")]
-                                                          for r in findings], set(), {1})]
+            if self.version == V1:
+                blocks += [("h3", "待核项"),
+                           ("table", ["位置", "引用", "问题"], [[r["field"], r["reference"], reasons.get(r["reason"], "证据关联需要复核")]
+                                                              for r in findings], set(), {1})]
+            else:
+                if self.citation_findings:
+                    blocks += [("h3", "引用待核"),
+                               ("table", ["位置", "引用", "问题"], [[r["field"], r["reference"], reasons.get(r["reason"], "证据关联需要复核")]
+                                                                  for r in self.citation_findings], set(), {1})]
+                if self.number_findings:
+                    blocks += [("h3", "数字待核"),
+                               ("table", ["位置", "数字", "说明"], [[r["field"], r["reference"], "未经程序计算或来源绑定，需核对是否为金融数值"]
+                                                                  for r in self.number_findings], set(), {1})]
         rows = []
         for source in record["source_bundle"]["sources"]:
             origin = source["origin"] + ("（情景附录资料，未进入评级请求）" if source.get("use") == "sensitivity" else "")
@@ -470,7 +521,7 @@ class _Report:
                 "正文预测数值来自本次有效参数与程序计算；带编号的引用已定位到所给资料原文，但引用吻合不证明事实、经济解释或预测正确。",
                 "各资料的时间可得性与限制见资料目录；完整核对稿（report.md）保留逐处原文摘录与全部说明，过程记录（process-record.md）"
                 "保留各阶段原始输出，结构化记录见 case.json。",
-                "报告格式 " + VERSION + "，由已保存的 Case 确定性生成。"]
+                "报告格式 " + self.version + "，由已保存的 Case 确定性生成。"]
 
 
 def _value(field, assumption):
@@ -503,8 +554,8 @@ def _md_table(headers, rows, numeric):
             *["| " + " | ".join(_cell(v) for v in row) + " |" for row in rows], ""]
 
 
-def _markdown(title, blocks):
-    lines = ["<!-- " + VERSION + " -->"]
+def _markdown(title, blocks, version):
+    lines = ["<!-- " + version + " -->"]
     for block in blocks:
         kind = block[0]
         if kind == "title":
@@ -635,7 +686,7 @@ def _html_table(headers, rows, numeric, keys):
     return f"<table><thead><tr>{head}</tr></thead><tbody>{body}</tbody></table>"
 
 
-def _html(title, blocks):
+def _html(title, blocks, version):
     parts, appendix = [], False
     for block in blocks:
         kind = block[0]
@@ -684,13 +735,13 @@ def _html(title, blocks):
         parts.append("</div>")
     return ("<!doctype html>\n<html lang=\"zh-CN\">\n<head>\n<meta charset=\"utf-8\">\n"
             "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n"
-            f"<meta name=\"generator\" content=\"{VERSION}\">\n<title>{_h(title)}</title>\n"
+            f"<meta name=\"generator\" content=\"{version}\">\n<title>{_h(title)}</title>\n"
             f"<style>{_CSS}</style>\n</head>\n<body>\n<main class=\"report\">\n" + "\n".join(parts)
             + "\n</main>\n</body>\n</html>\n").encode("utf-8")
 
 
-def render(record):
-    """Return (Markdown bytes, HTML bytes) for a v16/v17 thesis Case."""
-    report = _Report(record)
+def render(record, version=VERSION):
+    """Return (Markdown bytes, HTML bytes) for a v16/v17 thesis Case in one format version."""
+    report = _Report(record, version)
     title, blocks = report.build()
-    return _markdown(title, blocks), _html(title, blocks)
+    return _markdown(title, blocks, version), _html(title, blocks, version)

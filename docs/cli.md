@@ -59,8 +59,9 @@ derives those from the core artifacts and its append-only Review history.
 - `research-thesis` and `inspect-case` report `research_report` when the formal
   report exists; `delivery_report` then points to it unless an effective automatic
   correction is delivered instead. `render-research-report` verifies the saved Case,
-  makes no model or network call, adds only `research-report.md/.html`, and refuses
-  to replace a different existing file.
+  makes no model or network call, adds only `research-report.md/.html` (in the version
+  of an interrupted HTML file, otherwise the current format), leaves a complete saved
+  report unchanged, and refuses to replace a different existing file.
 - Successful output is one line of canonical compact JSON on stdout. Failures
   are one `finresearchops.cli-error/v1` JSON object on stderr and exit code 2.
 
