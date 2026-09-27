@@ -20,7 +20,7 @@ STATUS = {"maintain": "维持", "revise": "修改", "withdraw": "撤回", "unres
 
 def validate(record):
     """Check protocol receipt bindings without certifying the financial opinion."""
-    if isinstance(record, dict) and record.get("schema_version") in ("finresearchops.thesis-case/v11", "finresearchops.thesis-case/v13"):
+    if isinstance(record, dict) and record.get("schema_version") in ("finresearchops.thesis-case/v11", "finresearchops.thesis-case/v13", "finresearchops.thesis-case/v16", "finresearchops.thesis-case/v17"):
         from finauditgate.application.thesis_case_v11 import validate as validate_v11
         return validate_v11(record)
     if (not isinstance(record, dict) or record.get("schema_version") not in ("finresearchops.thesis-case/v1", "finresearchops.thesis-case/v2", "finresearchops.thesis-case/v10")
@@ -168,6 +168,12 @@ def validate(record):
 
 
 def render(record):
+    if record["schema_version"] == "finresearchops.thesis-case/v17":
+        from finauditgate.application.thesis_report_v17 import render as render_v17
+        return render_v17(record)
+    if record["schema_version"] == "finresearchops.thesis-case/v16":
+        from finauditgate.application.thesis_report_v16 import render as render_v16
+        return render_v16(record)
     if record["schema_version"] == "finresearchops.thesis-case/v13":
         from finauditgate.application.thesis_report_v13 import render as render_v13
         return render_v13(record)
@@ -269,6 +275,13 @@ def render_review(review):
     for i, finding in enumerate(review["findings"], 1):
         parts += [f"## {i}. {finding['issue']}", "", "来源：" + (", ".join(finding["evidence_refs"]) or "待取得"),
                   "", "下一步：" + finding["next_check"], ""]
+    if review.get("schema_version") == "finresearchops.thesis-review/v3":
+        parts[2] = "复核与一次有界校订的模型提案；原始主稿不改，不能当作金融认证。"
+        if review.get("effective") is not None:
+            parts += ["[自动校订研报](quality-report.md) · [完整校订记录](quality-process-record.md)", "",
+                      "模型校订后评级：" + review["effective"]["final_report"]["rating"], ""]
+        else:
+            parts += ["校订未完成；[原始研究稿](report.md)仍保留，尚不可当作已核结论。", ""]
     return "\n".join(parts).encode()
 
 
@@ -286,13 +299,21 @@ def run(application, command):
         raw = canonical_json_bytes(record)
         if len(raw) > MAX_BYTES:
             raise ValueError("THESIS_CASE_SIZE_LIMIT")
+        from . import research_report
+        # Render the formal report before writing anything, so a layout
+        # failure cannot leave a Case without its readable report.
+        formal = research_report.render(record) if record["schema_version"] in research_report.SUPPORTED else None
         ref = "case-" + sha256_hex(raw)
         directory = application._application_root / "thesis-cases" / ref
         write_once(directory / "case.json", raw)
         report = render(record)
         write_once(directory / "report.md", report)
-        if record["schema_version"] in ("finresearchops.thesis-case/v11", "finresearchops.thesis-case/v13"):
-            if record["schema_version"] == "finresearchops.thesis-case/v13":
+        if record["schema_version"] in ("finresearchops.thesis-case/v11", "finresearchops.thesis-case/v13", "finresearchops.thesis-case/v16", "finresearchops.thesis-case/v17"):
+            if record["schema_version"] == "finresearchops.thesis-case/v17":
+                from finauditgate.application.thesis_report_v17 import render_process
+            elif record["schema_version"] == "finresearchops.thesis-case/v16":
+                from finauditgate.application.thesis_report_v16 import render_process
+            elif record["schema_version"] == "finresearchops.thesis-case/v13":
                 from finauditgate.application.thesis_report_v13 import render_process
             else:
                 from finauditgate.application.thesis_report_v11 import render_process
@@ -300,6 +321,8 @@ def run(application, command):
         write_once(directory / "report.html", ("<!doctype html><meta charset=utf-8><title>投研观点与反证更新</title>"
             "<style>body{max-width:960px;margin:48px auto;padding:0 24px;background:#faf9f6;color:#17242d;font:17px/1.75 system-ui}"
             "pre{white-space:pre-wrap;font:inherit}</style><pre>" + html.escape(report.decode()) + "</pre>").encode())
+        if formal is not None:
+            _write_research_report(directory, formal)
         saved.append((ref, directory))
         return report.decode()
 
@@ -320,9 +343,66 @@ def run(application, command):
         review = {"schema_version": "finresearchops.thesis-review/v1", "main_sha256": saved[0][0][5:],
                   "status": "PARTIAL", "reason": "REVIEW_INTERRUPTED_AFTER_MAIN_SAVED", "error_type": type(exc).__name__, "findings": []}
     ref, directory = saved[0]
+    if review.get("schema_version") == "finresearchops.thesis-review/v3":
+        from . import thesis_quality
+        record = json.loads((directory / "case.json").read_bytes())
+        try:
+            thesis_quality.validate(record, review)
+            quality_report = thesis_quality.render_report(record, review)
+            if quality_report is not None:
+                write_once(directory / "quality-report.md", quality_report)
+                write_once(directory / "quality-process-record.md", thesis_quality.render_process(record, review))
+        except (ValueError, KeyError, TypeError, IndexError, AttributeError) as exc:
+            # Keep the rejected proposal inspectable and the main Case readable.
+            write_once(directory / "quality-rejected.json", canonical_json_bytes(review))
+            review = {"schema_version": "finresearchops.thesis-review/v1", "main_sha256": ref[5:],
+                      "status": "PARTIAL", "reason": "QUALITY_INTEGRITY_FAILED", "findings": [],
+                      "error_type": type(exc).__name__, "budget_total": review.get("budget_total")}
     write_once(directory / "review.json", canonical_json_bytes(review))
     write_once(directory / "review.md", render_review(review))
     return application.read_case(ref)
+
+
+def _write_research_report(directory, payloads):
+    """The Markdown file is written last and marks a complete formal report."""
+    from .research_report import FILES
+    markdown, page = (directory / name for name in FILES)
+    write_once(page, payloads[1])
+    write_once(markdown, payloads[0])
+
+
+def _research_report_path(directory, record):
+    """Verify an existing formal report against a fresh deterministic rendering."""
+    from . import research_report
+    markdown, page = (directory / name for name in research_report.FILES)
+    if not markdown.exists():
+        return None  # never written, or interrupted before completion
+    if (record["schema_version"] not in research_report.SUPPORTED or not page.exists()
+            or (markdown.read_bytes(), page.read_bytes()) != research_report.render(record)):
+        raise ValueError("THESIS_RESEARCH_REPORT_CHANGED")
+    return str(markdown)
+
+
+def render_research_report(application, command):
+    """Add the formal report to a saved Case; existing artifacts never change."""
+    from . import research_report
+    application._require_private_artifact_root()
+    directory = application._application_root / "thesis-cases" / command.case_ref
+    if not (directory / "case.json").is_file():
+        raise ApplicationError("CASE_NOT_FOUND")
+    view = load(application, command.case_ref)
+    if view.latest_report["schema_version"] not in research_report.SUPPORTED:
+        raise ApplicationError("RESEARCH_REPORT_CASE_VERSION_UNSUPPORTED")
+    try:
+        payloads = research_report.render(view.latest_report)
+    except (ValueError, KeyError, TypeError) as exc:
+        raise ApplicationError("RESEARCH_REPORT_RENDER_FAILED") from exc
+    for name, payload in zip(research_report.FILES, payloads):
+        path = directory / name
+        if path.exists() and path.read_bytes() != payload:
+            raise ApplicationError("RESEARCH_REPORT_CONFLICT")
+    _write_research_report(directory, payloads)
+    return load(application, command.case_ref)
 
 
 def load(application, case_ref):
@@ -335,26 +415,44 @@ def load(application, case_ref):
         validate(record)
         if (directory / "report.md").read_bytes() != render(record):
             raise ValueError("THESIS_REPORT_CHANGED")
-        if record["schema_version"] in ("finresearchops.thesis-case/v11", "finresearchops.thesis-case/v13"):
-            if record["schema_version"] == "finresearchops.thesis-case/v13":
+        if record["schema_version"] in ("finresearchops.thesis-case/v11", "finresearchops.thesis-case/v13", "finresearchops.thesis-case/v16", "finresearchops.thesis-case/v17"):
+            if record["schema_version"] == "finresearchops.thesis-case/v17":
+                from finauditgate.application.thesis_report_v17 import render_process
+            elif record["schema_version"] == "finresearchops.thesis-case/v16":
+                from finauditgate.application.thesis_report_v16 import render_process
+            elif record["schema_version"] == "finresearchops.thesis-case/v13":
                 from finauditgate.application.thesis_report_v13 import render_process
             else:
                 from finauditgate.application.thesis_report_v11 import render_process
             if (directory / "process-record.md").read_bytes() != render_process(record):
                 raise ValueError("THESIS_PROCESS_RECORD_CHANGED")
+        research_report_path = _research_report_path(directory, record)
         review = {"schema_version": "finresearchops.thesis-review/v1", "main_sha256": case_ref[5:],
                   "status": "PARTIAL", "reason": "REVIEW_NOT_SAVED", "findings": []}
         if (directory / "review.json").exists():
             try:
                 optional = json.loads((directory / "review.json").read_bytes())
-                if (not isinstance(optional, dict) or optional.get("schema_version") != "finresearchops.thesis-review/v1"
+                if not isinstance(optional, dict):
+                    raise ValueError("THESIS_REVIEW_BINDING_INVALID")
+                if optional.get("schema_version") not in ("finresearchops.thesis-review/v1", "finresearchops.thesis-review/v3"):
+                    raise ValueError("THESIS_REVIEW_VERSION_UNSUPPORTED")
+                if optional.get("schema_version") == "finresearchops.thesis-review/v3":
+                    from . import thesis_quality
+                    thesis_quality.validate(record, optional)
+                    quality_report = thesis_quality.render_report(record, optional)
+                    if quality_report is not None and (
+                            (directory / "quality-report.md").read_bytes() != quality_report
+                            or (directory / "quality-process-record.md").read_bytes() != thesis_quality.render_process(record, optional)):
+                        raise ValueError("THESIS_QUALITY_REPORT_CHANGED")
+                if (not isinstance(optional, dict) or optional.get("schema_version") not in ("finresearchops.thesis-review/v1", "finresearchops.thesis-review/v3")
                         or optional.get("main_sha256") != case_ref[5:]
                         or optional.get("status") not in ("COMPLETED", "PARTIAL", "DEFERRED")
                         or (directory / "review.md").read_bytes() != render_review(optional)):
                     raise ValueError("THESIS_REVIEW_BINDING_INVALID")
                 review = optional
-            except (OSError, ValueError, KeyError, TypeError):
-                review["reason"] = "REVIEW_INTEGRITY_FAILED"
-        return ThesisCaseView(case_ref, "AWAITING_REVIEW", str(directory / "report.md"), record, review)
+            except (OSError, ValueError, KeyError, TypeError, IndexError, AttributeError) as exc:
+                review["reason"] = "REVIEW_VERSION_UNSUPPORTED" if str(exc) == "THESIS_REVIEW_VERSION_UNSUPPORTED" else "REVIEW_INTEGRITY_FAILED"
+        return ThesisCaseView(case_ref, "PARTIAL" if record["status"] == "PARTIAL" else "AWAITING_REVIEW",
+                              str(directory / "report.md"), record, review, research_report_path)
     except (OSError, ValueError, KeyError, TypeError) as exc:
         raise ApplicationError("THESIS_CASE_INTEGRITY_FAILED") from exc

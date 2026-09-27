@@ -1,6 +1,20 @@
 # Architecture
 
 The main research path crosses `handle(ResearchThesis(...))` and `read_case`.
+The optional `--all-analysts` frozen-source route uses protocol/Case v17: four
+actual analyst reports precede the existing thirteen research stages. The
+reports and original sources reach downstream research; the independent
+assessment retains source-only input. It saves fundamental, market, news and
+sentiment outputs plus explicit Quant/input-flow presentation. This route does
+not invoke upstream live sentiment prefetch against historical dates. The
+default v16 route and earlier recorded Cases retain their existing behavior.
+The explicit `--fetch-news-social` route adds a bounded public-source collector
+before that same v17 flow. It queries by instrument and cutoff, records raw
+responses and typed coverage, then appends eligible news/events and investor
+discussions to the unchanged financial/market/Quant foundation. Models consume
+the frozen combined bundle; resume verifies and reuses it without fetching,
+and the standard-library Case reader performs no acquisition. Missing channels
+remain visible rather than being filled with invented material.
 Its instance-local protocol keeps native graph routing while isolating initial
 drafts, limiting round-two discussion to sealed first drafts, and obtaining
 source-only independent underwriting before the portfolio manager sees peer
@@ -16,7 +30,9 @@ sensitivity notes appear only in the report appendix and post-report review,
 never in a rating request. Untagged legacy
 sources are not semantically filtered. Original vendor fields remain
 available. The Application persists the main Case before the optional data
-review Agent, which receives the exact saved report text; review failure does not revoke the main opinion. FinAuditGate is
+review and at most one targeted correction after the main Case is saved. The review reads the
+complete structured report, research sources and effective calculations. Corrections are separate
+artifacts; review failure retains the main report and marks the delivery rating unavailable. FinAuditGate is
 an independent optional financial component, not this path's admission gate.
 The calculator is an ordinary operating-company arithmetic tool, not a
 valuation engine, assumption certifier or rating gate. Missing inputs preserve
@@ -24,6 +40,11 @@ the calculations that remain possible. Dates, earnings denominator and ADS/FX
 units are explicit; no net cash is added to capitalized parent earnings. The
 Application verifies that the final model received the recomputed results and
 renders assumptions, source labels and final acceptance/rejection separately.
+The current selected-evidence final call also receives a program-derived before/after
+input comparison. The main report shows those objective changes, attribution directions
+and unchanged dividends; model-written change and belief explanations remain complete
+in the process appendix for review. This does not certify their economic reasoning or
+remove the forward-calculation stages.
 See [thesis-research](thesis-research.md). The mechanisms below describe retained
 financial investigation and restricted audit routes.
 

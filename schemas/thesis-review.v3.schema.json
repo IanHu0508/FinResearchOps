@@ -1,0 +1,639 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ThesisBoundedQualityReview",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "main_sha256",
+    "status",
+    "reason",
+    "findings",
+    "coverage_and_limits",
+    "assessment",
+    "revision",
+    "effective",
+    "model_calls",
+    "exchanges",
+    "budget_total"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "finresearchops.thesis-review/v3"
+    },
+    "main_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "status": {
+      "enum": [
+        "COMPLETED",
+        "PARTIAL"
+      ]
+    },
+    "reason": {
+      "type": "string"
+    },
+    "findings": {
+      "type": "array",
+      "maxItems": 12,
+      "items": {
+        "$ref": "#/$defs/Finding"
+      }
+    },
+    "coverage_and_limits": {
+      "type": "string"
+    },
+    "assessment": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/QualityReview"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "revision": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/QualityRevision"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "effective": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "description": "Rebuilt by the shared financial revision and report validators; does not certify financial truth."
+    },
+    "model_calls": {
+      "type": "array",
+      "maxItems": 4
+    },
+    "exchanges": {
+      "type": "array",
+      "maxItems": 2
+    },
+    "budget_total": {
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "error_type": {
+      "type": "string"
+    },
+    "error_code": {
+      "type": "string"
+    }
+  },
+  "$defs": {
+    "AttributionAmount": {
+      "additionalProperties": false,
+      "properties": {
+        "value": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Absolute nonnegative amount in millions, or null. Never copy a statement's deduction minus sign into this amount.",
+          "title": "Value"
+        },
+        "basis_type": {
+          "enum": [
+            "reported",
+            "company_guidance",
+            "reference_comparison",
+            "analyst_assumption"
+          ],
+          "title": "Basis Type",
+          "type": "string"
+        },
+        "reason": {
+          "description": "Explain the input, historical anchor and forward change; a cited historical number does not certify a forecast.",
+          "minLength": 1,
+          "title": "Reason",
+          "type": "string"
+        },
+        "evidence_refs": {
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 6,
+          "title": "Evidence Refs",
+          "type": "array"
+        }
+      },
+      "required": [
+        "value",
+        "basis_type",
+        "reason",
+        "evidence_refs"
+      ],
+      "title": "AttributionAmount",
+      "type": "object"
+    },
+    "ExpectedAttribution": {
+      "additionalProperties": false,
+      "properties": {
+        "nature": {
+          "enum": [
+            "profit",
+            "loss",
+            "unknown"
+          ],
+          "title": "Nature",
+          "type": "string"
+        },
+        "amount": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Amount"
+        }
+      },
+      "required": [
+        "nature",
+        "amount"
+      ],
+      "title": "ExpectedAttribution",
+      "type": "object"
+    },
+    "FinancialChange": {
+      "additionalProperties": false,
+      "properties": {
+        "finding_ids": {
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 12,
+          "minItems": 1,
+          "title": "Finding Ids",
+          "type": "array"
+        },
+        "change": {
+          "$ref": "#/$defs/ForwardChange"
+        }
+      },
+      "required": [
+        "finding_ids",
+        "change"
+      ],
+      "title": "FinancialChange",
+      "type": "object"
+    },
+    "Finding": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "pattern": "^R[1-9][0-9]?$",
+          "title": "Id",
+          "type": "string"
+        },
+        "path": {
+          "title": "Path",
+          "type": "string"
+        },
+        "original_text": {
+          "minLength": 1,
+          "title": "Original Text",
+          "type": "string"
+        },
+        "issue": {
+          "minLength": 1,
+          "title": "Issue",
+          "type": "string"
+        },
+        "impact": {
+          "enum": [
+            "wording",
+            "financial",
+            "conclusion",
+            "optional"
+          ],
+          "title": "Impact",
+          "type": "string"
+        },
+        "evidence_refs": {
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 48,
+          "title": "Evidence Refs",
+          "type": "array"
+        },
+        "next_check": {
+          "minLength": 1,
+          "title": "Next Check",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "path",
+        "original_text",
+        "issue",
+        "impact",
+        "evidence_refs",
+        "next_check"
+      ],
+      "title": "Finding",
+      "type": "object"
+    },
+    "ForecastAssumption": {
+      "additionalProperties": false,
+      "properties": {
+        "value": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Numeric input, or null when unavailable. Ratios are fractions, not percentage points. Do not use zero for unknown.",
+          "title": "Value"
+        },
+        "basis_type": {
+          "enum": [
+            "reported",
+            "company_guidance",
+            "reference_comparison",
+            "analyst_assumption"
+          ],
+          "title": "Basis Type",
+          "type": "string"
+        },
+        "reason": {
+          "description": "Explain the input, historical anchor and forward change; a cited historical number does not certify a forecast.",
+          "minLength": 1,
+          "title": "Reason",
+          "type": "string"
+        },
+        "evidence_refs": {
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 6,
+          "title": "Evidence Refs",
+          "type": "array"
+        }
+      },
+      "required": [
+        "value",
+        "basis_type",
+        "reason",
+        "evidence_refs"
+      ],
+      "title": "ForecastAssumption",
+      "type": "object"
+    },
+    "ForwardChange": {
+      "additionalProperties": false,
+      "properties": {
+        "scenario_id": {
+          "anyOf": [
+            {
+              "enum": [
+                "F1",
+                "F2",
+                "F3"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Null only for common market_price or shares_per_traded_unit.",
+          "title": "Scenario Id"
+        },
+        "field": {
+          "enum": [
+            "market_price",
+            "shares_per_traded_unit",
+            "revenue",
+            "operating_margin",
+            "net_nonoperating_income",
+            "effective_tax_rate",
+            "noncontrolling_attribution",
+            "diluted_ordinary_shares",
+            "non_working_capital_adjustments",
+            "operating_asset_liability_cash_effect",
+            "cash_capex",
+            "fx_reporting_per_price_currency",
+            "exit_pe",
+            "cash_dividend_per_traded_unit"
+          ],
+          "title": "Field",
+          "type": "string"
+        },
+        "expected_before": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "$ref": "#/$defs/ExpectedAttribution"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Copy the proposed input VALUE exactly, not a historical source value. For NCI use its proposed nature and amount.value.",
+          "title": "Expected Before"
+        },
+        "replacement": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ForecastAssumption"
+            },
+            {
+              "$ref": "#/$defs/NoncontrollingAttribution"
+            }
+          ],
+          "description": "Complete corrected assumption including reason and evidence_refs; NCI is a complete nature+amount object. Unknown uses value:null, never guessed zero.",
+          "title": "Replacement"
+        },
+        "correction_basis": {
+          "enum": [
+            "source_misread",
+            "accounting_correction",
+            "assumption_update"
+          ],
+          "title": "Correction Basis",
+          "type": "string"
+        },
+        "reason": {
+          "maxLength": 1600,
+          "minLength": 1,
+          "title": "Reason",
+          "type": "string"
+        },
+        "evidence_refs": {
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 8,
+          "minItems": 1,
+          "title": "Evidence Refs",
+          "type": "array"
+        }
+      },
+      "required": [
+        "scenario_id",
+        "field",
+        "expected_before",
+        "replacement",
+        "correction_basis",
+        "reason",
+        "evidence_refs"
+      ],
+      "title": "ForwardChange",
+      "type": "object"
+    },
+    "NoncontrollingAttribution": {
+      "additionalProperties": false,
+      "properties": {
+        "nature": {
+          "description": "Economic nature: profit attributable to outside owners is deducted; their loss is added back. A statement may print a PROFIT deduction in parentheses; parentheses do not make it a loss.",
+          "enum": [
+            "profit",
+            "loss",
+            "unknown"
+          ],
+          "title": "Nature",
+          "type": "string"
+        },
+        "amount": {
+          "$ref": "#/$defs/AttributionAmount"
+        }
+      },
+      "required": [
+        "nature",
+        "amount"
+      ],
+      "title": "NoncontrollingAttribution",
+      "type": "object"
+    },
+    "QualityReview": {
+      "additionalProperties": false,
+      "properties": {
+        "findings": {
+          "items": {
+            "$ref": "#/$defs/Finding"
+          },
+          "maxItems": 12,
+          "title": "Findings",
+          "type": "array"
+        },
+        "financial_changes": {
+          "items": {
+            "$ref": "#/$defs/FinancialChange"
+          },
+          "maxItems": 12,
+          "title": "Financial Changes",
+          "type": "array"
+        },
+        "coverage_and_limits": {
+          "minLength": 1,
+          "title": "Coverage And Limits",
+          "type": "string"
+        }
+      },
+      "required": [
+        "findings",
+        "financial_changes",
+        "coverage_and_limits"
+      ],
+      "title": "QualityReview",
+      "type": "object"
+    },
+    "Edit": {
+      "additionalProperties": false,
+      "properties": {
+        "finding_ids": {
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 12,
+          "minItems": 1,
+          "title": "Finding Ids",
+          "type": "array"
+        },
+        "path": {
+          "title": "Path",
+          "type": "string"
+        },
+        "expected_text": {
+          "minLength": 1,
+          "title": "Expected Text",
+          "type": "string"
+        },
+        "replacement_text": {
+          "minLength": 1,
+          "title": "Replacement Text",
+          "type": "string"
+        }
+      },
+      "required": [
+        "finding_ids",
+        "path",
+        "expected_text",
+        "replacement_text"
+      ],
+      "title": "Edit",
+      "type": "object"
+    },
+    "Rating": {
+      "additionalProperties": false,
+      "properties": {
+        "value": {
+          "enum": [
+            "Buy",
+            "Hold",
+            "Sell",
+            "REVIEW"
+          ],
+          "title": "Value",
+          "type": "string"
+        },
+        "reason": {
+          "minLength": 1,
+          "title": "Reason",
+          "type": "string"
+        }
+      },
+      "required": [
+        "value",
+        "reason"
+      ],
+      "title": "Rating",
+      "type": "object"
+    },
+    "Resolution": {
+      "additionalProperties": false,
+      "properties": {
+        "finding_id": {
+          "title": "Finding Id",
+          "type": "string"
+        },
+        "outcome": {
+          "enum": [
+            "corrected",
+            "not_supported",
+            "unresolved"
+          ],
+          "title": "Outcome",
+          "type": "string"
+        },
+        "reason": {
+          "minLength": 1,
+          "title": "Reason",
+          "type": "string"
+        },
+        "evidence_refs": {
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 48,
+          "title": "Evidence Refs",
+          "type": "array"
+        }
+      },
+      "required": [
+        "finding_id",
+        "outcome",
+        "reason",
+        "evidence_refs"
+      ],
+      "title": "Resolution",
+      "type": "object"
+    },
+    "ScenarioDecision": {
+      "additionalProperties": false,
+      "properties": {
+        "scenario_id": {
+          "enum": [
+            "F1",
+            "F2",
+            "F3"
+          ],
+          "title": "Scenario Id",
+          "type": "string"
+        },
+        "disposition": {
+          "enum": [
+            "use",
+            "conditional",
+            "reject"
+          ],
+          "title": "Disposition",
+          "type": "string"
+        }
+      },
+      "required": [
+        "scenario_id",
+        "disposition"
+      ],
+      "title": "ScenarioDecision",
+      "type": "object"
+    },
+    "QualityRevision": {
+      "additionalProperties": false,
+      "properties": {
+        "edits": {
+          "items": {
+            "$ref": "#/$defs/Edit"
+          },
+          "maxItems": 32,
+          "title": "Edits",
+          "type": "array"
+        },
+        "resolutions": {
+          "items": {
+            "$ref": "#/$defs/Resolution"
+          },
+          "maxItems": 12,
+          "title": "Resolutions",
+          "type": "array"
+        },
+        "rating": {
+          "$ref": "#/$defs/Rating"
+        },
+        "scenario_decisions": {
+          "items": {
+            "$ref": "#/$defs/ScenarioDecision"
+          },
+          "maxItems": 3,
+          "title": "Scenario Decisions",
+          "type": "array"
+        }
+      },
+      "required": [
+        "edits",
+        "resolutions",
+        "rating",
+        "scenario_decisions"
+      ],
+      "title": "QualityRevision",
+      "type": "object"
+    }
+  }
+}

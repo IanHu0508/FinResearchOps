@@ -7,7 +7,14 @@ from finauditgate.application.research_numbers import METRIC_KEYS, render_resear
 from finauditgate.core.forward_revision import apply_forward_revision
 
 
-def correction_schemas(base, *, bound=False):
+def valid_belief_updates(updates, *, allow_maintain_restatement=False):
+    """Preserve a model's restatement without certifying it as unchanged meaning."""
+    return all((u["status"] == "revise") == bool(u["new_statement"])
+               or (allow_maintain_restatement and u["status"] == "maintain"
+                   and isinstance(u["new_statement"], str)) for u in updates)
+
+
+def correction_schemas(base, *, bound=False, selected=False):
     from typing import Literal
     from pydantic import BaseModel, ConfigDict, Field, StrictFloat
 
@@ -58,8 +65,12 @@ def correction_schemas(base, *, bound=False):
 
     class ResearchBlock(Strict):
         text: str = Field(min_length=1, max_length=2400, description="Concise economic explanation. Refer to forward quantities through metrics; do not retype forecast amounts/ratios, create a new target, or repeat the table. Historical claims still need source support.")
-        evidence_refs: list[str] = Field(max_length=8)
-        metrics: list[ResearchMetric] = Field(max_length=6, description="Program inserts complete metric labels, exact current values, units and period; no value or label is supplied by the model.")
+        evidence_refs: list[str] = (Field(default_factory=list, max_length=48,
+            description="Usually omit: program derives sources from inline evidence-block references.")
+            if selected else Field(max_length=8))
+        metrics: list[ResearchMetric] = (Field(default_factory=list, max_length=48,
+            description="Usually omit: program derives metrics from inline references. No numeric values or labels.")
+            if selected else Field(max_length=6, description="Program inserts complete metric labels, exact current values, units and period; no value or label is supplied by the model."))
 
     class ResearchSections(Strict):
         operating_performance: ResearchBlock
@@ -72,6 +83,11 @@ def correction_schemas(base, *, bound=False):
         disposition: Literal["use", "conditional", "reject"]
         reason: str = Field(min_length=1, max_length=1600)
         what_changes_the_view: str = Field(min_length=1, max_length=1200)
+
+    if selected:
+        class ScenarioUse(ScenarioUse):
+            metrics: list[ResearchMetric] = Field(default_factory=list, max_length=48,
+                description="Optional extra metric selections; inline selections are derived automatically.")
 
     class FinalResearchReport(Strict):
         rating: rating_type
@@ -96,10 +112,15 @@ def correction_schemas(base, *, bound=False):
             belief_id: str
             explanation: ResearchBlock
 
-        class FinalResearchReport(FinalResearchReport):
-            source_quotes: list[SourceQuote] = Field(max_length=12)
-            change_explanations: list[ChangeExplanation] = Field(max_length=12)
-            belief_explanations: list[BeliefExplanation] = Field(min_length=2, max_length=4)
+        if selected:
+            class FinalResearchReport(FinalResearchReport):
+                change_explanations: list[ChangeExplanation] = Field(max_length=12)
+                belief_explanations: list[BeliefExplanation] = Field(min_length=2, max_length=4)
+        else:
+            class FinalResearchReport(FinalResearchReport):
+                source_quotes: list[SourceQuote] = Field(max_length=12)
+                change_explanations: list[ChangeExplanation] = Field(max_length=12)
+                belief_explanations: list[BeliefExplanation] = Field(min_length=2, max_length=4)
 
     return {"ForwardRevision": ForwardRevision, "FinalResearchReport": FinalResearchReport}
 
@@ -118,7 +139,10 @@ def complete_corrected_report(session, node, config):
 
     bound = session.protocol_version >= 13
     from finauditgate.application.research_narrative import NARRATIVE_INSTRUCTION, change_view, report_context
-    narrative_instruction = NARRATIVE_INSTRUCTION if bound else ""
+    selected = session.protocol_version >= 14
+    if selected:
+        from finauditgate.application.research_delivery import INSTRUCTION, final_source_view, report_context
+    narrative_instruction = INSTRUCTION if selected else NARRATIVE_INSTRUCTION if bound else ""
     payload = session.corpus({})
     payload.update(independent_beliefs=belief_view(session.independent),
                    updated_claims=claim_view(session.updated_claims()), risk_briefs=risk_view(session.risks),
@@ -138,7 +162,7 @@ def complete_corrected_report(session, node, config):
     session.coverage(resolution["claim_assessments"], claim_ids)
     updates = resolution["belief_updates"]
     if (len(updates) != len(belief_ids) or {u["belief_id"] for u in updates} != set(belief_ids)
-            or any((u["status"] == "revise") != bool(u["new_statement"]) for u in updates)):
+            or not valid_belief_updates(updates, allow_maintain_restatement=session.protocol_version == 17)):
         raise ValueError("THESIS_DECISION_UPDATE_INVALID")
     result = apply_forward_revision(session.forward_draft, resolution["changes"])
     session.forward_revision = deepcopy(resolution)
@@ -146,12 +170,25 @@ def complete_corrected_report(session, node, config):
     session.effective_forward_calculations = result["effective_forward_calculations"]
     session.applied_changes = result["applied_changes"]
     final_payload = session.corpus({})
+    if selected:
+        final_payload["source_bundle"] = final_source_view(session.bundle)
     final_payload.update(effective_forward_draft=session.effective_forward_draft,
                          effective_forward_calculations=session.effective_forward_calculations,
                          research_resolution={k: deepcopy(resolution[k]) for k in
                              ("claim_assessments", "belief_updates", "unresolved_issues")})
     if bound:
         final_payload["change_context"] = change_view(session.applied_changes)
+    if selected:
+        from finauditgate.application.research_changes import parameter_change_facts
+        final_payload["parameter_change_facts"] = parameter_change_facts(session.forward_draft, resolution["changes"])
+        narrative_instruction += (
+            "parameter_change_facts由程序逐项比较原参数与有效参数，包括未改字段；原值仅用于变化对账，不是当前预测。"
+            "比较情景高低时只能用同一版本；未改的股息不会因为盈利改变而自动改变。"
+            "程序将在正文生成客观变化，change_explanations和belief_explanations完整保留于待核过程附录，"
+            "它们不是已验证变化事实。只解释经济依据、条件与不确定性，不宣称某假设已被会计证实。")
+    if session.protocol_version == 17:
+        narrative_instruction += ("若belief_updates标记maintain却附带new_statement，后者是模型附带的重述，"
+            "程序未认定其与原信念语义相同；两种文字及标记完整留痕，不能据该标记声称观点完全一致或已经去偏。")
     final = session.ask(node, "FinalResearchReport",
         narrative_instruction + "依据原始资料、修正后的有效参数和程序复算，形成一份精简但完整的中文终判。没有初判评级、用户期待或原错误预测表。"
         "分别回答经营驱动、盈利质量、现金与资本配置、价格要求，再给最强反证与情景采纳。每段聚焦经济解释，不重复投资总论、估值长文和全部检查清单。"
@@ -168,7 +205,9 @@ def complete_corrected_report(session, node, config):
     for block in (final["summary"], *final["financial_analysis"].values(), final["strongest_counterevidence"]):
         render_research_block(block, session.effective_forward_draft, session.effective_forward_calculations)
     context = report_context(final, session.effective_forward_draft, session.effective_forward_calculations,
-                             final_payload["source_bundle"], final_payload["request"],
+                             session.bundle if selected else final_payload["source_bundle"], final_payload["request"],
                              changes=final_payload["change_context"], beliefs=resolution["belief_updates"]) if bound else None
     session.final = final
+    if selected:
+        session.evidence_check = context.evidence_check()
     return render_decision(final, session.effective_forward_draft, session.effective_forward_calculations, context=context)

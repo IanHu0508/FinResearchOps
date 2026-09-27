@@ -34,8 +34,7 @@ def run_experiment(data, spec, window, model, *, artifact_root=None):
     validation = evaluate_predictions(validation_predictions, fold.validation)
     test = evaluate_predictions(test_predictions, fold.test)
     as_ofs = tuple(sorted({row.key.as_of for row in fold.test.rows}))
-    signals = build_signals(test_predictions, dataset.panel, as_ofs=as_ofs, model=fitted,
-                            dataset_id=dataset.dataset_id)
+    signals = build_signals(test_predictions, dataset.panel, as_ofs=as_ofs, model=fitted)
     result = {"schema_version": "quant.experiment/v3", "data_kind": data.data_kind,
         "dataset_id": dataset.dataset_id, "source_snapshot_id": fingerprint(data),
         "spec": primitive(spec), "model_version": fitted.model_version,

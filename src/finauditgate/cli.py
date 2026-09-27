@@ -99,6 +99,11 @@ def _parser() -> argparse.ArgumentParser:
     inspect.add_argument("--case-ref", required=True)
     _add_optional_trace_root(inspect)
 
+    formal = subparsers.add_parser("render-research-report",
+        help="Write the formal readable research report of one saved v16/v17 thesis Case; no model or network call.")
+    formal.add_argument("--case-ref", required=True)
+    _add_optional_trace_root(formal)
+
     review = subparsers.add_parser("review")
     review.add_argument("--case-ref", required=True)
     review.add_argument("--run-id", required=True)
@@ -167,8 +172,11 @@ def _parser() -> argparse.ArgumentParser:
     thesis.add_argument("--horizon-months", type=int, default=12)
     thesis.add_argument("--sources", type=Path, help="Optional private frozen source bundle; without it native vendor tools are used.")
     thesis.add_argument("--no-review", action="store_true", help="Skip the post-report data review Agent; main research is unchanged.")
+    thesis.add_argument("--all-analysts", action="store_true", help="Run fundamental, market, news and sentiment analysts on supplied frozen sources, then the complete research chain.")
+    thesis.add_argument("--fetch-news-social", action="store_true", help="Automatically acquire dated news/public investor discussions, merge with --sources financial/market/Quant inputs, then run all four analysts. Resume reuses the saved acquisition.")
     thesis.add_argument("--resume-execution", type=Path, help="Reuse an interrupted frozen-source execution's exact completed model inputs/outputs.")
     thesis.add_argument("--reassess-final", action="store_true", help="With --resume-execution, preserve the completed prefix through the current protocol's parameter revision, recalculate, and regenerate only the final report and optional review.")
+    thesis.add_argument("--replay-presentation-failure", action="store_true", help="Revalidate specifically supported captured v16/v17 presentation failures; never redraw validated saved answers or discard their fees.")
     _add_research_model_options(thesis, synthesis=False)
     thesis.set_defaults(max_spend_cny="unlimited", max_output_tokens=65536, reasoning_effort="max")
     return parser
@@ -324,11 +332,15 @@ def _execute(arguments: argparse.Namespace) -> int:
             budget = ModelBudget(ceiling_cny=None if arguments.max_spend_cny == "unlimited" else arguments.max_spend_cny,
                 input_per_million="3" if flash else "9", output_per_million="9" if flash else "27",
                 max_calls=24, max_input_bytes=524288, max_output_tokens=arguments.max_output_tokens)
+            researcher = ThesisResearcher(model=arguments.model, live=True, budget=budget,
+                                           protocol_version=17 if arguments.all_analysts or arguments.fetch_news_social else 16,
+                                           reasoning_effort=arguments.reasoning_effort, resume_from=resume,
+                                           reassess_final=arguments.reassess_final,
+                                           replay_presentation_failure=arguments.replay_presentation_failure,
+                                           fetch_news_social=arguments.fetch_news_social)
             view = FinResearchOps(artifact_root=arguments.artifact_root,
                 private_workspace_anchor=arguments.private_workspace_anchor,
-                researcher=ThesisResearcher(model=arguments.model, live=True, budget=budget,
-                                           reasoning_effort=arguments.reasoning_effort, resume_from=resume,
-                                           reassess_final=arguments.reassess_final)).handle(
+                researcher=researcher).handle(
                     ResearchThesis(arguments.symbol, arguments.as_of, arguments.question,
                                    arguments.horizon_months, bundle, not arguments.no_review,
                                    tuple(arguments.hypothesis), tuple(arguments.research_constraint), arguments.user_view))
@@ -337,7 +349,12 @@ def _execute(arguments: argparse.Namespace) -> int:
         except ValueError as exc:
             raise ApplicationError(str(exc)) from exc
         _print_payload({"case_ref": view.case_ref, "status": view.status, "report": view.report_path,
+                        **({"research_report": view.research_report_path} if view.research_report_path else {}),
+                        **({"source_acquisition": str(researcher.last_acquisition_path)} if researcher.last_acquisition_path else {}),
+                        "delivery_report": view.delivery_report_path, "delivery_signal": view.delivery_rating,
                         "signal": view.latest_report["signal"], "data_review": view.review["status"],
+                        **({"source_binding": view.latest_report["evidence_check"]["status"],
+                            "rating_is_model_proposal_not_approval": True} if "evidence_check" in view.latest_report else {}),
                         "reused_model_calls": view.latest_report.get("reused_calls", {}).get("used_calls", 0),
                         "budget": view.review.get("budget_total", view.latest_report["budget"])})
         return 0
@@ -504,6 +521,8 @@ def _execute(arguments: argparse.Namespace) -> int:
         view = application.read_case(arguments.case_ref)
         if isinstance(view, ThesisCaseView):
             _print_payload({"case_ref": view.case_ref, "status": view.status, "report_path": view.report_path,
+                            **({"research_report": view.research_report_path} if view.research_report_path else {}),
+                            "delivery_report": view.delivery_report_path, "delivery_signal": view.delivery_rating,
                             "signal": view.latest_report["signal"], "data_review": view.review["status"],
                             "reused_model_calls": view.latest_report.get("reused_calls", {}).get("used_calls", 0),
                             "budget": view.review.get("budget_total", view.latest_report["budget"])})
@@ -515,6 +534,19 @@ def _execute(arguments: argparse.Namespace) -> int:
                 **_native_signal(view),'budget':view.latest_report['result'].get('budget')})
         else:
             _print_payload(_json_value(view))
+        return 0
+    elif arguments.command == "render-research-report":
+        from finauditgate.research import RenderResearchReport
+        try:
+            command = RenderResearchReport(arguments.case_ref)
+        except ValueError as exc:
+            raise ApplicationError("CASE_REF_INVALID") from exc
+        view = _offline_application(arguments).handle(command)
+        _print_payload({"case_ref": view.case_ref, "status": view.status,
+                        "research_report": view.research_report_path,
+                        "research_report_html": str(Path(view.research_report_path).with_suffix(".html")),
+                        "workpaper": view.report_path, "delivery_report": view.delivery_report_path,
+                        "signal": view.latest_report["signal"]})
         return 0
     elif arguments.command == "review":
         outcome = _offline_application(arguments).handle(

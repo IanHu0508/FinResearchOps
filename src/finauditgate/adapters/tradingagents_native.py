@@ -135,7 +135,8 @@ def _capture_handler(budget=None, trace_root=None):
                 write_once(trace_root / f"call-{number:03d}-request.json", canonical_json_bytes({
                     "schema_version":"finresearchops.native-live-request/v1", "node":node,"messages":payload}))
             self._start(self.model_calls, self._models, MAX_MODEL_CALLS, run_id,
-                        {"node": node, "messages": messages})
+                        {"node": node, "messages": messages,
+                         **({"thesis_stage": metadata["thesis_stage"]} if (metadata or {}).get("thesis_stage") is not None else {})})
 
         def on_llm_end(self, response, *, run_id, **kwargs):
             output = [generation.message for group in response.generations
@@ -175,6 +176,9 @@ def _capture_handler(budget=None, trace_root=None):
             except Exception as capture_error:
                 # Recording trouble must not replace the original SDK error.
                 self._end(self._models, run_id, failure_capture_error_type=type(capture_error).__name__)
+
+        def retain_complete_length(self, run_id, outputs):
+            self._end(self._models, run_id, output=outputs, retained_length=True)
 
         def on_tool_start(self, serialized, input_str, *, run_id, metadata=None,
                           inputs=None, **kwargs):

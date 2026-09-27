@@ -118,12 +118,38 @@ def thesis_request(command):
 
 
 @dataclass(frozen=True, slots=True)
+class RenderResearchReport:
+    """Write the formal readable report of one saved thesis Case; no model call."""
+
+    case_ref: str
+
+    def __post_init__(self):
+        if type(self.case_ref) is not str or not re.fullmatch(r"case-[0-9a-f]{64}", self.case_ref):
+            raise ValueError("CASE_REF_INVALID")
+
+
+@dataclass(frozen=True, slots=True)
 class ThesisCaseView:
     case_ref: str
     status: str
     report_path: str
     latest_report: dict
     review: dict
+    research_report_path: str | None = None
+
+    @property
+    def delivery_report_path(self):
+        if self.review.get("effective") is not None:
+            from pathlib import Path
+            return str(Path(self.report_path).with_name("quality-report.md"))
+        return self.research_report_path or self.report_path
+
+    @property
+    def delivery_rating(self):
+        if self.review.get("status") == "PARTIAL":
+            return None
+        effective = self.review.get("effective")
+        return effective["final_report"]["rating"] if effective is not None else self.latest_report["signal"]
 
 
 @dataclass(frozen=True, slots=True)

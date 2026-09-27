@@ -42,6 +42,17 @@ the native analyst/research/trader/risk/portfolio topology and routing while
 changing role prompts and information flow. Complete native tool returns, or a
 frozen source bundle, reach the research roles without the old field projection.
 Models can give an actual rating or `REVIEW` when there is no defensible rating.
+Each newly saved Case includes a formal research report (`research-report.md` / `.html`)
+laid out like a conventional company report, with numbered citations and a compact
+appendix; the complete workpaper and process record stay alongside it for review.
+Earlier v16/v17 Cases can add it offline with `render-research-report`.
+
+Use `--fetch-news-social --sources <base.json>` to acquire dated A-share news/events
+and public investor discussions before the four-analyst flow. The supplied base
+retains financial, market and Quant inputs. The collector labels media excerpts,
+company events and investor Q&A separately, preserves coverage gaps, and freezes
+the combined sources for replay. See the [workflow guide](docs/thesis-research.md)
+for coverage, limits and resume behavior.
 
 The original `tradingagents-baseline` remains a separate comparison route.
 The [filing-focused component](docs/tradingagents-research.md) and

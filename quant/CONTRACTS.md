@@ -342,19 +342,41 @@ HAC20/60在真实交易日轴上对上下端点分别计算，缺日零仅作协
 
 ## 8. 信号、版本与重放
 
-`finresearchops.quant-signal/v3` 使用：
+`finresearchops.quant-signal/v4` 使用：
 `predicted_target_percentile`（模型预测的未来标签分位）与
 `cross_sectional_model_rank`（当日完整股票池内模型分数的分位排名）。
 两者都不是上涨概率。信号另绑定 `feature_ablation`、target、universe、
-dataset/model 身份、训练/数据截止时间和合成/真实来源类别。
+推理输入与模型身份、训练/数据截止时间和合成/真实来源类别。
+
+两个身份分开：`inference_input_id` 是该评分时点完整股票池特征行（键、特征值、数据截止与逐行来源ID）的
+Panel 指纹，由 `build_signals` 按日计算，调用方不能传入；它不含标签、结果、切分或其他评分日，
+因此改变知识截止、删除更晚的行情或结果都不改变它。来源ID包含 store 级身份映射与核对清单摘要，
+重建 store 会改变它。`model_version` 是模型 artifact 的内容指纹，训练数据身份与训练截止保存在该 artifact 中；
+信号只另存 `training_cutoff` 以便不解析 artifact 也能做时间校验。v3 的 `dataset_id` 在研究 pipeline 中
+指向含标签的数据集，已由 v4 取代。
 
 JSON Schema 验证结构；`validate_signal` 检查时间语义；
 `build_signals` 检查请求日全股票池覆盖。没有 Buy/Sell、目标价或 Agent 路由。
 
+指定日期评分使用 `MarketStore(path, through=t)`：日历只载入到 t，`read_feature_day(t)` 只查询 t 及以前的
+行情与股票池，结果等于 `read_day(t)` 删去所有更晚日历、行情、outcome 价格和退出参考后的视图；
+这种 store 拒绝 `read_day` 与 `read_label_day`。`score_day` 在该视图上构建共用 Panel，要求模型训练截止早于
+评分时点，对完整 U_t 评分，并按上述百分位约定给出排名。它不构造标签，也不经过研究切分。
+
+面向 Agent 的研究说明由 `quant.inference.research_note` 确定性生成，返回一条 `finresearchops.thesis-sources/v2`
+资料：只展示 `cross_sectional_model_rank` 并写明方向；评分日可得的输入观察明确未做归因；历史验证证据分为
+`EXACT_MODEL`（与信号同一 `model_version`）和 `METHOD_FAMILY`（同一方法的其他模型）。每份说明必须恰有一条本模型记录，
+即使尚无已揭晓结果也要明示。历史模拟拒绝知识截止晚于评分时点的证据；事后回顾允许但逐项标注。使用规则写在说明正文，
+不改 Agent 提示词；每个含数字的行在正文中唯一，可被报告逐字引用。
+
+证据由 `quant.evaluation.validation_evidence` 从已保存预测与截到给定知识截止的标签重算：先截断再在完整池上排名，
+不汇总以更晚截止计算的旧指标；结果尚未揭晓的评分日只计数、不评价。分组比较只用结果完整且最高/最低组非空的评分日，
+给出最高、最低 20% 组相对全池平均的日期等权差；这是理论参考收益，未扣成本，不是可执行多空收益。
+
 研究方向仍称V1；目标ID为rank-interval/v2。ResearchData仍v4、canonical store仍v9（价格形状不变），
-prepared dataset/fold、参考模型和实验为v3，XGB模型/磁盘实验为v2，当前信号为v3。
+prepared dataset/fold、参考模型和实验为v3，XGB模型/磁盘实验为v2，当前信号为v4。
 旧point-label/行业标签实验与代码归档保留，当前reader不将其自动解释成区间研究。
-历史公开v2信号schema保留为历史定义，当前validator只接受v3；run-manifest形状仍v1。
+历史公开v2/v3信号schema保留为历史定义，当前validator只接受v4；run-manifest形状仍v1。
 
 私有运行目录只写一次，含输入、数据集、切分、模型、结果及摘要清单。
 读取校验内容，参考模型恢复后可重算预测；禁止 pickle 与动态代码执行。

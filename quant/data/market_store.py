@@ -373,7 +373,8 @@ def build_store(raw_root, destination, *, identity_map=None, quote_choices_docum
 class MarketStore:
     """Read only. Materialize a bounded date block using the shared definitions."""
 
-    def __init__(self, path):
+    def __init__(self, path, *, through=None):
+        """`through` opens a feature-only reader: no later session is ever loaded."""
         path = Path(path).resolve()
         self.connection = sqlite3.connect(path.as_uri() + "?mode=ro", uri=True)
         try:
@@ -404,7 +405,13 @@ class MarketStore:
                     "STORE_CONVERSIONS_MISMATCH")
             require(fingerprint({k: v for k, v in self.metadata.items() if k != "source_snapshot_id"})
                     == self.metadata["source_snapshot_id"], "STORE_METADATA_HASH_MISMATCH")
-            self.sessions = tuple(date.fromisoformat(r[0]) for r in self.connection.execute("SELECT session FROM sessions ORDER BY ordinal"))
+            require(through is None or type(through) is date, "FEATURE_BOUND_DATE_REQUIRED")
+            calendar = "SELECT session FROM sessions" + ("" if through is None else " WHERE session<=?") + " ORDER BY ordinal"
+            self.sessions = tuple(date.fromisoformat(r[0]) for r in self.connection.execute(
+                calendar, () if through is None else (through.isoformat(),)))
+            require(through is None or (bool(self.sessions) and self.sessions[-1] == through),
+                    "FEATURE_BOUND_NOT_A_SESSION")
+            self.through = through
             self.positions = {day: index for index, day in enumerate(self.sessions)}
         except Exception:
             self.connection.close()
@@ -422,10 +429,30 @@ class MarketStore:
         A new chain after an unknown gap has an arbitrary base. Future values
         from that chain must not be divided by today's old chain values.
         """
+        require(self.through is None, "FEATURE_ONLY_STORE_HAS_NO_OUTCOMES")
         pos = self.positions[day]
         require(pos >= 79, "STORE_WARMUP_INCOMPLETE")
-        start = self.sessions[pos - 60]
         end = self.sessions[min(pos + 20, len(self.sessions) - 1)]
+        bars, snapshots, projected_symbol = self._feature_inputs(day, end)
+        outcome_quotes,references=self._outcome_slice(day,end,projected_symbol)
+        return ResearchData(self.sessions, bars, snapshots, (day,), "REAL_DATA",
+            exit_references=tuple(references), outcome_prices=tuple(outcome_quotes), outcome_prices_enabled=True)
+
+    def read_feature_day(self, day):
+        """Scoring inputs only: calendar, bars and pools through `day`, no outcome slice.
+
+        Every query is bounded by `day`. The result equals read_day(day) with
+        all later sessions, bars, outcome prices and exit references removed.
+        """
+        require(day in self.positions, "SCORING_SESSION_NOT_IN_CALENDAR")
+        pos = self.positions[day]
+        require(pos >= 79, "STORE_WARMUP_INCOMPLETE")
+        bars, snapshots, _ = self._feature_inputs(day, day)
+        return ResearchData(self.sessions[:pos + 1], bars, snapshots, (day,), "REAL_DATA")
+
+    def _feature_inputs(self, day, end):
+        pos = self.positions[day]
+        start = self.sessions[pos - 60]
         day_text = day.isoformat()
         # A block has one scoring date. Use its effective tickers consistently
         # across history, future outcomes and past universe snapshots; internal
@@ -454,9 +481,7 @@ class MarketStore:
             session = date.fromisoformat(text)
             snapshots.append(UniverseSnapshot(self.universe_id, market_time(session, 21, 30),
                              market_time(session, 21), tuple(sorted(projected_symbol(s) for s in json.loads(symbols))), source))
-        outcome_quotes,references=self._outcome_slice(day,end,projected_symbol)
-        return ResearchData(self.sessions, tuple(bars), tuple(snapshots), (day,), "REAL_DATA",
-            exit_references=tuple(references), outcome_prices=tuple(outcome_quotes), outcome_prices_enabled=True)
+        return tuple(bars), tuple(snapshots), projected_symbol
 
     def _outcome_slice(self,day,end,projected_symbol,*,sessions_filter=None):
         day_text=day.isoformat()
@@ -487,6 +512,7 @@ class MarketStore:
         Uses the same price/basis reader as read_day; it cannot create features
         or serve as an alternative price normalization or eligibility path.
         """
+        require(self.through is None,'FEATURE_ONLY_STORE_HAS_NO_OUTCOMES')
         pos=self.positions[day]
         require(pos>=79,'STORE_WARMUP_INCOMPLETE')
         record=self.connection.execute('SELECT symbols,source_id FROM universes WHERE session=?',(str(day),)).fetchone()

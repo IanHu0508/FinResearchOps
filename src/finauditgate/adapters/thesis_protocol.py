@@ -334,15 +334,21 @@ class _PreparedReply:
 
 
 class ThesisSession:
-    def __init__(self, request, source_bundle, model, *, completed=None, capture=None, protocol_version=10, budget=None):
+    def __init__(self, request, source_bundle, model, *, completed=None, capture=None, protocol_version=10, budget=None, reasoning_effort=None):
         self.request = deepcopy(request)
         self.bundle = deepcopy(source_bundle)
         self.model = model
         self.types = schemas()
         self.protocol_version, self.budget = protocol_version, budget
+        self.configured_effort = reasoning_effort
+        self.last_stage = None
         if protocol_version >= 11:
             from finauditgate.adapters.thesis_correction import correction_schemas
-            self.types.update(correction_schemas(self.types, bound=protocol_version >= 13))
+            self.types.update(correction_schemas(self.types, bound=protocol_version >= 13, selected=protocol_version >= 14))
+        if protocol_version == 17:
+            from .thesis_analysts import schemas as analyst_schemas
+            self.types.update(analyst_schemas())
+        self.analyst_reports = {}
         self.final_generation = []
         self.initial = {}
         self.revisions = {}
@@ -355,14 +361,25 @@ class ThesisSession:
         self.forward_calculations = None
         self.exchanges = []
         self.completed, self.capture = completed, capture
+        if protocol_version >= 16:
+            from .thesis_recovery import RecoveryState
+            self.recovery = RecoveryState(completed.recovery_state if completed else None)
 
-    def corpus(self, state):
+    def corpus(self, state, *, include_analysts=True):
         # Generated analyst prose can already contain a directional thesis.
         # Give researchers and managers the original observations, not another
         # model's supposedly neutral summary of them.
-        return {"request": research_request_view(self.request), "source_bundle": source_view(self.bundle)}
+        payload = {"request": research_request_view(self.request), "source_bundle": source_view(self.bundle)}
+        if self.protocol_version == 17 and include_analysts:
+            from .thesis_analysts import ANALYSTS as all_analysts
+            if set(self.analyst_reports) != set(all_analysts):
+                raise ValueError("THESIS_ANALYST_REPORTS_INCOMPLETE")
+            payload["analyst_reports"] = deepcopy(self.analyst_reports)
+        return payload
 
     def ask(self, node, kind, instruction, payload, config):
+        if self.protocol_version >= 16 and kind != "DataReview":
+            self.last_stage = (node, kind)
         legacy_prompt = messages(node, instruction, payload)
         prompt = deepcopy(legacy_prompt)
         prompt[0]["content"] += (
@@ -373,6 +390,19 @@ class ThesisSession:
             prompt[0]["content"] += FORWARD_LANGUAGE
         elif kind == "IndependentAssessment":
             prompt[0]["content"] += "\n完整对象必须同时含beliefs和decision。先给2至4条有证据和反证条件的信念，再给本次独立评级及简短理由；不能只返回decision，不重复写另一份投资总论。"
+        elif self.protocol_version == 17 and kind == "ResearchEvaluation":
+            legacy_prompt = deepcopy(prompt)
+            prompt[0]["content"] += (
+                "\nassessments的claim_id应逐项使用updated_claims中的原编号："
+                + "、".join(row["id"] for row in payload["updated_claims"])
+                + "。用户假设H1/H2、来源号QUANT/AUTO_*只能在理由中讨论，不能替代claim_id。"
+                "这是中间研究计划；不得把未逐项评价的论点声称为已经核查。")
+        if self.protocol_version >= 16 and kind != "DataReview":
+            from .thesis_invocation import invoke_stage
+            raw, prompt, parsed = invoke_stage(self, node, kind, prompt, legacy_prompt, config)
+            self.exchanges.append({"node": node, "kind": kind, "messages": prompt,
+                                   "response_id": raw.id, "parsed": deepcopy(parsed)})
+            return parsed
         reused = self.completed.take(node, (legacy_prompt, prompt), self.capture) if self.completed else None
         if reused is not None:
             raw, prompt = reused
@@ -410,12 +440,39 @@ class ThesisSession:
                 "prior_final_generation": deepcopy(self.completed.receipt.get("prior_final_generation"))}]
         # Some providers split one schema into multiple tool calls. Require
         # disjoint fields, then validate the full schema without filling gaps.
-        candidate = response_candidate([{"content": raw.content, "tool_calls": raw.tool_calls}], kind)
+        candidate = response_candidate([{"content": raw.content, "tool_calls": raw.tool_calls}], kind,
+                                       protocol_version=self.protocol_version)
         parsed = self.types[kind].model_validate(candidate).model_dump(mode="json")
+        selected = kind == "FinalResearchReport" and self.protocol_version >= 14
+        if selected:
+            from finauditgate.application.research_delivery import normalize_report
+            parsed = normalize_report(parsed, self.bundle)
         self.exchanges.append({"node": node, "kind": kind, "messages": prompt,
                                "response_id": raw.id, "parsed": deepcopy(parsed)})
-        check_refs(parsed, {s["id"] for s in payload["source_bundle"]["sources"]})
+        if not selected:
+            check_refs(parsed, {s["id"] for s in payload["source_bundle"]["sources"]})
         return parsed
+
+    def seal_failure(self, error):
+        """Domain failures after parsing must not become fresh model attempts."""
+        if self.protocol_version < 16 or self.last_stage is None or self.recovery.value["halted"] is not None:
+            return
+        node, kind = self.last_stage
+        pending = next((r for r in self.recovery.value["attempts"] if (r["node"], r["kind"]) == (node, kind)
+                        and r["retry_run_id"] is None), None)
+        if pending is not None:
+            calls = self.capture.model_calls
+            failed = next(c for c in calls if c["run_id"] == pending["failed_run_id"])
+            expected_attempt = failed["thesis_stage"]["attempt"] + 1
+            following = [c for c in calls if c["node"] == node and c.get("thesis_stage") == {
+                "kind": kind, "attempt": expected_attempt, "reasoning_effort": pending["retry_effort"]}]
+            if not following:
+                return  # Reserved but not sent: resume the same attempt.
+            pending["retry_run_id"] = following[-1]["run_id"]
+        if isinstance(error, (ValueError, TypeError, KeyError)) or not isinstance(error, Exception):
+            import re
+            code = str(error) if re.fullmatch(r"[A-Z0-9_]{1,120}", str(error)) else type(error).__name__
+            self.recovery.halt(node, kind, code)
 
     @staticmethod
     def coverage(rows, expected):
@@ -468,7 +525,8 @@ class ThesisSession:
             payload["updated_claims"] = self.updated_claims()
             if node == "Research Manager":
                 value = self.ask(node, "ResearchEvaluation", "依据原始资料和更新后的论点重新研究，不统计多空票数。对每个论点给 use/conditional/reject 和实质理由，撤回论点不得直接作为证实事实。生成研究计划；评级是你这次推理的输出。说明价格隐含的预期、估值依据和缺口。缺少持仓不能推断零仓位。", payload, config)
-                self.coverage(value["assessments"], [c["id"] for c in payload["updated_claims"]])
+                if self.protocol_version != 17:
+                    self.coverage(value["assessments"], [c["id"] for c in payload["updated_claims"]])
                 self.research = value
                 structured = value["plan"]
             elif node == "Trader":
@@ -481,7 +539,7 @@ class ThesisSession:
                 value = self.ask(node, "RiskBrief", "独立检查" + lens + "。没有其他风险角色的观点，也不需要猜测或迎合它们。直接引用资料与更新论点；不要生成评级或买卖指令。", payload, config)
                 self.risks[node] = value
             else:
-                independent_payload = self.corpus(state)
+                independent_payload = self.corpus(state, include_analysts=False)
                 independent_payload["portfolio_context"] = {
                     "structured_portfolio_inputs": "NOT_PROVIDED",
                     "limit": "未提供可核实持仓和风控参数，不推断持仓，不给个人仓位指令。"}
@@ -607,8 +665,21 @@ class ThesisSession:
     def install(self, graph):
         from langchain_core.runnables import RunnableLambda
 
+        if self.protocol_version == 17:
+            from .thesis_analysts import ANALYSTS as analyst_fields, instruction, render_analyst, validate_report
+        else:
+            analyst_fields = ANALYSTS
+
         def analyst(node):
             def run(state, config):
+                if self.protocol_version == 17:
+                    from langchain_core.messages import AIMessage
+                    value = self.ask(node, "AnalystReport", instruction(node),
+                                     self.corpus(state, include_analysts=False), config)
+                    validate_report(value, {s["id"] for s in source_view(self.bundle)["sources"]})
+                    self.analyst_reports[node] = value
+                    text = render_analyst(value, node)
+                    return {"messages": [AIMessage(content=text)], analyst_fields[node]: text}
                 if self.request["data_mode"] == "FROZEN_SOURCES":
                     from langchain_core.messages import AIMessage
                     text = "已载入冻结原始资料；跳过重复模型整理。研究角色直接读取资料全文。"
@@ -624,7 +695,7 @@ class ThesisSession:
                 return {"messages": [response], ANALYSTS[node]: "原生工具取得的完整返回进入资料包；生成笔记仅留在轨迹，不传递给后续判断。"}
             return RunnableLambda(run, name=node)
 
-        for name in ANALYSTS:
+        for name in analyst_fields:
             graph.workflow.nodes[name].runnable = analyst(name)
         for name in (*RESEARCHERS, "Research Manager", "Trader", *RISKS, "Portfolio Manager"):
             def run(state, config, node=name):

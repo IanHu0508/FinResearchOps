@@ -8,10 +8,11 @@ import tempfile
 import unittest
 
 from quant.artifacts import read_run, write_run
-from quant.contracts import ContractError, Prediction, primitive
+from quant.contracts import ContractError, Panel, Prediction, primitive
 from quant.data.serialization import from_document, to_document
 from quant.inference import build_signals, validate_signal
 from quant.inference.signals import FIELDS
+from quant.labels.forward import labels_at_cutoff
 from quant.models.baseline import MeanModel, NearestNeighborsModel, restore_reference_model
 from quant.pipeline import prepare_dataset, run_experiment
 from quant.splits import prepare_fold
@@ -40,7 +41,7 @@ class PipelineSignalArtifactTests(unittest.TestCase):
 
     def signals(self, predictions=None, panel=None):
         return build_signals(predictions or self.model.predict(self.fold.test.rows), panel or self.dataset.panel,
-            as_ofs=self.as_ofs, model=self.model, dataset_id=self.dataset.dataset_id)
+            as_ofs=self.as_ofs, model=self.model)
 
     def test_predicted_target_and_current_model_rank_are_distinct(self):
         keys = tuple(r.key for r in self.fold.test.rows)
@@ -73,13 +74,14 @@ class PipelineSignalArtifactTests(unittest.TestCase):
         signal = self.signals()[0]
         for updates in ({"action": "BUY"}, {"probability_up": 0.9}, {"horizon_unit": "calendar_days"},
                         {"horizon": 5}, {"predicted_target_percentile": float("nan")},
-                        {"cross_sectional_model_rank": True}, {"dataset_id": "not-a-dataset"},
+                        {"cross_sectional_model_rank": True}, {"dataset_id": "a" * 64},
+                        {"inference_input_id": "not-an-input"},
                         {"feature_ablation": "unknown"}, {"cross_sectional_rank": 0.5}):
             with self.subTest(updates=updates), self.assertRaises((ContractError, ValueError)):
                 validate_signal({**signal, **updates})
 
     def test_signal_schema_matches_public_validator_fields_and_constants(self):
-        schema = json.loads((ROOT / "schemas/quant-signal.v3.schema.json").read_text())
+        schema = json.loads((ROOT / "schemas/quant-signal.v4.schema.json").read_text())
         self.assertFalse(schema["additionalProperties"])
         self.assertEqual(FIELDS, set(schema["required"]))
         self.assertEqual(FIELDS, set(schema["properties"]))
@@ -92,6 +94,24 @@ class PipelineSignalArtifactTests(unittest.TestCase):
                 if "maximum" in rule:
                     self.assertLessEqual(signal[name], rule["maximum"])
             self.assertEqual(signal, validate_signal(signal))
+
+    def test_signal_identity_binds_that_days_inputs_not_labels_or_other_dates(self):
+        first = self.as_ofs[0]
+        day_rows = tuple(r for r in self.dataset.panel.rows if r.key.as_of == first)
+        expected = Panel(self.dataset.panel.spec, day_rows, self.dataset.panel.data_kind).dataset_id
+        signals = self.signals()
+        day = [s for s in signals if s["as_of"] == first.isoformat()]
+        self.assertEqual({expected}, {s["inference_input_id"] for s in day})
+        self.assertEqual(len(self.as_ofs), len({s["inference_input_id"] for s in signals}))
+        self.assertNotEqual(self.dataset.dataset_id, expected)
+        censored = labels_at_cutoff(self.dataset, first)
+        self.assertNotEqual(self.dataset.labels, censored.labels)
+        self.assertEqual(signals, build_signals(self.model.predict(self.fold.test.rows), censored.panel,
+                                                as_ofs=self.as_ofs, model=self.model))
+        earlier = Panel(self.dataset.panel.spec, tuple(r for r in self.dataset.panel.rows if r.key.as_of <= first),
+                        self.dataset.panel.data_kind)
+        predictions = tuple(p for p in self.model.predict(self.fold.test.rows) if p.key.as_of == first)
+        self.assertEqual(day, list(build_signals(predictions, earlier, as_ofs=(first,), model=self.model)))
 
     def test_market_only_input_json_roundtrip_preserves_dataset_identity(self):
         recovered = from_document(json.loads(json.dumps(to_document(self.data))))
@@ -117,6 +137,7 @@ class PipelineSignalArtifactTests(unittest.TestCase):
     def test_old_signal_target_and_format_are_rejected(self):
         value = self.signals()[0]
         for updates in ({"schema_version": "finresearchops.quant-signal/v1"},
+                        {"schema_version": "finresearchops.quant-signal/v3"},
                         {"target_id": "cn-a-industry-loo-equalweight-20d-percentile/v1"}):
             with self.assertRaisesRegex(ContractError, "VERSION_INVALID"):
                 validate_signal({**value, **updates})
@@ -135,8 +156,7 @@ class PipelineSignalArtifactTests(unittest.TestCase):
         self.assertEqual(self.data, recovered_data)
         model = restore_reference_model(documents["model.json"])
         predictions = model.predict(self.fold.test.rows)
-        rebuilt = build_signals(predictions, self.dataset.panel, as_ofs=self.as_ofs,
-                               model=model, dataset_id=self.dataset.dataset_id)
+        rebuilt = build_signals(predictions, self.dataset.panel, as_ofs=self.as_ofs, model=model)
         self.assertEqual(list(rebuilt), result["signals"])
         with self.assertRaises(FileExistsError):
             run_experiment(self.data, self.spec, self.window, MeanModel(), artifact_root=self.output)

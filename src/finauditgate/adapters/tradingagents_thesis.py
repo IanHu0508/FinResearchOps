@@ -7,6 +7,7 @@ from pathlib import Path
 
 from finauditgate.adapters.thesis_protocol import ThesisSession, validate_sources
 from finauditgate.adapters.thesis_responses import CompletedCalls
+from finauditgate.adapters.thesis_recovery import RecoveryState
 from finauditgate.adapters.tradingagents_native import (
     REPORT_FIELDS, UPSTREAM_COMMIT, _capture_handler, _topology,
 )
@@ -15,13 +16,19 @@ from finauditgate.research import thesis_request
 
 
 class ThesisResearcher:
-    def __init__(self, *, model="deepseek-flash", live=False, budget=None, reasoning_effort="high", resume_from=None, reassess_final=False, protocol_version=13):
+    def __init__(self, *, model="deepseek-flash", live=False, budget=None, reasoning_effort="high", resume_from=None, reassess_final=False, protocol_version=16,
+                 replay_presentation_failure=False, fetch_news_social=False, source_collector=None):
         if live and budget is None:
             raise ValueError("THESIS_LIVE_BUDGET_REQUIRED")
         self.model, self.live, self.budget, self.effort = model, live, budget, reasoning_effort
         self.resume_from = resume_from
         self.reassess_final = reassess_final
-        if protocol_version not in (10, 11, 13):
+        self.replay_presentation_failure = replay_presentation_failure
+        if type(fetch_news_social) is not bool or (fetch_news_social and protocol_version != 17):
+            raise ValueError("THESIS_FETCH_REQUIRES_FOUR_ANALYSTS")
+        self.fetch_news_social, self.source_collector = fetch_news_social, source_collector
+        self.last_acquisition_path = None
+        if protocol_version not in (10, 11, 13, 16, 17):
             raise ValueError("THESIS_PROTOCOL_VERSION_INVALID")
         self.protocol_version = protocol_version
 
@@ -34,15 +41,28 @@ class ThesisResearcher:
             raise ValueError("NATIVE_UPSTREAM_VERSION_MISMATCH")
         root = Path(output_root)
         request = thesis_request(command)
+        if self.protocol_version == 17 and command.sources is None:
+            raise ValueError("THESIS_FOUR_ANALYSTS_REQUIRE_FROZEN_SOURCES")
         bundle = deepcopy(command.sources) if command.sources is not None else {
             "schema_version": "finresearchops.thesis-sources/v2", "symbol": request["symbol"],
             "as_of": request["as_of"], "identity": {}, "sources": []}
         if command.sources is not None:
             validate_sources(bundle, request)
+        model_resume_from = self.resume_from
+        if self.fetch_news_social:
+            from .source_acquisition import prepare_sources, model_resume_root
+            bundle, self.last_acquisition_path = prepare_sources(bundle, root,
+                resume_from=self.resume_from, collector=self.source_collector)
+            validate_sources(bundle, request)
+            model_resume_from = model_resume_root(self.resume_from, request, bundle)
         if self.resume_from is not None and command.sources is None:
             raise ValueError("THESIS_RESUME_REQUIRES_FROZEN_SOURCES")
-        completed = CompletedCalls(self.resume_from, request, bundle, self.model, reassess_final=self.reassess_final,
-                                   protocol_version=self.protocol_version)
+        completed = CompletedCalls(model_resume_from, request, bundle, self.model, reassess_final=self.reassess_final,
+                                   protocol_version=self.protocol_version, replay_presentation_failure=self.replay_presentation_failure)
+        if self.protocol_version >= 16 and completed.current_runtime and ((completed.budget_checkpoint is not None) != self.live):
+            raise ValueError("THESIS_RESUME_RUNTIME_MODE_MISMATCH")
+        if self.protocol_version >= 16 and self.live and completed.budget_checkpoint is not None:
+            self.budget.restore(completed.budget_checkpoint)
         write_once(root / "request.json", canonical_json_bytes({"request": request, "sources": bundle}))
         trace_root = root / "model-traces"
         capture = _capture_handler(self.budget if self.live else None, trace_root)
@@ -50,7 +70,8 @@ class ThesisResearcher:
         if self.live:
             from finauditgate.adapters.model_http import model_http_client
             http = model_http_client("deepseek", self.budget.max_output_tokens, trace_root=trace_root,
-                                     reasoning_effort=self.effort, timeout_seconds=600)
+                                     reasoning_effort=self.effort, timeout_seconds=600,
+                                     start_index=self.budget.calls if self.protocol_version >= 16 else 0)
         config = deepcopy(DEFAULT_CONFIG)
         config.update({"llm_provider": "deepseek", "deep_think_llm": self.model,
             "quick_think_llm": self.model, "backend_url": None, "output_language": "简体中文",
@@ -79,13 +100,18 @@ class ThesisResearcher:
         session = None
         try:
             with tracing_context(enabled=False):
-                graph = ResearchGraph(selected_analysts=["fundamentals", "market"], config=config, callbacks=[capture])
+                if self.protocol_version == 17:
+                    from .thesis_analysts import KEYS, REPORT_FIELDS as report_fields
+                    selected_analysts = list(KEYS)
+                else:
+                    selected_analysts, report_fields = ["fundamentals", "market"], REPORT_FIELDS
+                graph = ResearchGraph(selected_analysts=selected_analysts, config=config, callbacks=[capture])
                 if not live and not all(getattr(model, "native_offline", False) is True for model
                                        in (graph.quick_thinking_llm, graph.deep_thinking_llm)):
                     raise ValueError("NATIVE_OFFLINE_RUNTIME_REQUIRED")
                 before = _topology(graph.graph)
                 session = ThesisSession(request, bundle, graph.deep_thinking_llm, completed=completed, capture=capture,
-                                        protocol_version=self.protocol_version, budget=self.budget)
+                                        protocol_version=self.protocol_version, budget=self.budget, reasoning_effort=self.effort)
                 session.install(graph)
                 if _topology(graph.graph) != before:
                     raise ValueError("THESIS_TOPOLOGY_CHANGED")
@@ -94,14 +120,16 @@ class ThesisResearcher:
                 signal = session.final["decision"]["rating"] if self.protocol_version == 10 else session.final["rating"]
                 write_once(root / "native-signal.json", canonical_json_bytes({
                     "upstream_text_extraction": upstream_signal, "structured_final_rating": signal,
-                    "selection": "STRUCTURED_FINAL_DECISION"}))
+                    "selection": "STRUCTURED_FINAL_DECISION", **({
+                        "evidence_status": session.evidence_check["status"],
+                        "rating_is_model_proposal_not_approval": True} if self.protocol_version >= 14 else {})}))
                 validate_sources(session.bundle, request)
                 record = {"schema_version": f"finresearchops.thesis-case/v{self.protocol_version}", "request": request,
                     "sensitivity_policy": "DECLARED_SCENARIOS_REPORT_ONLY",
                     "status": "COMPLETED", "review_status": "AWAITING_REVIEW", "upstream_commit": UPSTREAM_COMMIT,
                     "runtime_kind": "REAL_MODEL" if live else "OFFLINE_SYNTHETIC", "model": self.model,
                     "source_bundle": session.bundle, "topology": before,
-                    "reports": {key: state[key] for key in REPORT_FIELDS}, "signal": signal,
+                    "reports": {key: state[key] for key in report_fields}, "signal": signal,
                     "initial": session.initial, "revisions": session.revisions,
                     "updated_claims": session.updated_claims(), "research_evaluation": session.research,
                     "execution_review": session.execution, "risk_briefs": session.risks,
@@ -114,6 +142,8 @@ class ThesisResearcher:
                     "model_calls": capture.model_calls, "tool_calls": capture.tool_calls,
                     "budget": self.budget.receipt() if live else None,
                     "financial_gate": "NOT_REQUIRED", "automatic_trading": False}
+                if self.protocol_version == 17:
+                    record["analyst_reports"] = deepcopy(session.analyst_reports)
                 if self.protocol_version >= 11:
                     record.pop("final_assessment")
                     record.update(final_report=session.final, forward_revision=session.forward_revision,
@@ -122,6 +152,11 @@ class ThesisResearcher:
                         applied_changes=session.applied_changes, final_generation=session.final_generation)
                 if completed.receipt is not None:
                     record["reused_calls"] = {**completed.receipt, "used_calls": completed.used}
+                if self.protocol_version >= 14:
+                    record["evidence_check"] = session.evidence_check
+                    record["status"] = session.evidence_check["status"]
+                if self.protocol_version >= 16:
+                    record["recovery"] = session.recovery.snapshot()
                 # Break every reference to the mutable session/callback lists
                 # before the optional review makes another model request.
                 record = json.loads(canonical_json_bytes(record))
@@ -131,23 +166,37 @@ class ThesisResearcher:
                 review = {"schema_version": "finresearchops.thesis-review/v1", "main_sha256": main_hash,
                           "status": "DEFERRED", "reason": "DISABLED", "findings": []}
                 if command.review:
-                    try:
-                        result = session.review(deepcopy(record), {"callbacks": [capture],
-                            "metadata": {"langgraph_node": "Data Review Agent"}}, saved_report)
-                        review.update(status="COMPLETED", reason="MODEL_REVIEW_NOT_CERTIFICATION", **result,
-                                      exchange=deepcopy(session.exchanges[-1]), model_call=deepcopy(capture.model_calls[-1]))
-                    except Exception as exc:
-                        review.update(status="PARTIAL", reason="REVIEW_FAILED", error_type=type(exc).__name__)
+                    if self.protocol_version >= 16:
+                        from .thesis_quality import run_quality
+                        review = run_quality(session, deepcopy(record), {"callbacks": [capture],
+                            "metadata": {"langgraph_node": "Data Review Agent"}})
+                    else:
+                        try:
+                            result = session.review(deepcopy(record), {"callbacks": [capture],
+                                "metadata": {"langgraph_node": "Data Review Agent"}}, saved_report)
+                            review.update(status="COMPLETED", reason="MODEL_REVIEW_NOT_CERTIFICATION", **result,
+                                          exchange=deepcopy(session.exchanges[-1]), model_call=deepcopy(capture.model_calls[-1]))
+                        except Exception as exc:
+                            review.update(status="PARTIAL", reason="REVIEW_FAILED", error_type=type(exc).__name__)
                 if sha256_hex(canonical_json_bytes(record)) != main_hash:
                     raise ValueError("THESIS_REVIEW_CHANGED_MAIN")
                 review["budget_total"] = deepcopy(self.budget.receipt()) if live else None
                 write_once(root / "review-result.json", canonical_json_bytes(review))
                 return record, review
+        except BaseException as exc:
+            if session is not None:
+                session.seal_failure(exc)
+            raise
         finally:
             if http is not None:
                 http.close()
+            recovery_state = session.recovery.snapshot() if session and self.protocol_version >= 16 else RecoveryState(completed.recovery_state).snapshot()
+            if self.protocol_version >= 16:
+                completed.complete_checkpoint_calls(capture, recovery_state)
             write_once(root / "runtime-receipt.json", canonical_json_bytes({
-                "schema_version": "finresearchops.thesis-runtime/v1",
+                "schema_version": "finresearchops.thesis-runtime/v3" if self.protocol_version >= 16 else "finresearchops.thesis-runtime/v1",
+                **({"protocol_version": self.protocol_version, "recovery": recovery_state,
+                    "budget_checkpoint": self.budget.checkpoint() if live else None} if self.protocol_version >= 16 else {}),
                 "budget": self.budget.receipt() if live else None,
                 "reused_calls": {**completed.receipt, "used_calls": completed.used} if completed.receipt else None,
                 "model_calls": capture.model_calls, "tool_calls": capture.tool_calls,

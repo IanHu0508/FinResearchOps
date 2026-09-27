@@ -105,7 +105,7 @@ class ThesisNarrativeTest(unittest.TestCase):
     setUp = support.ResearchWorkflowTest.setUp
 
     def run_case(self, model, *, budget=None, live=False):
-        app = FinResearchOps(artifact_root=self.root, researcher=ThesisResearcher(budget=budget, live=live))
+        app = FinResearchOps(artifact_root=self.root, researcher=ThesisResearcher(budget=budget, live=live, protocol_version=13))
         request = ResearchThesis("AURORA", date(2026, 3, 2), "经营与价格是否支持投资？", sources=correction_sources(), review=False)
         with patched_native_runtime(model), patch("finauditgate.adapters.model_http.model_http_client",
                 return_value=SimpleNamespace(close=lambda: None)):

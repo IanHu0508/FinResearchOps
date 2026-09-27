@@ -1,5 +1,6 @@
 """Conservative per-request reservations and explicit token/call limits."""
 
+from copy import deepcopy
 from decimal import Decimal
 
 
@@ -67,13 +68,64 @@ class ModelBudget:
         # A provider can report a length-finished response slightly above the
         # requested cap. The final-report caller may explicitly recover that
         # confirmed failure once; actual usage, spend and all caps remain intact.
-        recoverable = self._blocked == "MODEL_OUTPUT_TRUNCATED" or (
-            confirmed_length and self._last_truncated and self._blocked == "MODEL_OUTPUT_LIMIT_VIOLATION")
-        if not recoverable or self._truncated_retry_used:
+        if self._truncated_retry_used or not self.release_confirmed_truncation(confirmed_length=confirmed_length):
             return False
-        self._blocked = None
         self._truncated_retry_used = True
         return True
+
+    def release_confirmed_truncation(self, *, confirmed_length):
+        """Called only after the thesis recovery policy reserves an allowance."""
+        recoverable = self._blocked == "MODEL_OUTPUT_TRUNCATED" or (
+            confirmed_length and self._last_truncated and self._blocked == "MODEL_OUTPUT_LIMIT_VIOLATION")
+        if not recoverable:
+            return False
+        self._blocked = None
+        return True
+
+    def checkpoint(self):
+        return {"version": "model-budget-checkpoint/v1", "receipt": deepcopy(self.receipt()),
+                "limits": {"max_calls": self.max_calls, "max_input_bytes": self.max_input_bytes,
+                           "max_output_tokens": self.max_output_tokens},
+                "blocked": self._blocked, "last_truncated": self._last_truncated,
+                "legacy_truncated_retry_used": self._truncated_retry_used}
+
+    def restore(self, checkpoint):
+        """Continue the same current logical budget, including unknown-call reserves."""
+        if self.calls or self.usage or self.reserved:
+            raise ValueError("MODEL_RESUME_BUDGET_NOT_EMPTY")
+        if (not isinstance(checkpoint, dict) or set(checkpoint) != {"version", "receipt", "limits", "blocked", "last_truncated", "legacy_truncated_retry_used"}
+                or checkpoint["version"] != "model-budget-checkpoint/v1"
+                or checkpoint["limits"] != self.checkpoint()["limits"]
+                or checkpoint["blocked"] not in (None, "MODEL_OUTPUT_TRUNCATED", "MODEL_OUTPUT_LIMIT_VIOLATION")
+                or type(checkpoint["last_truncated"]) is not bool or type(checkpoint["legacy_truncated_retry_used"]) is not bool):
+            raise ValueError("MODEL_RESUME_BUDGET_MISMATCH")
+        prior = checkpoint["receipt"]
+        current = self.receipt()
+        if (not isinstance(prior, dict) or any(prior.get(k) != current[k] for k in
+                ("ceiling_cny", "input_per_million_cny", "output_per_million_cny", "pricing_basis"))
+                or type(prior.get("calls")) is not int or not 0 <= prior["calls"] <= self.max_calls
+                or not isinstance(prior.get("usage"), list) or len(prior["usage"]) > prior["calls"]):
+            raise ValueError("MODEL_RESUME_BUDGET_MISMATCH")
+        usage = []
+        for row in prior["usage"]:
+            if (not isinstance(row, dict) or not row.keys() <= {"input_tokens", "output_tokens", "total_tokens"}
+                    or any(type(v) is not int or v < 0 for v in row.values())):
+                raise ValueError("MODEL_RESUME_BUDGET_MISMATCH")
+            usage.append(dict(row))
+        try:
+            reserved = Decimal(prior["reserved_upper_cny"])
+        except (KeyError, TypeError, ArithmeticError) as exc:
+            raise ValueError("MODEL_RESUME_BUDGET_MISMATCH") from exc
+        observed = sum((Decimal(r.get("input_tokens", 0)) * self.input_rate
+                        + Decimal(r.get("output_tokens", 0)) * self.output_rate for r in usage), Decimal(0)) / Decimal(1000000)
+        minimum_reserved = Decimal(prior["calls"]) * (Decimal(8192) * self.input_rate
+            + Decimal(self.max_output_tokens) * self.output_rate) / Decimal(1000000)
+        if not reserved.is_finite() or reserved < max(observed, minimum_reserved):
+            raise ValueError("MODEL_RESUME_BUDGET_MISMATCH")
+        self.calls, self.usage, self.reserved = prior["calls"], usage, reserved
+        self._blocked = checkpoint["blocked"]
+        self._last_truncated = checkpoint["last_truncated"]
+        self._truncated_retry_used = checkpoint["legacy_truncated_retry_used"]
 
     def receipt(self):
         complete = bool(self.usage) and len(self.usage) == self.calls and all(

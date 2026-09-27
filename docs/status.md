@@ -1,9 +1,428 @@
 # Project Status
 
-> Updated 2026-09-22. This file is the only public status source; other
+> Updated 2026-09-27. This file is the only public status source; other
 > documents describe mechanisms and link here.
 
-## Current slice: completed fixed research study — 2026-09-22
+## Current slice: Quant Evidence Integration V1 — 2026-09-23
+
+Scope: bring the completed XGBoost research model into FinResearchOps as research evidence
+through future-independent date scoring, a deterministic research note and a fixed-case Agent
+semantic evaluation. No new model, probability, portfolio or trading output is in scope.
+
+Step 1, date scoring, is COMPLETED. `quant.inference.score_day` opens the market store bounded
+at the scoring date, builds the shared feature panel from records through that date, scores the
+full declared pool with a restored frozen model and ranks it with the signal percentile
+convention. It builds no label and reads no outcome price. Public synthetic tests check that the
+bounded reader equals the research view with every later record removed, that physically deleting
+later rows leaves scores unchanged, and that a model trained after the scoring time is refused.
+In the private workspace the frozen 2025 XGBoost-with-context model scored 2025-01-02 through
+this path: all 4,998 pool members, all 468 shared feature columns, raw scores, bounded scores and
+ranks were identical to the forecast persisted before the D reveal, and a store copy holding no
+row after that date gave the same scores. This covers the scoring code path for one date; store
+curation manifests and historical vendor vintage keep their stated limits.
+
+Step 2, signal v4, is COMPLETED. `finresearchops.quant-signal/v4` replaces v3's `dataset_id`,
+which in the research pipeline fingerprinted the labeled dataset, with `inference_input_id`: the
+fingerprint of that scoring time's complete feature panel, computed per date by `build_signals`
+and never supplied by callers. It binds no label, outcome, fold or other date. `model_version`
+remains the content fingerprint of the frozen model artifact, which carries its own training data
+identity and cutoff. Public tests check that censoring labels or adding other dates leaves a day's
+signals unchanged and that v3 or extra fields are rejected. In the private workspace all 4,998 v4
+signals for 2025-01-02 validated, carried the step 1 feature-panel fingerprint, were identical when
+scored from the store copy without later rows, matched the persisted D ranks and bounded scores
+exactly, and resolved through a private model registry to the frozen artifact with the same
+training cutoff.
+
+Step 3, the deterministic research note, is COMPLETED. `quant.inference.research_note` renders one
+`finresearchops.thesis-sources/v2` source row: the cross-sectional rank with its direction (never the
+predicted target percentile), input observations explicitly without attribution, validation evidence
+split into the current model (`EXACT_MODEL`) and other models of the same method (`METHOD_FAMILY`), and
+limitations that include the top and bottom 20% groups' complete-day returns relative to the pool mean.
+`quant.evaluation.validation_evidence` recomputes that evidence from persisted forecasts with labels
+censored at a knowledge cutoff; a historical simulation refuses evidence known only after the scoring
+time. Given D's final cutoff, it reproduced the published 2024 and 2025 XGBoost-with-context yearly IC
+bounds exactly. At the 2025-01-02 scoring time the current model had no matured outcomes and the 2024
+model's known evidence covered 222 dates, with a different group pattern from the full-year view; by
+2025-06-30 the current model had 96 matured dates but only 5 complete-outcome dates. Notes for both dates
+passed the Agent bundle validator, and every digit-bearing line is uniquely quotable by the report
+binder. Core 391, Quant 186, no-site Quant 186 and isolated synthetic ML 9 checks pass.
+
+Step 4 is PARTIAL. With the user's authorization, a preregistered paired evaluation ran on fixed A-share
+cases selected by saved rank, with issuer source bundles and the note kept in the private workspace. The
+first round was stopped at the user's request after most final reports failed the exact-quotation check.
+An offline replay of the product's own validation traced those failures mainly to the evidence text
+format (PDF line wraps and page furniture inside sentences) meeting a quote locator that tolerates
+different whitespace but not missing whitespace, and secondly to model quotation errors and an
+undocumented `evidence_refs` field in the final-report schema. A subsequently authorized narrow,
+offline quote-locator repair is COMPLETED locally. Exact and existing whitespace matches remain
+unchanged; a conservative fallback permits only omitted single CJK prose line wraps, with original
+offsets, literal non-whitespace equality and uniqueness. Numeric boundaries, explicit paragraphs,
+page markers and table/list separators remain protected. Focused review found trailing-space paragraph
+boundaries and Unicode table delimiters missing from the initial patch; both were repaired and checked.
+Core 399 and integration 99 checks pass. Replay resolved additional individual quotations while the
+previously accepted report bytes and all original run artifacts stayed unchanged; the whole-report
+pass count did not increase. This is a validator replay, not a new model run or retrospective acceptance
+of the original failed attempts. Source bundles, prompts, schemas, ratings and calculations were not
+changed by that narrow repair. The original paid round remains stopped. No semantic verdict has been signed and no evaluation
+result is claimed; that narrow repair did not change the source, prompt or retry contracts. The Agent flow
+still reads no quant signal directly.
+
+
+### Current larger source bundle and paid verification — 2026-09-27
+
+The authorized verification is COMPLETED as a recovered delivery; its research question is
+answered negatively. The user removed the per-run spending cap and approved one paid run with a
+larger private bundle for the fixed four-analyst case. Four sources were appended to the
+delivered twelve: the complete Q3 statements (share capital and balance sheet), the annual and
+half-year distribution sections, and a deterministic valuation reference (market capitalization,
+trailing earnings, price-to-book, net debt, historical price and price-to-book ranges using
+next-day book-value availability). All 24 cross-checks passed, including statement identities,
+figures repeated across three filings, reported growth and the score-day close.
+
+The new sources were used in fifteen stages and cited in the final report, and the research
+manager moved from REVIEW to Underweight. The independent assessment and final rating stayed
+REVIEW. Every scenario still left the exit multiple empty: the model found no guidance,
+consensus, comparable companies or cycle-normalized earnings to calibrate one, and trailing
+earnings were distorted by non-recurring gains. Conditional prices and returns therefore remain
+uncomputed; only the price-implied break-even multiples are shown. The forward template values
+exit with a price-to-earnings multiple only, so share and balance-sheet data alone cannot produce
+a directional valuation for a cyclical company. That template limit is recorded, not changed.
+
+The run stopped three times on presentation, never on content, and each captured answer was
+diagnosed offline before a narrow repair and explicit replay. A bear brief added a text
+`evidence_refs_note`; research-stage text notes are now appended verbatim to the same row's prose.
+A risk brief finished normally but omitted one closing bracket; complete v16/v17 answers now gain
+only the missing trailing closers, and v13 stays strict. Across 508 saved answers this applied to
+the two known cases and changed no valid JSON. The final save then refused its own evidence
+check: pending findings were listed in generation order while the saved canonical record is
+key-sorted. The financial sections are now processed in sorted order, and a complete captured
+final halted by that check replays without new calls. Seventeen calls in total were paid once;
+the last save used outbound networking blocked and zero model calls.
+
+The saved Case is PARTIAL: 23 source bindings have no binding findings, and ten label-like
+numerals are marked for checking in the formal report. Some of those marks are source IDs and
+period labels that a later rule could recognize. Core 470, integration 235 and Quant 186 checks
+pass, all 21 saved v13/v16/v17 Cases including the new one reopen, and earlier run files are unchanged. This is one
+recovered case, not a delivery rate or evidence of investment quality; manual financial review
+remains unsigned.
+
+### Numeric-contract failure mode — 2026-09-27
+
+The authorized change is COMPLETED. In v16/v17 final-report prose, an unbound numeral in a
+value position still refuses the whole report: after amount, profit, growth or ratio words
+with an explicit connector, before currency, percent, multiple or share units, decimals,
+percentages, grouped or long numbers, financial-abbreviation prefixes and Chinese amounts.
+Other unbound numerals, such as unregistered labels, specifications, dates or counts, no
+longer halt the run. They become `UNBOUND_RESEARCH_NUMBER_PENDING` findings, the Case is
+saved PARTIAL, the workpaper lists them, and the formal report marks each one in place and
+in its appendix. Existing typed allowances and the published v13 contract are unchanged.
+
+Offline replay, with no model call, of 52 distinct saved final answers under the new rule
+gave the same outcome as the strict rule: 46 pass, the two synthetic negative controls are
+refused, and four older-format finals are outside this contract; none took the new pending
+path. With every typed allowance disabled, the 22 distinct label tokens in nine v14+ finals
+became pending rather than refused. A first counterfactual exposed two period labels misread
+as amounts; the period rule was narrowed and rechecked. All 57 value-position samples are
+still refused. Core 467, integration 229 and Quant 186 checks pass, twenty historical Cases
+reopen, and the saved formal report stays byte-identical. This changes how failures surface,
+not the binding requirement for financial values; pending numerals still need human checking.
+
+### Formal research report — 2026-09-27
+
+Implementation, tests and one saved-Case rendering are COMPLETED. New v16/v17 Cases also
+write `research-report.md` and `research-report.html` (`finresearchops.research-report/v1`):
+a conventional company-report layout with a rating panel, investment summary, scenario
+forecast and valuation table, the four financial sections, scenario analysis with key
+assumptions, main risks and research limits. A compact appendix lists the research flow,
+four-analyst coverage, belief updates, parameter changes, Quant use counts, the user-input
+separation, numbered citations and the source directory. The complete workpaper
+(`report.md`) and process record are unchanged and stay alongside it.
+
+The formal body uses only final-report prose that passes the existing numeric/source
+contract, effective calculations and source metadata; intermediate stage outputs, including
+their unbound numbers, stay out. Citations are numbered with exact source locations; figures
+are compact program values, labelled where the model's clause does not name them. Reopen
+re-renders both files byte for byte. The offline `render-research-report` command adds them
+to an earlier Case without changing any existing file and refuses to overwrite different
+content. Delivery points to the formal report unless an effective automatic correction exists.
+
+At completion core 461, integration 228 and Quant 186 checks passed. The latest saved four-analyst Case was
+rendered with outbound sockets blocked and no model call: its 137,405-character workpaper
+corresponds to a 12,609-character formal report, and all 981 existing files in that run
+directory are byte-identical. Nineteen historical v13/v16/v17 Cases reopen with the
+standard-library reader. The layout changes no rating, parameter, calculation or citation
+scope, and it is not financial approval; manual financial review remains unsigned.
+
+### Previous automatic news and public-discussion acquisition — 2026-09-26
+
+Implementation and one real-provider full-flow delivery after recovery are COMPLETED.
+`--fetch-news-social` queries by A-share instrument and date before freezing the combined
+source bundle. The actual run made six HTTP requests, retained the seven supplied financial,
+market and Quant sources, and added two company-event index excerpts plus three genuine
+investor Q&A items. Current media/forum pages were outside the historical window and were
+rejected; dated event and Q&A routes supplied the bounded fallback. Both question and answer
+dates were checked. This is not media full-text or representative public sentiment coverage;
+historical vendor vintage remains uncertified. Resume and case readback never refetch.
+
+All seventeen original model responses were preserved, with four actual analyst reports,
+Quant text and citation trace, separated user inputs, and complete final responses to all eight
+research claims and four independent beliefs. Eighteen evidence bindings have no binding
+findings. The model rating is REVIEW, an allowed completed research output. Core 451 and
+integration 222 checks pass; standard-library readback succeeds.
+
+Two original stops remain recorded. The intermediate manager mixed hypothesis/source IDs
+with claim IDs; v17 now preserves every assessment and plan, shows its missing/unmapped IDs,
+and keeps final claim/belief coverage strict. The final candidate then exposed false numeric
+rejections for registered hypothesis IDs, a source-bound Quant duration, a recorded retrieval
+date and an enumeration heading. Narrow metadata handling preserves the complete prose while
+unknown labels and financial-value escapes remain refused. All seventeen captured answers
+were finally saved with outbound networking blocked, zero new model calls and no assistant
+editorial replacement. This is recovered completion, not evidence of an uninterrupted or
+unattended success rate.
+
+Manual financial review was waived for this delivery; no human financial approval or investment
+quality certification is claimed. Earlier results, failed attempts, original sources and Quant
+files remain unchanged. No new training, dependency installation, commit or push was performed.
+
+### Previous four-analyst integration — 2026-09-26
+
+Implementation and one real-provider full-flow delivery are COMPLETED. The explicit
+`--all-analysts --sources ...` route produces four actual fundamental, market, news and sentiment
+reports before the thirteen existing research stages. It retains original sources and passes the
+four labelled model analyses into downstream research; the independent assessment remains source-only.
+The report presents the full analyst outputs, original Quant note and actual citation trace, user
+hypotheses and constraints. Desired user conclusions remain outside all main model requests.
+
+Core 433 and integration 205 checks pass, including standard-library readback, four-report input
+bindings, version-isolated resume, source gaps and preservation through optional aftercare.
+The first real prefix returned three analyst reports, then stopped because thirteen prose limits
+exceeded a twelve-item layout cap. A narrow lossless reflow preserves all text and raw responses;
+captured-prefix replay resumes after the three paid answers without resetting fees or recovery limits.
+The same run subsequently returned sixteen stages. The model labelled three beliefs maintained
+while supplying restated text. V17 now preserves both texts and the model's label without claiming
+semantic equivalence; financial values, references and required revision coverage remain checked.
+The sixteen captured answers were reused for the final-report call. Fiscal/half-year labels and
+registered hypothesis numbers then exposed another presentation false rejection. Narrow typed
+handling preserves these labels while financial-value escapes remain refused. All seventeen paid
+answers were finally replayed with outbound requests blocked, saving the original model report
+without a new model answer or assistant editorial substitution. All historical stops and costs remain.
+
+The complete report and process appendix preserve all four analyst outputs, the exact Quant note
+and stage citation trace, two test hypotheses, two constraints and the separated desired conclusion.
+Actual requests verify that the desired conclusion reached none of the seventeen main stages.
+The final report explicitly cites Quant; citation is not evidence of decision improvement. Twenty
+source bindings have no binding findings, and standard-library readback succeeds. The model's
+final rating is REVIEW, which is an accepted complete research output for this task.
+
+The run used historical frozen sources, with actual news and public-discussion material acquired
+before model execution. It does not establish daily live A-share social/news collection. The
+user waived manual financial review for this delivery, and auxiliary aftercare is disabled for
+the run. This is a functional integration check, not a claim of better decisions or unbiased models.
+
+### Previous bounded quality aftercare — 2026-09-26
+
+The user has waived manual financial review for the current delivery. The next acceptance focus
+is workflow coverage and complete output: the inherited TradingAgents research components, Quant
+evidence, user-input separation, and independent reasoning with counterevidence updates. Audit is
+auxiliary; strong ratings or calibrated valuation are not prerequisites to deliver research. This
+waiver is not approval or retrospective financial certification, and historical Case records stay intact.
+The legacy v16 entry enables fundamental and market analysts, not news or social analysts.
+Recent live verification used frozen sources. Quant notes reach the main research requests, while
+explicit final presentation and rich user-input behavior still need focused coverage verification.
+
+Implementation and complete main-report delivery are COMPLETED; automatic semantic correction
+remains PARTIAL. A separately labelled assistant editorial was checked against the frozen sources
+and unchanged calculations; it is not counted as a successful automatic correction or signed user review.
+A separate review/v3
+artifact adds one substantive review and at most one targeted correction after the thirteen-stage
+main Case is saved. Exact edits, original-source bindings and shared financial recomputation are
+replayed on read. Material unresolved findings supply no delivery rating. Failed optional artifacts
+retain the original report. Obvious loss of research content is refused; this is not a semantic score.
+
+Core 428 and integration 189 checks pass. Independent review exposed and closed overbroad edits,
+content collapse, malformed optional-input handling and hash-seed-dependent replay. Published v13
+and the prior v16 Case reopen without model libraries. The first real saved-case probe reused thirteen calls and made two new calls. It found valid
+issues but missed other known issues; a correction copied literal percentages and was rejected
+by the unchanged financial-text contract. The original report remained readable. A versioned
+adapter fix supplies the complete existing prose contract and prioritizes current-report
+checking. The second probe proposed seven edits; two mechanical false rejections involving
+unchanged surrounding text and a complete Chinese date were repaired without relaxing monetary
+checks. A process-level network-blocked replay reused captured returns, saved the corrected report
+and reopened it with zero new requests. Numeric inputs, calculations and rating were unchanged.
+
+The case review also challenged one erroneous reviewer criticism. Some substantive prose issues
+remain; automatic semantic quality is still PARTIAL. A different fixed case completed thirteen model returns but hit additional presentation false
+rejections for quarter labels, a source-present technical version, the declared horizon and a
+matching common share-unit input. Narrow typed handling now preserves those tokens and refuses
+financial-value escapes or unknown/mismatched identifiers. An explicit captured-final replay
+requires all thirteen saved stages to pass current validation, preserves the original halt and
+fees, and forbids new main answers. The main report is saved. Its first max-effort quality review
+used the full output budget for reasoning and returned no content. The v3 sidecar supports one
+proven empty-length max-to-high recovery per stage, sharing the original two-extra-call ceiling. Complete
+answers are retained, partial content is not redrawn, and all fees remain charged. The high-effort
+recovery returned useful findings, including existing assumption reasons that the old correction
+target list refused. That mismatch is repaired: reason-only edits preserve values and shared
+arithmetic, and require review of the associated scenario prose. Correct related text may stay
+unchanged; optional findings cannot authorize a rating change. The first max-effort correction
+also exhausted its output budget without content. Saved main answers, both failures and the valid
+review were reused for the missing correction at high using the remaining global recovery allowance.
+The writer returned complete JSON, but edits exceeded their anchors and still retained substantive
+caliber/timing errors. The proposal was refused; the original report remains readable and the
+automatic delivery rating stays null. No more model requests were added.
+
+The assistant editorial addresses twelve located issues through fifteen edits, preserving all
+financial values, classifications and calculations. It keeps REVIEW, unknown exit multiples and
+dividends, and changes the uncalibrated central scenario to a conditional reference. Independent
+focused review closed the identified attribution, cash-flow caliber and overstrong valuation
+wording issues. Five historical Cases reopen through the standard-library reader. This is bounded
+case evidence, not a general delivery-rate estimate or proof of investment quality. No new source
+acquisition occurred; the wider comparison remains stopped and unattended batch delivery is not
+certified.
+
+### Previous bounded recovery repair and live verification — 2026-09-25
+
+The repair is COMPLETED with core 424 and native integration 130 checks. Required research
+reasons remain required. The only new same-stage recovery is a no-output connection/read-timeout
+retry followed by missing reasons: the remaining second global allowance may fill only those
+reasons, preserving every existing field. Captured answers are never treated as absent responses.
+Case v16/runtime v3/recovery v2 preserve the three-call chain, pending third attempt and costs;
+published v13 reads unchanged, and unreleased v15 originals are preserved privately.
+
+One fixed-case real-provider verification completed all thirteen stages with thirteen responses
+and no recovery calls in about nineteen minutes. The official Case, report and process appendix
+were saved and reopened using the standard-library reader; twenty-two source bindings have no
+mechanical findings. This is a single technical completion, not an estimated delivery rate. The
+new compound recovery was not triggered live; its evidence remains offline regression and replay.
+
+Substantive review still found overstrong causal and period claims, an assumed minority-profit
+share treated as evidence, overly broad project-status claims, and some citation/valuation wording
+issues. A separately labelled assistant editorial copy corrects the body while preserving all
+financial tables, parameters, ratings and original artifacts. Original automatic semantic quality
+remains PARTIAL; no user financial review has been signed. The full research content is retained,
+but a calibrated exit valuation is still unavailable. A successful binding is not claim verification.
+
+The same sources, model, question and research date were used. Prior failures and unknown-cost
+reservations remain charged to the original budget. No new data, dependency, Quant training or
+publication work was started. The larger comparison batch remains stopped pending substantive
+review of the corrected report; known errors were not merely moved into an appendix.
+
+### Previous post-repair validation — 2026-09-25
+
+The authorized fresh real-provider verification is PARTIAL and did not reach final delivery.
+Two initial stages completed. The next stage's first request failed with a connection error;
+one automatic recovery returned JSON, but two required revision reasons were missing. The
+one-recovery-per-stage allowance was already consumed, so the product stopped without a Case
+or report. Four requests and three responses are preserved. The global two-extra-call limit
+was not exhausted, but the separate per-stage limit still applied. Exact offline parsing
+reproduced the missing fields and the cumulative budget checkpoint was restored successfully.
+
+This verifies a real connection recovery and honest failure/unknown-cost retention, not the
+new final-report mechanism or financial quality: those stages were not reached. No input,
+model setting, recovery limit or product code was changed to turn this attempt into success.
+The process has ended; there is remaining budget and no larger batch was started. Splitting
+transport and missing-field recovery allowances is an identified option, not an applied change.
+
+### Previous report consistency repair — 2026-09-25
+
+The authorized local repair is COMPLETED. Explicit year labels, matching research-horizon
+phrases and colon-led Chinese enumerations preserve their original text. Monetary assignments
+and units, including wrapped or quoted values, still require bound financial references.
+The final input now includes a program-derived comparison of original and effective parameters;
+Case validation recomputes it against the actual message. Main-report change facts are generated
+from those inputs, with NCI directions and unchanged dividends visible. All model-written change
+and belief explanations remain in the review appendix; the economic research and thirteen-call
+workflow remain. The persisted Case shape stays v15, with the prior private code/run preserved.
+
+Core 423 and native integration 124 checks pass. The unchanged real pilot final renders in an
+offline engineering replay with fourteen source blocks bound and unchanged effective calculations.
+That replay is not a new live Case, semantic approval or retrospective acceptance of the failed
+pilot. Published v13 reports reopen byte-identically; original runs and Quant work are unchanged.
+No new model or data requests, installs, commit or push occurred. Economic interpretations about
+assumed tax, minority attribution and cash-flow composition still require substantive review.
+The fixed upstream workflow lacks these local numeric/change-report contracts, but does have typed
+outputs and free-text fallback. Making the whole forward-calculation stage optional was analyzed,
+not implemented; doing so would change the research deliverable.
+
+### Previous real-provider pilot — 2026-09-25
+
+The authorized v15 pilot is PARTIAL. One fixed-source full model flow completed thirteen
+real-provider responses, with no timeout, truncation or recovery. It generated a complete raw
+final answer, but no official Case/report: UNBOUND_RESEARCH_NUMBER rejected literal year and
+horizon expressions and an ordinary Chinese enumeration phrase. An isolated counterfactual
+confirmed that masking only those expressions passes the remaining report checks, with all
+fourteen selected source blocks bound. That diagnostic does not accept or rewrite the answer.
+
+Content review also found two concrete inconsistencies: a claimed ordering of original scenario
+parameters was reversed, and a claimed dividend change was absent from the effective inputs.
+Assumption-derived accounting and cash-flow explanations need further substantive review.
+No live quality improvement or semantic approval is claimed. The remaining nine slots were not
+started because the pilot conditions were unmet; there is remaining budget. Prior failures and
+unknown-call reservations remain charged to the original ceiling. No source data, product code,
+model configuration, installation, Quant training or publication was changed by this pilot.
+
+### Previous call recovery repair — 2026-09-25
+
+The authorized local recovery repair is COMPLETED. New thesis runs use protocol/Case v15
+and runtime checkpoint v2. Four precisely defined format projections preserve raw output
+and meaningful conditional notes. Missing reason text can be completed once only if all
+existing content, numbers, ratings and IDs remain unchanged. Empty output, incomplete
+length termination and observed transient transport failures have one recovery per role/stage
+and two shared extra calls for the main flow. First-attempt reasoning settings remain;
+only incomplete length recovery uses high once, without increasing any limit.
+
+Complete valid JSON returned with a length flag is retained from the original response,
+including its SDK error and failure evidence; no new rating is generated. Financial and
+coverage hard failures seal the stage against ordinary resume. Pending recoveries resume
+as the same attempt 2, with original failure and final-generation records intact. Same-v15
+resume carries cumulative calls, usage and reservations with unchanged mode, rates and
+limits. Request-derived reserve lower bounds prevent unknown fees from being silently
+reduced to observed usage or reset on restart. Explicit final reassessment retains prior
+recovery/cost evidence without feeding the old conclusion into the new request.
+
+Core 418 and native integration 120 tests passed. Offline replay of the six original
+pre-final structural/empty failures normalized four deterministically; one missing-reason
+and one empty response still require a model recovery, whose mechanisms were tested with
+synthetic providers. Independent Spec and Standards review findings were repaired and
+focused rechecks closed the pending-resume, hard-failure-loop, complete-answer-resampling
+and reservation-reduction defects. Original failures and intermediate artifacts remain.
+Published v13's four existing cases, reports and appendices still reopen byte-identically
+with the standard-library reader. Original run files and unrelated Quant work are unchanged.
+Unpublished v14 was snapshotted privately and replaced rather than adding another public
+compatibility branch. No real-model, external-data, install, commit or push operation occurred.
+These are engineering results, not demonstrated live delivery rate or financial judgment
+quality. The repair-only phase did not resume paid evaluation; the subsequent authorized pilot is recorded below, and semantic review remains unsigned.
+
+### Previous delivery repair — 2026-09-25
+
+The user subsequently authorized a focused delivery repair after offline component isolation.
+New thesis runs use Case/protocol v14. Only the final request receives deterministic source
+blocks instead of model-transcribed quotations; all research-source characters are retained,
+including layout and footnotes, and sensitivity sources remain excluded. Source and metric
+metadata is derived from inline selections. Valid extra metric selections remain displayed;
+quarter-time descriptions no longer fail as financial amounts. The preceding twelve calls,
+effective financial calculations and factual/semantic limitations are unchanged.
+
+Unknown evidence selections produce a complete PARTIAL research record with explicit findings,
+not a fabricated citation or an approved rating. The reader recomputes those findings and the
+CLI exposes their status. Source binding alone is not semantic approval; numeric literals,
+invalid metric values, calculation conflicts and incomplete explanations remain hard failures.
+Published v13 remains readable without rewriting its reports.
+
+Offline saved-output projections retained all 33 final reports, with six source-binding-complete
+and 27 PARTIAL previews. These are not new model runs, historical acceptance or a measured v14
+live success rate. Every original rating, prose field and effective financial calculation stayed
+unchanged. Seventeen altered, ambiguous or wrong-source quotations received no fabricated
+locator; unused but explicitly supplied failed quotations also remain visible findings. The
+four previously accepted v13 reports and their appendices remain byte-identical. Initial review
+found source/block namespace collisions, including an excluded-source branch, and an omitted
+supplemental metric display; these were repaired with regression coverage. Prior failures and
+intermediate replay evidence are retained. The final core suite passed 410 tests and the native
+integration suite passed 107, including published-v13 regressions, standard-library reopening,
+partial evidence records and exact-prefix migration. These are engineering checks, not research
+quality or live-model success-rate evidence. Paid execution remains stopped, original artifacts
+and unrelated Quant work are preserved, and no semantic verdict has been signed.
+
+## Previous slice: completed fixed research study — 2026-09-22
 
 The user authorized research-grade admission and immediate execution of the
 registered 18 window comparisons. Coherent historical observations may be

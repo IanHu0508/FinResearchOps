@@ -17,27 +17,34 @@ alter the Agent Case formats or connect a signal to `research-thesis`.
 
 | Artifact | Schema version | Definition |
 |---|---|---|
-| normalized input snapshot | `quant.research-input/v2` | `quant/data/records.py` and `quant/data/serialization.py`; market bars, dated universes and explicit scoring dates |
-| shared panel and labels | `quant.prepared-dataset/v2` | `quant/contracts.py`, `quant/features/`, `quant/labels/`; stock, relative and market feature blocks |
-| purged training/validation/test fold | `quant.prepared-fold/v2` | `quant/splits/walk_forward.py` |
-| standard-library reference model | `quant.reference-model/v2` | `quant/models/baseline/reference.py`; view/ablation bound to state, no pickle |
-| experiment result | `quant.experiment/v2` | `quant/pipeline.py`; day-equal Rank IC, yearly summaries and forward quantile returns, no implied execution backtest |
-| research signal | `finresearchops.quant-signal/v2` | `quant-signal.v2.schema.json`; separate predicted target percentile and cross-sectional model rank |
+| normalized input snapshot | `quant.research-input/v4` | `quant/data/records.py` and `quant/data/serialization.py`; market bars, dated universes and explicit scoring dates |
+| shared panel and labels | `quant.prepared-dataset/v3` | `quant/contracts.py`, `quant/features/`, `quant/labels/`; stock, relative and market feature blocks |
+| purged training/validation/test fold | `quant.prepared-fold/v3` | `quant/splits/walk_forward.py` |
+| standard-library reference model | `quant.reference-model/v3` | `quant/models/baseline/reference.py`; view/ablation bound to state, no pickle |
+| experiment result | `quant.experiment/v3` | `quant/pipeline.py`; full-universe Rank IC identification bounds, yearly summaries and complete-day quantile sensitivity, no implied execution backtest |
+| optional XGBoost model | `quant.xgboost-model/v2` | `quant/models/baseline/xgboost_model.py`; native JSON trees, fixed parameters, feature names, training data identity and cutoff; `model_version` is its content fingerprint |
+| research signal | `finresearchops.quant-signal/v4` | `quant-signal.v4.schema.json`; separate predicted target percentile and cross-sectional model rank; `inference_input_id` binds only that scoring time's feature inputs |
 | append-once run manifest | `quant.run-manifest/v1` | `quant/artifacts/store.py`; content hashes for private run files |
 
 The normalized snapshot and model state stay under the sibling private tree.
-The market-only research scope is V1; serialized formats are v2 because the
-unreleased industry-relative input/model/signal shapes were replaced. Old records
-remain historical evidence; current input/model/signal readers reject their v1
-formats instead of silently interpreting them under the new target. The generic
-run manifest is unchanged in shape and retains v1.
+The market-only research scope is still called V1; serialized format versions
+advance independently of that name. Old records remain historical evidence;
+current input/model/signal readers reject earlier formats instead of silently
+reinterpreting them, and the v2/v3 signal schemas remain only as historical
+definitions. The generic run manifest is unchanged in shape and retains v1.
 See [Quant contracts](../quant/CONTRACTS.md) for availability-time semantics,
 20-session labels, missing outcomes, ranking conventions and evaluation limits.
 
 ## TradingAgents research artifacts
 
-The main research path writes `finresearchops.thesis-case/v13`
-(`thesis-case.v13.schema.json`); published v1/v2/v10/v11 remain readable without rewriting
+The current final-call message binds `parameter_change_facts`, recomputed from the original
+proposal and the actual revision. This is message content, not a new persisted top-level
+field. Reported shape stays v16; the exact pre-repair private implementation and failed run
+remain preserved. Program input comparisons are distinct from model-written explanations,
+which remain in the process appendix and are not financial approval.
+
+The main research path writes `finresearchops.thesis-case/v16`
+(`thesis-case.v16.schema.json`); published v1/v2/v10/v11/v13 remain readable without rewriting
 their reports. V10 retains the v9 model-proposed forward draft and deterministic
 earnings/cash/conditional-return results that reach the final judge before its
 rating. Forecast assumptions and scenario acceptance are visible separately.
@@ -45,16 +52,60 @@ It retains compact independent underwriting, belief-by-belief counterevidence
 updates, adopted assumptions and a program-computed rating comparison. The
 initial rating/summary and trigger fields are not final-judge inputs. Unreleased
 v3/v4/v5/v6/v7/v8/v9 trials and their original readers remain private development evidence.
+Case v17 adds four actual analyst reports before the thirteen research stages,
+with a fixed frozen-source topology, seventeen exchanges and original-source
+plus analyst-report propagation. Independent assessment still excludes peer
+reports. Runtime v3 records protocol 17 explicitly and refuses cross-version
+reuse; the four reports and Quant/input-flow display survive optional aftercare.
+Default v16 and historical Cases remain readable without changing their bytes.
+
+`finresearchops.research-report/v1` is the formal reading layout of a v16/v17 Case:
+`research-report.md` plus `research-report.html`, written at save or later by the offline
+`render-research-report` command. It contains only final-report prose that passes the
+existing numeric/source contract, effective program calculations and source metadata;
+citations are numbered, excerpts and stage outputs stay in `report.md` / `process-record.md`.
+It adds no Case field, so the Case hash is unchanged. When the Markdown file exists, reopen
+recomputes both files byte for byte; the Markdown is written last, so an interrupted HTML-only
+write is treated as absent. Layout is not financial approval.
+
+In v16/v17 `evidence_check.findings`, reason `UNBOUND_RESEARCH_NUMBER_PENDING` records a
+numeral the program did not bind that is not in a value position (for example an unregistered
+label or technical version). The finding shape and schema are unchanged; the Case is saved as
+`PARTIAL` instead of halting. Numerals in value positions still refuse the final answer.
+
 V2 introduced financial analysis covering operations, earnings quality,
 cash/capital allocation and valuation/price requirements, with source references.
 Financial prose and forecast assumptions remain model analyses; the deterministic
 calculator establishes arithmetic, not economic correctness. The Case stores original source text, independent
 initial claims, symmetric revisions, fresh assessments and actual model I/O.
+V15 uses program-addressed source blocks for the
+final request. Redundant source/metric selectors are derived, while valid extra metric
+selections remain visible. `evidence_check` is recomputed on read; unresolved selections
+produce a full `PARTIAL` research record, never an evidence-complete or approved report.
+Financial calculation and effective-value binding failures remain hard errors. Successful
+source binding is explicitly not semantic approval. The original source bundle and
+every model response remain in the Case; v13 artifacts are not rewritten into v16.
+Unpublished v14/v15 remains in private development snapshots, not a public compatibility reader.
+V15 adds a bounded `recovery` record: failed/retried call bindings, missing-only repairs,
+two shared recovery allowances, hard-stop state and retained prior final-reassessment evidence.
+A complete valid length-marked reply can be retained verbatim without generating another answer.
+`finresearchops.thesis-runtime/v3` carries the same recovery state plus a cumulative budget
+checkpoint. Its reader validates request-based reservation lower bounds and preserves unknown
+usage; restarting the same flow cannot reset fees or recovery allowances. Published older
+protocols retain their v1 runtime reader; no historical receipt is rewritten.
 `finresearchops.thesis-sources/v2` describes the frozen input bundle with an
 explicit research/sensitivity use per source. Sensitivity notes are withheld
 from every rating request and displayed in a clearly labeled report appendix;
 their original text remains in the Case and reaches only post-report review. Legacy v1 inputs are accepted as unclassified research sources;
 `finresearchops.thesis-review/v1` is a separately saved post-report Agent opinion.
+Current v16 runs with review enabled produce `finresearchops.thesis-review/v3`: one
+review and at most one targeted correction, separate from the original Case. Its reader
+binds actual requests/responses, exact edits, shared financial recomputation and separately
+rendered delivery artifacts. Each quality stage permits at most one proven empty-length max-to-high recovery,
+shares the original global extra-call allowance and preserves fees; complete captured answers are
+retained without redraw. Unreleased v2 artifacts and readers are preserved privately.
+Partial review retains the original report and provides no
+usable delivery rating. Legacy v1 opinions remain readable. This is not financial certification.
 Review state does not change the main Case hash. `finresearchops.thesis-runtime/v1`
 captures partial or complete model/tool/node activity and budget, including
 interrupted requests. The artifact validators establish protocol/receipt
@@ -177,3 +228,8 @@ All current narrative fields use numerical references, including scenario reason
 and limitations. Source excerpts are locatable, not certified fact records.
 V11 remains a published compatibility format. The unreleased v12 pilot and its
 reader snapshot remain private development evidence, not a public read branch.
+
+The current recovery policy is `thesis-stage-recovery/v2`: at most two extra calls globally.
+Only a no-output connection/read-timeout retry followed by missing required reasons may
+use both on one stage. The case records all three attempts and preserves unknown usage.
+No required research reason becomes optional.

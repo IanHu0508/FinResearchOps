@@ -59,11 +59,11 @@ stock-only 与 stock+context 时使用同一数据集和日期切分。前者完
 | `models/` | fit/predict Interface、输入对照、仅训练集拟合的预处理 |
 | `evaluation/` | 全池 Rank IC 保守界、日期等权选择、complete-day敏感性；日组合 P&L 独立评价 |
 | `artifacts/` | 私有、不可覆盖的运行文件与内容校验 |
-| `inference/` | 完整股票池覆盖、两种分位数及时间语义检查 |
+| `inference/` | 完整股票池覆盖、两种分位数及时间语义检查；只读评分日及以前数据的指定日期评分 |
 
 输入字段、计算公式和缺失处理见 [CONTRACTS.md](CONTRACTS.md)。
-公开信号格式为 [quant-signal.v3.schema.json](../schemas/quant-signal.v3.schema.json)。
-“研究 V1”与格式版本不是同一体系：研究输入为v4、canonical store为v9，价格方法不变；目标rank-interval/v2、信号v3。
+公开信号格式为 [quant-signal.v4.schema.json](../schemas/quant-signal.v4.schema.json)。
+“研究 V1”与格式版本不是同一体系：研究输入为v4、canonical store为v9，价格方法不变；目标rank-interval/v2、信号v4。
 独立版本避免把旧行业相对实验或缺少已核退出参考的输入误读为当前数据。
 旧私有证据保留，当前 reader 明确拒绝不匹配的格式。
 
@@ -141,3 +141,16 @@ macOS需要兼容的OpenMP动态库；它可以单独保存在私有运行时的
 入口实际验证canonical/规则/代码/coverage/replay及A证据。旧allow-incomplete-dates布尔豁免已移除。
 默认开发评价截止2024-01-01；最终测试另需C/D冻结与开启记录，不能用A冻结包打开。
 固定因子磁盘入口同样需要冻结描述符。当前真实验收状态见项目状态。
+
+## 指定日期评分
+
+`quant.inference.score_day(store_path, day, fitted)` 以 `MarketStore(path, through=day)` 打开行情库：
+日历只载入到评分日，行情与历史股票池的查询都以评分日为上界，不读取结果价格、换股退出参考或标签，
+也不经过 `prepare_dataset`、`build_labels` 或 `prepare_fold`。它用共用 `build_panel` 生成当日完整股票池的特征，
+要求模型训练截止早于评分时点，由已恢复的模型逐股评分，再按 `build_signals` 相同的平均并列百分位约定给出横截面排名。
+返回的 `ScoredDay` 不含任何结果；`build_signals` 可将其转为 v4 信号，信号的 `inference_input_id` 只绑定该日特征输入。
+这只说明该代码路径不读评分日之后的记录；store 身份映射、核对清单等整理材料与供应商历史版本的限制不变。
+
+面向 Agent 的研究说明由 `quant.inference.research_note` 确定性生成，输出一条可放入冻结资料包的
+`thesis-sources/v2` 资料；其中的历史验证证据由 `quant.evaluation.validation_evidence` 按评分时点已知的结果重算。
+规则与限制见[契约](CONTRACTS.md#8-信号版本与重放)。说明只是研究证据，不含买卖动作、概率或目标价。

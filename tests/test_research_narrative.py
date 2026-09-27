@@ -79,3 +79,92 @@ class ResearchNarrativeTest(unittest.TestCase):
         for changed in (quote.replace("100", "999"), quote.replace("100", "10 0"), quote.replace("20%", "20.0%")):
             with self.assertRaises(ValueError):
                 context([{"id": "Q1", "source_id": "S01", "quote": changed}], sources)
+
+    def test_cjk_prose_linewrap_preserves_source_offsets_and_input(self):
+        for newline in ("\n", "\r\n"):
+            original = f"合成披露，经营活动产生的现金{newline}流量为100.50万元，仍须核验。"
+            quote = original.replace(newline, "")
+            sources = {"sources": [{"id": "S01", "content": "前置说明。" + newline * 2 + original + newline * 2 + "后置说明。"}]}
+            quotes = [{"id": "Q1", "source_id": "S01", "quote": quote}]
+            before = deepcopy((sources, quotes))
+            with self.subTest(newline=newline):
+                ctx = context(quotes, sources)
+                bound = ctx.quotes["Q1"]
+                self.assertEqual(original, bound["quote"])
+                self.assertEqual(original, sources["sources"][0]["content"][bound["start"]:bound["end"]])
+                self.assertEqual("cjk_linewrap", bound["matching"])
+                self.assertIn("中文断行兼容定位", ctx.text("资料：{{source:Q1}}"))
+                self.assertEqual(before, (sources, quotes))
+
+    def test_cjk_linewrap_accepts_mixed_retained_and_omitted_wraps(self):
+        original = "合成披露，经营活动产生的现金\n流量保持稳定，经营回款\n情况仍需观察，不能外推。"
+        quote = original.replace("现金\n流量", "现金流量").replace("回款\n情况", "回款 情况")
+        ctx = context([{"id": "Q1", "source_id": "S01", "quote": quote}],
+                      {"sources": [{"id": "S01", "content": original}]})
+        self.assertEqual(original, ctx.quotes["Q1"]["quote"])
+
+    def test_cjk_linewrap_cannot_join_numeric_or_latin_tokens(self):
+        for broken in ("1\n000", "１\n０００", "一\n百", "-\n12", "1\n.2", "20\n%", "cash\nflow"):
+            source = f"合成披露，相关数值为{broken}万元，仍需核验。"
+            with self.subTest(broken=broken), self.assertRaises(ValueError):
+                context([{"id": "Q1", "source_id": "S01", "quote": source.replace("\n", "")}],
+                        {"sources": [{"id": "S01", "content": source}]})
+
+    def test_cjk_linewrap_cannot_erase_layout_boundaries(self):
+        for separator in ("\n\n", "\n \n", "\n  ", "\t", "\f", "\u2028", "\u2029"):
+            source = "合成披露，经营活动产生的现金" + separator + "流量稳定，仍须核验。"
+            with self.subTest(separator=separator), self.assertRaises(ValueError):
+                context([{"id": "Q1", "source_id": "S01", "quote": source.replace(separator, "")}],
+                        {"sources": [{"id": "S01", "content": source}]})
+        for source, quote in (
+            ("本期情况良好。\n合成披露，经营活动产生的现金\n流量稳定，仍须核验。",
+             "本期情况良好。 合成披露，经营活动产生的现金流量稳定，仍须核验。"),
+            ("|合成披露，经营活动产生的现金\n流量稳定，仍须核验。|",
+             "合成披露，经营活动产生的现金流量稳定，仍须核验。"),
+            ("营业收入\n归母净利润\n经营现金流量", "营业收入归母净利润经营现金流量"),
+            ("项目：经营现金\n流量：待核验金额", "项目：经营现金流量：待核验金额"),
+        ):
+            with self.subTest(source=source), self.assertRaises(ValueError):
+                context([{"id": "Q1", "source_id": "S01", "quote": quote}],
+                        {"sources": [{"id": "S01", "content": source}]})
+
+    def test_cjk_linewrap_cannot_skip_page_furniture_or_other_text(self):
+        for middle in ("[[PAGE 2]]", "第二节 财务报告", "另有需要核对的实质说明。", "1 / 20", "脚注：口径不同。"):
+            source = f"合成披露，经营活动产生的现金\n{middle}\n流量稳定，仍須核验。"
+            quote = "合成披露，经营活动产生的现金流量稳定，仍須核验。"
+            with self.subTest(middle=middle), self.assertRaises(ValueError):
+                context([{"id": "Q1", "source_id": "S01", "quote": quote}],
+                        {"sources": [{"id": "S01", "content": source}]})
+
+    def test_cjk_linewrap_rejects_paragraph_padding_and_unicode_tables(self):
+        paragraph = "合成披露，经营活动产生的现金\n流量稳定，仍须核验。"
+        for ending in ("。", "。”", ".", "!", "："):
+            for padding in (" ", "\u00a0"):
+                for newline in ("\n", "\r\n"):
+                    source = "上一段情况良好" + ending + padding + newline + paragraph
+                    quote = source.replace(padding + newline, padding).replace("现金\n流量", "现金流量")
+                    with self.subTest(ending=ending, padding=padding, newline=newline), self.assertRaises(ValueError):
+                        context([{"id": "Q1", "source_id": "S01", "quote": quote}],
+                                {"sources": [{"id": "S01", "content": source}]})
+        for delimiter in ("│", "┃", "║", "｜", "¦", "∣", "∥"):
+            source = delimiter + paragraph + delimiter
+            with self.subTest(delimiter=delimiter), self.assertRaises(ValueError):
+                context([{"id": "Q1", "source_id": "S01", "quote": paragraph.replace("\n", "")}],
+                        {"sources": [{"id": "S01", "content": source}]})
+
+    def test_cjk_linewrap_cannot_change_nonwhitespace_or_add_spaces(self):
+        original = "合成披露，经营活动产生的现金\n流量为100.50万元，仍须核验。"
+        joined = original.replace("\n", "")
+        for quote in (joined.replace("100.50", "10050"), joined.replace("100.50", "100.5"),
+                      joined.replace("万元", "元"), joined.replace("，", "；", 1),
+                      joined.replace("经营活动", "经营 活动")):
+            with self.subTest(quote=quote), self.assertRaises(ValueError):
+                context([{"id": "Q1", "source_id": "S01", "quote": quote}],
+                        {"sources": [{"id": "S01", "content": original}]})
+
+    def test_cjk_linewrap_requires_unique_nonwhitespace_occurrence(self):
+        original = "合成披露，经营活动产生的现金\n流量稳定，仍须核验。"
+        source = original + "\n\n" + original.replace("\n", "\r\n")
+        with self.assertRaises(ValueError):
+            context([{"id": "Q1", "source_id": "S01", "quote": original.replace("\n", "")}],
+                    {"sources": [{"id": "S01", "content": source}]})

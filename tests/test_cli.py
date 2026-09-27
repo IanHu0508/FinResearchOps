@@ -839,6 +839,43 @@ class FinResearchOpsCLITest(unittest.TestCase):
             json.loads(stdout.getvalue()),
         )
 
+    def test_render_research_report_is_one_offline_application_command(self) -> None:
+        from finauditgate.research import RenderResearchReport, ThesisCaseView
+
+        case_ref = f"case-{'c' * 64}"
+        captured: dict[str, object] = {}
+
+        class FakeApplication:
+            def __init__(self, **kwargs: object) -> None:
+                captured["constructor"] = kwargs
+
+            def handle(self, command: object) -> ThesisCaseView:
+                captured["command"] = command
+                return ThesisCaseView(case_ref, "AWAITING_REVIEW", "/synthetic/report.md", {"signal": "REVIEW"},
+                                      {"status": "DEFERRED"}, "/synthetic/research-report.md")
+
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = _private_root(temporary_directory)
+            stdout, stderr = io.StringIO(), io.StringIO()
+            with patch("finauditgate.cli.FinResearchOps", FakeApplication), redirect_stdout(stdout):
+                exit_code = cli.main(["--artifact-root", str(root / "artifacts"),
+                                      "render-research-report", "--case-ref", case_ref])
+            with (patch("finauditgate.cli.FinResearchOps", FakeApplication),
+                  redirect_stdout(io.StringIO()), redirect_stderr(stderr)):
+                invalid = cli.main(["--artifact-root", str(root / "artifacts"),
+                                    "render-research-report", "--case-ref", "../case"])
+
+        self.assertEqual(0, exit_code)
+        self.assertEqual(RenderResearchReport(case_ref), captured["command"])
+        self.assertNotIn("researcher", captured["constructor"])
+        self.assertEqual({"case_ref": case_ref, "delivery_report": "/synthetic/research-report.md",
+                          "research_report": "/synthetic/research-report.md",
+                          "research_report_html": "/synthetic/research-report.html", "signal": "REVIEW",
+                          "status": "AWAITING_REVIEW", "workpaper": "/synthetic/report.md"},
+                         json.loads(stdout.getvalue()))
+        self.assertEqual(2, invalid)
+        self.assertEqual("CASE_REF_INVALID", json.loads(stderr.getvalue())["error"]["code"])
+
 
 if __name__ == "__main__":
     unittest.main()

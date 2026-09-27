@@ -50,6 +50,58 @@ def _escape(text):
     return re.sub(r"([\\`*_\[\]{}|])", r"\\\1", text).replace("\n", " ")
 
 
+def _locate_cjk_linewrap(body, quote):
+    """Fallback for omitted single line wraps in plain CJK prose only.
+
+    Do not reconstruct PDF layout: require literal non-whitespace equality,
+    a unique occurrence, and conservative prose/boundary checks. The returned
+    range always refers to the untouched source, never the matching projection.
+    """
+    positions = [m.start() for m in re.finditer(r"\S", body)]
+    query_positions = [m.start() for m in re.finditer(r"\S", quote)]
+    flat = "".join(body[i] for i in positions)
+    query = "".join(quote[i] for i in query_positions)
+    start = flat.find(query)
+    if not query or start < 0 or flat.find(query, start + 1) >= 0:
+        raise ValueError("RESEARCH_SOURCE_QUOTE_NOT_UNIQUE")
+    matched = positions[start:start + len(query)]
+    left, right = matched[0], matched[-1] + 1
+    line_start = body.rfind("\n", 0, left) + 1
+    line_end = body.find("\n", right)
+    if line_end >= 0 and body[line_end - 1:line_end] == "\r":
+        line_end -= 1  # The following CRLF is outside the last source line.
+    region = body[line_start:len(body) if line_end < 0 else line_end]
+    # Reject explicit paragraph, page, table, list and column boundaries. A
+    # source without adequate prose evidence remains unresolved, not guessed.
+    if (any(c in region for c in ("\t", "\f", "\v", "\u0085", "\u2028", "\u2029"))
+            or "[[PAGE" in region
+            or re.search(r"[\u2500-\u257f|｜¦∣∥]|\r(?!\n)|\n[^\S\r\n]*\r?\n|[^\S\r\n]{2,}", region)
+            or re.search(r'''[.!?;:。！？；：][”’」』）】》"')\]]*[^\S\r\n]*\r?\n''', region)
+            or re.search(r"(?m)^\s*(?:#{1,6}\s|[-*+]\s|[0-9０-９一二三四五六七八九十]+[.．、)）]|第[0-9一二三四五六七八九十百]+[章节条])", region)):
+        raise ValueError("RESEARCH_SOURCE_QUOTE_NOT_UNIQUE")
+    removed = 0
+    for index in range(1, len(matched)):
+        a, b = matched[index - 1], matched[index]
+        source_gap = body[a + 1:b]
+        query_gap = quote[query_positions[index - 1] + 1:query_positions[index]]
+        if bool(source_gap) == bool(query_gap):
+            continue  # Existing whitespace-run equivalence, no token removal.
+        before, after = body[a], body[b]
+        if (query_gap or source_gap not in ("\n", "\r\n")
+                or any(c.isnumeric() or not unicodedata.name(c, "").startswith("CJK UNIFIED IDEOGRAPH-")
+                       for c in (before, after))):
+            raise ValueError("RESEARCH_SOURCE_QUOTE_NOT_UNIQUE")
+        previous_line = body[body.rfind("\n", 0, a) + 1:a + 1]
+        end = body.find("\n", b)
+        following_line = body[b:len(body) if end < 0 else end]
+        if not all(any(c in line for c in "，。！？") for line in (previous_line, following_line)):
+            raise ValueError("RESEARCH_SOURCE_QUOTE_NOT_UNIQUE")
+        removed += 1
+    if not removed:
+        raise ValueError("RESEARCH_SOURCE_QUOTE_NOT_UNIQUE")
+    return left, right, "cjk_linewrap"
+
+
 def _locate_quote(body, quote):
     start = body.find(quote)
     if start >= 0:
@@ -67,7 +119,9 @@ def _locate_quote(body, quote):
     normalized = "".join(chars)
     query = re.sub(r"\s+", " ", quote).strip()
     start = normalized.find(query)
-    if not query or start < 0 or normalized.find(query, start + 1) >= 0:
+    if not query or start < 0:
+        return _locate_cjk_linewrap(body, quote)
+    if normalized.find(query, start + 1) >= 0:
         raise ValueError("RESEARCH_SOURCE_QUOTE_NOT_UNIQUE")
     return starts[start], ends[start + len(query) - 1], "whitespace_normalized"
 
@@ -133,16 +187,22 @@ class NarrativeContext:
                           "forecast_start": "预测期开始", "forecast_end": "预测期结束",
                           "valuation_date": "条件估值日", "market_price_date": "起点行情日"}
                 parts.append(_escape(f"〔{labels[token[1]]}：{self.context[token[1]] if self.context[token[1]] is not None else '未提供'}〕"))
-            elif len(token) == 2 and token[0] == "source" and token[1] in self.quotes:
-                q = self.quotes[token[1]]
-                matching = "，空白归一定位" if q["matching"] == "whitespace_normalized" else ""
-                parts.append(f"〔来源原文 {_escape(q['source_id'])}，字符 {q['start']}–{q['end']}："
-                             f"“{_escape(q['quote'])}”；原文摘录{matching}，非本次有效预测〕")
+            elif len(token) == 2 and token[0] == "source":
+                parts.append(self.source(token[1]))
             else:
                 raise ValueError("RESEARCH_NARRATIVE_REFERENCE_INVALID")
             end = match.end()
         parts.append(self._literal(text[end:]))
         return "".join(parts)
+
+    def source(self, qid):
+        if qid not in self.quotes:
+            raise ValueError("RESEARCH_NARRATIVE_REFERENCE_INVALID")
+        q = self.quotes[qid]
+        matching = {"whitespace_normalized": "，空白归一定位",
+                    "cjk_linewrap": "，中文断行兼容定位"}.get(q["matching"], "")
+        return (f"〔来源原文 {_escape(q['source_id'])}，字符 {q['start']}–{q['end']}："
+                f"“{_escape(q['quote'])}”；原文摘录{matching}，非本次有效预测〕")
 
     def block(self, block):
         result = deepcopy(block)

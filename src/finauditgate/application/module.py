@@ -127,10 +127,13 @@ class FinResearchOps:
         """Execute one exact, closed, versioned command type."""
 
         try:
-            from finauditgate.research import ResearchSecurity, RunTradingBaseline, RunAuditedNativeResearch, ResearchThesis
+            from finauditgate.research import ResearchSecurity, RunTradingBaseline, RunAuditedNativeResearch, ResearchThesis, RenderResearchReport
             if type(command) is ResearchThesis:
                 from finauditgate.application.thesis_case import run
                 return run(self, command)
+            if type(command) is RenderResearchReport:
+                from finauditgate.application.thesis_case import render_research_report
+                return render_research_report(self, command)
             if type(command) is RunAuditedNativeResearch:
                 from finauditgate.application.native_case import run
                 return run(self, command)
