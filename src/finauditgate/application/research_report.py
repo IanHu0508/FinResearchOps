@@ -15,7 +15,7 @@ import re
 import unicodedata
 
 from .forward_report import _DISPOSITION, _EARNINGS_BASIS, _cell
-from .research_delivery import evidence_catalog, report_context
+from .research_delivery import contract_for, evidence_catalog, report_context
 from .research_narrative import _TOKEN, _escape, change_view
 from .research_numbers import _INPUT_KEYS, _METRICS
 
@@ -25,7 +25,7 @@ V2 = "finresearchops.research-report/v2"  # citation and unbound-number counts s
 VERSIONS = (V1, V2)
 VERSION = V2  # written for newly saved Cases; saved files keep their recorded version
 NUMBER_PENDING = "UNBOUND_RESEARCH_NUMBER_PENDING"
-SUPPORTED = ("finresearchops.thesis-case/v16", "finresearchops.thesis-case/v17")
+SUPPORTED = ("finresearchops.thesis-case/v16", "finresearchops.thesis-case/v17", "finresearchops.thesis-case/v18")
 FILES = ("research-report.md", "research-report.html")
 
 _RATINGS = {"Buy": "买入", "Overweight": "增持", "Hold": "中性", "Underweight": "减持", "Sell": "卖出",
@@ -113,7 +113,7 @@ class _Report:
         # against the unchanged numeric, markup and source-binding contract.
         self.context = report_context(record["final_report"], self.draft, self.calculations,
             record["source_bundle"], record["request"], changes=change_view(record["applied_changes"]),
-            beliefs=record["forward_revision"]["belief_updates"])
+            beliefs=record["forward_revision"]["belief_updates"], contract=contract_for(record))
         check = self.context.evidence_check()
         if record["evidence_check"] != check or record["status"] != check["status"]:
             raise ValueError("THESIS_EVIDENCE_CHECK_CHANGED")
@@ -741,7 +741,7 @@ def _html(title, blocks, version):
 
 
 def render(record, version=VERSION):
-    """Return (Markdown bytes, HTML bytes) for a v16/v17 thesis Case in one format version."""
+    """Return (Markdown bytes, HTML bytes) for a v16/v17/v18 thesis Case in one format version."""
     report = _Report(record, version)
     title, blocks = report.build()
     return _markdown(title, blocks, version), _html(title, blocks, version)

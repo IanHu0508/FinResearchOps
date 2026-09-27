@@ -58,8 +58,17 @@ plus analyst-report propagation. Independent assessment still excludes peer
 reports. Runtime v3 records protocol 17 explicitly and refuses cross-version
 reuse; the four reports and Quant/input-flow display survive optional aftercare.
 Default v16 and historical Cases remain readable without changing their bytes.
+Case v18 (`thesis-case.v18.schema.json`) keeps the v17 shape and records recovery policy
+`thesis-stage-recovery/v3`: besides the v2 reasons it allows `UNPARSEABLE` (the stage is asked
+again with the unchanged prompt) and `ENUM_INVALID` (only the listed `enum_paths`, which must be
+provenance labels, may change), and each attempt row carries `enum_paths` next to
+`missing_reason_paths`. The reader re-proves every recorded failure from the saved call with the
+same standard-library validator and frozen stage schemas used at run time. Its final report is
+checked with number contract 2, which only removes listed time and source-identifier labels from
+the pending findings and changes no refusal;
+`reused_calls.budget_origin` is `SAME_V18_FLOW`, and presentation replay is not available.
 
-`finresearchops.research-report/v1` and `/v2` are the formal reading layouts of a v16/v17 Case
+`finresearchops.research-report/v1` and `/v2` are the formal reading layouts of a v16/v17/v18 Case
 (new Cases write v2, which lists citation findings and unbound-number findings apart on the
 cover, notice and appendix; v1 files stay as saved):
 `research-report.md` plus `research-report.html`, written at save or later by the offline
@@ -72,7 +81,7 @@ byte for byte, refusing unknown or mismatched versions. The Markdown is written 
 interrupted HTML-only write is treated as absent and is completed in the HTML's version. Layout is
 not financial approval.
 
-In v16/v17 `evidence_check.findings`, reason `UNBOUND_RESEARCH_NUMBER_PENDING` records a
+In v16/v17/v18 `evidence_check.findings`, reason `UNBOUND_RESEARCH_NUMBER_PENDING` records a
 numeral the program did not bind that is not in a value position (for example an unregistered
 label or technical version). The finding shape and schema are unchanged; the Case is saved as
 `PARTIAL` instead of halting. Numerals in value positions still refuse the final answer.

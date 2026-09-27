@@ -1,15 +1,17 @@
-"""Invoke a stage with a narrow transport-then-missing-reason recovery chain."""
+"""Invoke a stage with a narrow transport-then-repair recovery chain."""
 
 from copy import deepcopy
 import re
 from time import sleep
 
 from .thesis_recovery import check_missing_repair, failure_reason, repair_messages, retained_length_outputs
+from .thesis_format import check_enum_repair, enum_repair_messages
 from .thesis_responses import response_candidate
 
 
 def _parse(session, raw, kind):
-    candidate = response_candidate([{"content": raw.content, "tool_calls": raw.tool_calls}], kind, protocol_version=16)
+    candidate = response_candidate([{"content": raw.content, "tool_calls": raw.tool_calls}], kind,
+                                   protocol_version=max(16, session.protocol_version))
     value = session.types[kind].model_validate(candidate).model_dump(mode="json")
     if kind == "FinalResearchReport":
         from finauditgate.application.research_delivery import normalize_report
@@ -18,6 +20,27 @@ def _parse(session, raw, kind):
         from .thesis_protocol import check_refs, source_view
         check_refs(value, {s["id"] for s in source_view(session.bundle)["sources"]})
     return candidate, value
+
+
+def _retry_input(session, kind, prompt, failed, entry):
+    """The retry prompt and frozen previous answer, rebuilt from the saved failed call."""
+    if entry["reason"] == "MISSING_REASON":
+        previous = response_candidate(failed["output"], kind, protocol_version=max(16, session.protocol_version))
+        return repair_messages(prompt, previous, entry["missing_reason_paths"]), previous
+    if entry["reason"] == "ENUM_INVALID":
+        previous = response_candidate(failed["output"], kind, protocol_version=session.protocol_version)
+        return enum_repair_messages(prompt, kind, previous, entry["enum_paths"]), previous
+    # Transport, length, empty and unparseable failures repeat the unchanged prompt.
+    return deepcopy(prompt), None
+
+
+def _check_repair(entry, previous, candidate, kind):
+    if entry is None:
+        return
+    if entry["reason"] == "MISSING_REASON":
+        check_missing_repair(previous, candidate, entry["missing_reason_paths"], kind)
+    elif entry["reason"] == "ENUM_INVALID":
+        check_enum_repair(previous, candidate, entry["enum_paths"], kind)
 
 
 def invoke_stage(session, node, kind, prompt, legacy_prompt, config):
@@ -61,9 +84,7 @@ def invoke_stage(session, node, kind, prompt, legacy_prompt, config):
                         for i, (g, e) in enumerate(zip(generations, entries)))):
                 raise ValueError("THESIS_PENDING_FINAL_GENERATION_INVALID")
             session.final_generation = generations
-        if entry["reason"] == "MISSING_REASON":
-            previous = response_candidate(failed["output"], kind, protocol_version=16)
-            actual = repair_messages(prompt, previous, entry["missing_reason_paths"])
+        actual, previous = _retry_input(session, kind, prompt, failed, entry)
         if entry["reason"] == "LENGTH" and session.budget is not None:
             session.budget.release_confirmed_truncation(confirmed_length=True)
     for attempt in range(next_attempt, 4):
@@ -78,9 +99,9 @@ def invoke_stage(session, node, kind, prompt, legacy_prompt, config):
             if not isinstance(response, dict) or response.get("raw") is None:
                 raise ValueError("THESIS_STRUCTURED_RESPONSE_REQUIRED")
             raw = response["raw"]
-            candidate = response_candidate([{"content": raw.content, "tool_calls": raw.tool_calls}], kind, protocol_version=16)
-            if entry is not None and entry["reason"] == "MISSING_REASON":
-                check_missing_repair(previous, candidate, entry["missing_reason_paths"], kind)
+            candidate = response_candidate([{"content": raw.content, "tool_calls": raw.tool_calls}], kind,
+                                           protocol_version=max(16, session.protocol_version))
+            _check_repair(entry, previous, candidate, kind)
             _, parsed = _parse(session, raw, kind)
             if entry is not None:
                 entry["retry_run_id"] = capture.model_calls[-1]["run_id"]
@@ -100,8 +121,7 @@ def invoke_stage(session, node, kind, prompt, legacy_prompt, config):
                 raw = AIMessage(content=value["content"], id=value["id"], tool_calls=[],
                     usage_metadata=usage if isinstance(usage, dict) and {"input_tokens", "output_tokens", "total_tokens"} <= usage.keys() else None)
                 candidate, parsed = _parse(session, raw, kind)
-                if entry is not None and entry["reason"] == "MISSING_REASON":
-                    check_missing_repair(previous, candidate, entry["missing_reason_paths"], kind)
+                _check_repair(entry, previous, candidate, kind)
                 capture.retain_complete_length(call["run_id"], retained)
                 if session.budget is not None:
                     if not session.budget.release_confirmed_truncation(confirmed_length=True):
@@ -111,7 +131,7 @@ def invoke_stage(session, node, kind, prompt, legacy_prompt, config):
                         "status": "RETAINED_LENGTH", "response_id": raw.id})
                 return raw, actual, parsed
             errors = exc.errors(include_url=False) if hasattr(exc, "errors") else []
-            reason, paths = failure_reason(call or {}, candidate, errors, kind)
+            reason, paths = failure_reason(call or {}, candidate, errors, kind, protocol_version=session.protocol_version)
             if kind == "FinalResearchReport":
                 session.final_generation.append({"attempt": attempt, "reasoning_effort": effort,
                     "status": "TRUNCATED" if reason == "LENGTH" else "FAILED", "error_type": type(exc).__name__})
@@ -124,7 +144,9 @@ def invoke_stage(session, node, kind, prompt, legacy_prompt, config):
                 if not session.budget.release_confirmed_truncation(confirmed_length=True):
                     policy.halt(node, kind, "THESIS_TRUNCATION_RECOVERY_NOT_PERMITTED")
                     raise ValueError("THESIS_TRUNCATION_RECOVERY_NOT_PERMITTED") from exc
-            if reason == "MISSING_REASON":
+            if session.protocol_version >= 18:
+                actual, previous = _retry_input(session, kind, prompt, call, entry)
+            elif reason == "MISSING_REASON":
                 previous = deepcopy(candidate)
                 actual = repair_messages(prompt, candidate, paths)
             if reason in {"READ_TIMEOUT", "CONNECTION"}:

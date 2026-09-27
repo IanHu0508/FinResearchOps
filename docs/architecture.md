@@ -1,20 +1,32 @@
 # Architecture
 
 The main research path crosses `handle(ResearchThesis(...))` and `read_case`.
-The optional `--all-analysts` frozen-source route uses protocol/Case v17: four
-actual analyst reports precede the existing thirteen research stages. The
+The optional `--all-analysts` frozen-source route uses protocol/Case v18 for new
+runs (a resumed execution keeps the protocol it started with, so earlier v17
+executions resume as v17): four actual analyst reports precede the existing
+thirteen research stages. The
 reports and original sources reach downstream research; the independent
 assessment retains source-only input. It saves fundamental, market, news and
 sentiment outputs plus explicit Quant/input-flow presentation. This route does
 not invoke upstream live sentiment prefetch against historical dates. The
 default v16 route and earlier recorded Cases retain their existing behavior.
 The explicit `--fetch-news-social` route adds a bounded public-source collector
-before that same v17 flow. It queries by instrument and cutoff, records raw
+before that same four-analyst flow. It queries by instrument and cutoff, records raw
 responses and typed coverage, then appends eligible news/events and investor
 discussions to the unchanged financial/market/Quant foundation. Models consume
 the frozen combined bundle; resume verifies and reuses it without fetching,
 and the standard-library Case reader performs no acquisition. Missing channels
 remain visible rather than being filled with invented material.
+Protocol 18 decides every stage retry from the saved answer with a
+standard-library validator and frozen stage schemas
+(`adapters/thesis_schemas_v18.py`), identically at run time and on reopen. An
+unparseable answer is asked again once with the unchanged prompt; a provenance
+label outside its vocabulary (`basis_type`, `correction_basis`,
+`update_basis`) is repaired alone while all other content is compared as
+canonical JSON. Every other schema error, and every content, citation, coverage
+or numeric failure, still halts the stage. Final-report number contract 2 only
+removes listed time and source-identifier labels from contract 1's pending
+items; every refusal is unchanged.
 Its instance-local protocol keeps native graph routing while isolating initial
 drafts, limiting round-two discussion to sealed first drafts, and obtaining
 source-only independent underwriting before the portfolio manager sees peer

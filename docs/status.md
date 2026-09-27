@@ -68,6 +68,32 @@ result is claimed; that narrow repair did not change the source, prompt or retry
 still reads no quant signal directly.
 
 
+### Protocol 18: bounded format recovery and number contract 2 — 2026-09-27
+
+Implementation and tests are COMPLETED. New four-analyst executions write
+`finresearchops.thesis-case/v18`; resumed executions keep their recorded protocol, and v16/v17
+readers, Cases and report files are unchanged. Stage retries are decided from the saved answer by
+a standard-library validator against frozen stage schemas, the same function at run time and on
+reopen. An unparseable answer (JSON syntax, non-JSON text, an unsupported Markdown fallback or
+conflicting tool-call fragments) is asked again once with the unchanged prompt. A provenance label
+outside its vocabulary (`basis_type`, `correction_basis`, `update_basis`) is repaired alone while all
+other content is compared as canonical JSON. `*_note` fields that are null or repeat their named sibling
+are dropped without a call. Other schema errors and all content, citation, coverage and numeric
+failures still halt the stage, and the per-stage and per-run retry limits are unchanged. The final
+instruction asks for canonical year, period and source-ID spellings; number contract 2 only removes
+the listed time and source-identifier labels from contract 1's pending items, so every refusal and
+every other pending numeral is unchanged.
+
+Core 503, integration 247 and Quant 186 checks pass. They include counterexamples in which a quantity
+follows a label list, a substitution would move a value word out of range, a trailing newline would
+slip past the validator, a repair changes other content, or a rating or identifier leaves its
+vocabulary. An offline replay of all captured v16/v17 final answers found none that contract 2
+treats more strictly than contract 1; the label rules were written from labels seen in those
+answers, so the replay is not evidence of fewer pending marks on new runs. Saved Cases that
+reopened before the change still reopen, and no saved file changes. Protocol 18 changes when a
+stage may be retried and which labels are accepted; it does not by itself establish a higher
+delivery rate or better research.
+
 ### Current formal report format v2 — 2026-09-27
 
 Implementation and tests are COMPLETED. Newly saved v16/v17 Cases write

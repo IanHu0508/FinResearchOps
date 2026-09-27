@@ -140,9 +140,11 @@ def complete_corrected_report(session, node, config):
     bound = session.protocol_version >= 13
     from finauditgate.application.research_narrative import NARRATIVE_INSTRUCTION, change_view, report_context
     selected = session.protocol_version >= 14
+    contract = 2 if session.protocol_version >= 18 else 1
     if selected:
-        from finauditgate.application.research_delivery import INSTRUCTION, final_source_view, report_context
-    narrative_instruction = INSTRUCTION if selected else NARRATIVE_INSTRUCTION if bound else ""
+        from finauditgate.application.research_delivery import INSTRUCTION, INSTRUCTION_V18, final_source_view, report_context
+    narrative_instruction = ((INSTRUCTION_V18 if contract == 2 else INSTRUCTION) if selected
+                             else NARRATIVE_INSTRUCTION if bound else "")
     payload = session.corpus({})
     payload.update(independent_beliefs=belief_view(session.independent),
                    updated_claims=claim_view(session.updated_claims()), risk_briefs=risk_view(session.risks),
@@ -162,7 +164,7 @@ def complete_corrected_report(session, node, config):
     session.coverage(resolution["claim_assessments"], claim_ids)
     updates = resolution["belief_updates"]
     if (len(updates) != len(belief_ids) or {u["belief_id"] for u in updates} != set(belief_ids)
-            or not valid_belief_updates(updates, allow_maintain_restatement=session.protocol_version == 17)):
+            or not valid_belief_updates(updates, allow_maintain_restatement=session.protocol_version >= 17)):
         raise ValueError("THESIS_DECISION_UPDATE_INVALID")
     result = apply_forward_revision(session.forward_draft, resolution["changes"])
     session.forward_revision = deepcopy(resolution)
@@ -186,7 +188,7 @@ def complete_corrected_report(session, node, config):
             "比较情景高低时只能用同一版本；未改的股息不会因为盈利改变而自动改变。"
             "程序将在正文生成客观变化，change_explanations和belief_explanations完整保留于待核过程附录，"
             "它们不是已验证变化事实。只解释经济依据、条件与不确定性，不宣称某假设已被会计证实。")
-    if session.protocol_version == 17:
+    if session.protocol_version >= 17:
         narrative_instruction += ("若belief_updates标记maintain却附带new_statement，后者是模型附带的重述，"
             "程序未认定其与原信念语义相同；两种文字及标记完整留痕，不能据该标记声称观点完全一致或已经去偏。")
     final = session.ask(node, "FinalResearchReport",
@@ -206,7 +208,8 @@ def complete_corrected_report(session, node, config):
         render_research_block(block, session.effective_forward_draft, session.effective_forward_calculations)
     context = report_context(final, session.effective_forward_draft, session.effective_forward_calculations,
                              session.bundle if selected else final_payload["source_bundle"], final_payload["request"],
-                             changes=final_payload["change_context"], beliefs=resolution["belief_updates"]) if bound else None
+                             changes=final_payload["change_context"], beliefs=resolution["belief_updates"],
+                             **({"contract": contract} if selected else {})) if bound else None
     session.final = final
     if selected:
         session.evidence_check = context.evidence_check()

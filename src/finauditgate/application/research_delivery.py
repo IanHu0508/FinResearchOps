@@ -31,6 +31,18 @@ INSTRUCTION = (
     "change_explanations仅且完整覆盖change_context中的scenario_id/field；belief_explanations仅且完整覆盖已给belief_id。"
     "不重作修正、改评级依据或把数学复算当作财务事实认证。"
 )
+# Protocol 18 (number contract 2): the canonical spellings the reader accepts as labels.
+INSTRUCTION_V18 = INSTRUCTION + (
+    "年份写成“2025年”并与期间连写（2025年上半年、2025年前三季度、2025年第四季度、2025年全年、2025年和2026年），"
+    "不写“2025上半年”“9M”或单独的H1/H2。来源编号逐个完整写出（AUTO_NEWS01、AUTO_NEWS02），不写“01/02”“01-03”这类简写。"
+    "Quant期限照QUANT说明原样写成“N个交易日”，不写“N日”。均线周期、产品型号、页码和计数等其他含数字的写法会被标为待核，"
+    "能用文字表达时不写数字。这些写法只避免待核标记，不证明对应事实。"
+)
+
+
+def contract_for(record):
+    """Number contract of a saved Case: 2 from thesis-case/v18, otherwise the original 1."""
+    return 2 if record.get("schema_version") == "finresearchops.thesis-case/v18" else 1
 
 
 def evidence_catalog(sources):
@@ -154,6 +166,20 @@ _VALUE_SUFFIX = re.compile(r"(?:x|bps?|bn|mn)", re.I)
 _FINANCIAL_ABBREVIATION = re.compile(r"(?:EPS|PE|PB|ROE|ROA|ROIC|EBITDA|EBIT|FCFE|FCF|DPS|BVPS|TTM)", re.I)
 _NUMERAL = re.compile(r"(?P<letters>[A-Za-z]*)(?P<digits>[0-9]+(?:[.,][0-9]+)*)(?P<suffix>(?:[A-Za-z]+[0-9]*)*)(?P<percent>[%‰]?)")
 _ISO_DATE = re.compile(r"(?<![0-9])[12][0-9]{3}-[01]?[0-9]-[0-3]?[0-9](?![0-9])")
+# Number contract 2 labels. They only remove numerals from contract 1's pending
+# list; every refusal is unchanged. A bare year needs an explicitly listed left
+# context, so "出货量达2030全年" or "销量为2050上半年" stay visible as pending.
+_PERIOD_WORD = re.compile(r"(?:全年|上半年|下半年|前三季度|第?[一二三四]季度|[一三]季报|中报|半年报|半年度|三季报|年报|年度|财年)")
+_LABEL_LEFT = re.compile(r"(?:[。;!?]|无|于|截至|截止|自|从|若|如|对|较|相较|缺少|缺乏|没有|未给|未提供|公司)$")
+_LIST_JOIN = re.compile(r"(?:和|与|及|、|至)$")
+# A continued year must be followed by the end, a clause mark, 的, another joiner or a period word.
+_LIST_RIGHT = re.compile(r"(?:[。;,!?、]|的|和|与|及|至)")
+_SHORTHAND = re.compile(r"(?<![A-Za-z0-9_])(?P<base>[A-Z][A-Z_]*?)(?P<first>[0-9]{2})(?P<rest>(?:/[0-9]{2})+|-[0-9]{2})"
+                        r"(?![A-Za-z0-9_.%‰元美港币万亿倍页行段条节章版期号])")
+_QUANT_DAYS = re.compile(r"(?<![A-Za-z0-9_])QUANT(?:[ \t]*(?:仅|为|是|的|:))?[ \t]*([1-9][0-9]{0,2})(?:个交易日|交易日|日)"
+                         r"(?![A-Za-z0-9_.%‰元美港币万亿倍均线移平])")
+_INDICATOR = re.compile(r"(?<![A-Za-z0-9_.])([1-9][0-9]{0,2})[ \t]*(EMA|SMA)(?![A-Za-z0-9_])", re.I)
+_SOURCE_INDICATOR = re.compile(r"(?<![0-9])([1-9][0-9]{0,2})[ _-]?(ema|sma)(?![A-Za-z])", re.I)
 
 
 def _wrapping(char):
@@ -163,8 +189,11 @@ def _wrapping(char):
 class DeliveryContext(narrative.NarrativeContext):
     """Keep unresolved evidence local and visible; never invent a locator."""
 
-    def __init__(self, draft, calculations, sources, report, request, *, legacy=False):
+    def __init__(self, draft, calculations, sources, report, request, *, legacy=False, contract=1):
         super().__init__(draft, calculations, sources, [], request)
+        if contract not in (1, 2):
+            raise ValueError("RESEARCH_NUMBER_CONTRACT_INVALID")
+        self.contract = contract
         self.findings = []
         self.locations = {}
         self._field = ""
@@ -199,15 +228,26 @@ class DeliveryContext(narrative.NarrativeContext):
                 "start": e["start"], "end": e["end"], "matching": "catalog"} for e in evidence_catalog(sources)}
 
     def _literal(self, text):
-        for token in self._classify(self._checked(text)):
+        for token in self.unbound_numbers(text):
             self._finding(token, "UNBOUND_RESEARCH_NUMBER_PENDING")
         return narrative._escape(text)
 
     def unbound_numbers(self, text):
-        """Pending numerals in one prose segment; value positions still raise."""
-        return self._classify(self._checked(text))
+        """Pending numerals in one prose segment; value positions still raise.
 
-    def _checked(self, text):
+        Contract 2 only removes recognized labels from contract 1's pending
+        list. Refusals and every other pending numeral are exactly contract 1's.
+        """
+        pending = self._classify(self._checked(text))
+        if self.contract < 2 or not pending:
+            return pending
+        try:
+            kept = set(self._classify(self._checked(text, labels=True), labels=True))
+        except ValueError:
+            return pending
+        return [token for token in pending if token in kept]
+
+    def _checked(self, text, labels=False):
         checked = unicodedata.normalize("NFKC", text)
         # Classify complete time labels, not their digits in isolation. The
         # source text is returned unchanged and still is not a verified fact.
@@ -283,9 +323,84 @@ class DeliveryContext(narrative.NarrativeContext):
         checked = enumeration.sub("所列方面", checked)
         heading = re.compile(r"(?<![\u4e00-\u9fffA-Za-z0-9_.=＝])[一二两三四五六七八九十]{1,3}点提醒[:：]")
         checked = heading.sub(lambda m: m[0] if value_position(m) else "所列提醒：", checked)
+        if labels:
+            checked = self._identifier_labels(checked, quant_days)
         return checked
 
-    def _classify(self, checked):
+    def _unit(self):
+        currencies = "|".join(re.escape(c) for c in {self.draft["reporting_currency"], self.draft["price_currency"]} if c)
+        return re.compile(_UNIT_AFTER + (r"|(?:" + currencies + r")" if currencies else "") + r")", re.I)
+
+    @staticmethod
+    def _sides(text, start, end):
+        left, right = text[:start], text[end:]
+        while left and _wrapping(left[-1]):
+            left = left[:-1]
+        while right and _wrapping(right[0]):
+            right = right[1:]
+        return left, right
+
+    def _valued(self, left, right, small):
+        """The same wide value-position test that _classify applies to numerals."""
+        return bool(self._unit().match(right) or _EXPLICIT.search(left) or _DISTANT.search(left)
+                    or re.match(_NARROW_VALUE_WORDS, right)
+                    or (_ADJACENT.search(left) and not (small and _COUNT.match(right))))
+
+    def _identifier_labels(self, checked, quant_days):
+        """Contract 2: source-proven identifiers written in shorthand; never an amount position."""
+        def guarded(match, text):
+            # Positions refer to the string being substituted, not an earlier version.
+            return self._valued(*self._sides(text, match.start(), match.end()), small=True)
+
+        def shorthand(m):
+            base, first, rest = m["base"], m["first"], m["rest"]
+            if rest.startswith("-"):
+                low, high = int(first), int(rest[1:])
+                numbers = [f"{n:02d}" for n in range(low, high + 1)] if low < high <= low + 9 else []
+            else:
+                numbers = [first, *rest[1:].split("/")]
+            expanded = [base + n for n in numbers]
+            if (not expanded or len(set(expanded)) != len(expanded) or any(e not in self.sources for e in expanded)
+                    or guarded(m, checked)):
+                return m[0]
+            return "、".join(expanded)
+        checked = _SHORTHAND.sub(shorthand, checked)
+        checked = _QUANT_DAYS.sub(lambda m: "QUANT的已注明预测期限" if "QUANT" in self.sources
+            and m[1] in quant_days and not guarded(m, checked) else m[0], checked)
+        proven = {(n, kind.upper()) for source in self.sources.values()
+                  for n, kind in _SOURCE_INDICATOR.findall(unicodedata.normalize("NFKC", source["content"]))}
+        return _INDICATOR.sub(lambda m: "资料中的技术指标" if (m[1], m[2].upper()) in proven
+            and not guarded(m, checked) else m[0], checked)
+
+    def _label(self, match, clean, left, right, label_ends):
+        """Contract 2: the end of a time label among numerals no hard check refused, else None."""
+        letters, digits, suffix = match["letters"], match["digits"], match["suffix"]
+        if match["percent"]:
+            return None
+        if letters == "H" and digits in ("1", "2") and not suffix:
+            return match.end()  # a half-year label, not a quantity
+        if letters or len(digits) != 4 or not digits.isdigit() or not 1990 <= int(digits) <= 2099:
+            return None
+        if suffix:
+            return match.end() if re.fullmatch(r"Q[1-4]|H[12]", suffix) else None
+        if _EXPLICIT.search(left) or _DISTANT.search(left) or _ADJACENT.search(left):
+            return None
+        word = _PERIOD_WORD.match(right)
+        period = word is not None and not (re.match(r"[0-9]", right[word.end():]) or self._unit().match(right[word.end():]))
+        join = _LIST_JOIN.search(left)
+        if join is not None:
+            head = left[:join.start()]
+            while head and _wrapping(head[-1]):
+                head = head[:-1]
+            if len(head) in label_ends or head.endswith(("所述期间", "所述年度")):
+                if period:
+                    return len(clean) - len(right) + word.end()
+                return match.end() if right == "" or _LIST_RIGHT.match(right) else None
+        if period and (left == "" or _LABEL_LEFT.search(left)):
+            return len(clean) - len(right) + word.end()
+        return None
+
+    def _classify(self, checked, labels=False):
         """Refuse numerals in value positions; return the other unbound ones.
 
         Value positions are a financial or change word before the number, a
@@ -315,6 +430,7 @@ class DeliveryContext(narrative.NarrativeContext):
                         or (_ADJACENT.search(left) and not (small and _COUNT.match(right))))
 
         scan = clean
+        label_ends = set()
         for match in _ISO_DATE.finditer(clean):
             left, right = sides(match.start(), match.end())
             if unit.match(right) or _EXPLICIT.search(left) or _ADJACENT.search(left):
@@ -340,6 +456,10 @@ class DeliveryContext(narrative.NarrativeContext):
                                 else valued(left, right, small=len(digits) <= 3)))
             if hard:
                 raise ValueError("UNBOUND_RESEARCH_NUMBER")
+            end = self._label(match, clean, left, right, label_ends) if labels else None
+            if end is not None:
+                label_ends.add(end)
+                continue
             pending.append(match[0])
         for match in narrative._CN_AMOUNT.finditer(clean):
             token = match[0]
@@ -396,8 +516,8 @@ class DeliveryContext(narrative.NarrativeContext):
             "findings": deepcopy(self.findings), "bindings": bindings}
 
 
-def report_context(report, draft, calculations, sources, request, *, changes, beliefs, legacy=False):
-    context = DeliveryContext(draft, calculations, sources, report, request, legacy=legacy)
+def report_context(report, draft, calculations, sources, request, *, changes, beliefs, legacy=False, contract=1):
+    context = DeliveryContext(draft, calculations, sources, report, request, legacy=legacy, contract=contract)
 
     def block(value, field):
         context._field = field

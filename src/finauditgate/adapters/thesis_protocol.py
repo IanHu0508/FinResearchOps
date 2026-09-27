@@ -345,7 +345,7 @@ class ThesisSession:
         if protocol_version >= 11:
             from finauditgate.adapters.thesis_correction import correction_schemas
             self.types.update(correction_schemas(self.types, bound=protocol_version >= 13, selected=protocol_version >= 14))
-        if protocol_version == 17:
+        if protocol_version >= 17:
             from .thesis_analysts import schemas as analyst_schemas
             self.types.update(analyst_schemas())
         self.analyst_reports = {}
@@ -362,15 +362,16 @@ class ThesisSession:
         self.exchanges = []
         self.completed, self.capture = completed, capture
         if protocol_version >= 16:
-            from .thesis_recovery import RecoveryState
-            self.recovery = RecoveryState(completed.recovery_state if completed else None)
+            from .thesis_recovery import RecoveryState, policy_for
+            self.recovery = RecoveryState(completed.recovery_state if completed else None,
+                                          policy=policy_for(protocol_version))
 
     def corpus(self, state, *, include_analysts=True):
         # Generated analyst prose can already contain a directional thesis.
         # Give researchers and managers the original observations, not another
         # model's supposedly neutral summary of them.
         payload = {"request": research_request_view(self.request), "source_bundle": source_view(self.bundle)}
-        if self.protocol_version == 17 and include_analysts:
+        if self.protocol_version >= 17 and include_analysts:
             from .thesis_analysts import ANALYSTS as all_analysts
             if set(self.analyst_reports) != set(all_analysts):
                 raise ValueError("THESIS_ANALYST_REPORTS_INCOMPLETE")
@@ -390,7 +391,7 @@ class ThesisSession:
             prompt[0]["content"] += FORWARD_LANGUAGE
         elif kind == "IndependentAssessment":
             prompt[0]["content"] += "\n完整对象必须同时含beliefs和decision。先给2至4条有证据和反证条件的信念，再给本次独立评级及简短理由；不能只返回decision，不重复写另一份投资总论。"
-        elif self.protocol_version == 17 and kind == "ResearchEvaluation":
+        elif self.protocol_version >= 17 and kind == "ResearchEvaluation":
             legacy_prompt = deepcopy(prompt)
             prompt[0]["content"] += (
                 "\nassessments的claim_id应逐项使用updated_claims中的原编号："
@@ -525,7 +526,7 @@ class ThesisSession:
             payload["updated_claims"] = self.updated_claims()
             if node == "Research Manager":
                 value = self.ask(node, "ResearchEvaluation", "依据原始资料和更新后的论点重新研究，不统计多空票数。对每个论点给 use/conditional/reject 和实质理由，撤回论点不得直接作为证实事实。生成研究计划；评级是你这次推理的输出。说明价格隐含的预期、估值依据和缺口。缺少持仓不能推断零仓位。", payload, config)
-                if self.protocol_version != 17:
+                if self.protocol_version < 17:
                     self.coverage(value["assessments"], [c["id"] for c in payload["updated_claims"]])
                 self.research = value
                 structured = value["plan"]
@@ -665,14 +666,14 @@ class ThesisSession:
     def install(self, graph):
         from langchain_core.runnables import RunnableLambda
 
-        if self.protocol_version == 17:
+        if self.protocol_version >= 17:
             from .thesis_analysts import ANALYSTS as analyst_fields, instruction, render_analyst, validate_report
         else:
             analyst_fields = ANALYSTS
 
         def analyst(node):
             def run(state, config):
-                if self.protocol_version == 17:
+                if self.protocol_version >= 17:
                     from langchain_core.messages import AIMessage
                     value = self.ask(node, "AnalystReport", instruction(node),
                                      self.corpus(state, include_analysts=False), config)

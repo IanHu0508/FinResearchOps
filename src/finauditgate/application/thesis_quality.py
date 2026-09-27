@@ -11,7 +11,7 @@ import re
 from finauditgate.core.artifacts import canonical_json_bytes, sha256_hex
 from finauditgate.core.forward_revision import apply_forward_revision, COMMON_FIELDS, SCENARIO_FIELDS
 from .research_changes import parameter_change_facts
-from .research_delivery import final_source_view, normalize_report, report_context
+from .research_delivery import contract_for, final_source_view, normalize_report, report_context
 from .research_narrative import change_view
 
 
@@ -305,7 +305,8 @@ def apply_revision(record, assessment, revision):
         unresolved = [i for i in findings if i in substantive and outcomes[i] == "unresolved"]
     # All financial quantities still pass the same numeric/source contracts.
     context = report_context(result["final_report"], result["effective_forward_draft"], result["effective_forward_calculations"],
-        record["source_bundle"], record["request"], changes=change_view(record["applied_changes"]), beliefs=record["forward_revision"]["belief_updates"])
+        record["source_bundle"], record["request"], changes=change_view(record["applied_changes"]), beliefs=record["forward_revision"]["belief_updates"],
+        contract=contract_for(record))
     _reason_prose(record, revision, result, context)
     result["evidence_check"] = context.evidence_check()
     result["unresolved_findings"] = unresolved
@@ -395,7 +396,8 @@ def render_report(record, review):
     display = deepcopy(record)
     display.update({k: deepcopy(effective[k]) for k in ("final_report", "effective_forward_draft", "effective_forward_calculations", "evidence_check")})
     context = report_context(display["final_report"], display["effective_forward_draft"], display["effective_forward_calculations"],
-        display["source_bundle"], display["request"], changes=change_view(record["applied_changes"]), beliefs=record["forward_revision"]["belief_updates"])
+        display["source_bundle"], display["request"], changes=change_view(record["applied_changes"]), beliefs=record["forward_revision"]["belief_updates"],
+        contract=contract_for(record))
     reason_rows = _reason_prose(record, review["revision"], effective, context)
     # The old before/after tables belong to the original chain. Display this
     # aftercare's effective-to-effective change, while preserving original Case.
@@ -436,14 +438,14 @@ def render_report(record, review):
     meanings = ["", "## 参数性质与计算含义（程序提供）", "", *_table(("情景", "参数", "取值", "依据性质"), rows), "",
                 *["- " + value for value in MEANINGS.values()]]
     rendered = (header + body + "\n".join(meanings) + "\n\n## 引用原文\n\n" + "\n\n".join(footnotes)).encode()
-    if record["schema_version"] == "finresearchops.thesis-case/v17":
+    if record["schema_version"] in ("finresearchops.thesis-case/v17", "finresearchops.thesis-case/v18"):
         from .thesis_report_v17 import supplement
         rendered += supplement(display)
     return rendered
 
 
 def render_process(record, review):
-    if record["schema_version"] == "finresearchops.thesis-case/v17":
+    if record["schema_version"] in ("finresearchops.thesis-case/v17", "finresearchops.thesis-case/v18"):
         from .thesis_report_v17 import render_process as original_process
     else:
         from .thesis_report_v16 import render_process as original_process

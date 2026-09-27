@@ -13,6 +13,12 @@ from finauditgate.core.artifacts import canonical_json_bytes
 
 POLICY = "thesis-stage-recovery/v2"
 REASONS = {"MISSING_REASON", "EMPTY_RESPONSE", "LENGTH", "READ_TIMEOUT", "CONNECTION"}
+# v3 (protocol 18) adds proven format failures: an unparseable answer is asked
+# again with the same prompt; an out-of-vocabulary basis label is repaired alone.
+POLICY_V3 = "thesis-stage-recovery/v3"
+REASONS_V3 = REASONS | {"UNPARSEABLE", "ENUM_INVALID"}
+_ROW_KEYS = {"node", "kind", "reason", "missing_reason_paths", "failed_run_id", "retry_run_id", "retry_effort"}
+_TRANSPORT_REASONS = {"CONNECTION", "READ_TIMEOUT"}
 TRANSPORT = {"OpenAITimeoutError": "READ_TIMEOUT", "APITimeoutError": "READ_TIMEOUT", "ReadTimeout": "READ_TIMEOUT",
              "OpenAIConnectionError": "CONNECTION", "APIConnectionError": "CONNECTION",
              "RemoteProtocolError": "CONNECTION", "ConnectError": "CONNECTION", "ReadError": "CONNECTION"}
@@ -221,7 +227,11 @@ def validate_stage_tag(call, kind, dependencies):
         raise ValueError("THESIS_STAGE_TAG_INVALID")
 
 
-def failure_reason(call, candidate=None, errors=(), kind=None):
+def policy_for(protocol_version):
+    return POLICY_V3 if protocol_version >= 18 else POLICY
+
+
+def failure_reason(call, candidate=None, errors=(), kind=None, *, protocol_version=16):
     if is_length(call):
         return "LENGTH", []
     choices = (call.get("failure_response") or {}).get("provider_response", {}).get("choices", [])
@@ -231,6 +241,10 @@ def failure_reason(call, candidate=None, errors=(), kind=None):
         return TRANSPORT[call["error_type"]], []
     if is_empty(call) and not call.get("error_type"):
         return "EMPTY_RESPONSE", []
+    if protocol_version >= 18:
+        # Decided from the saved call alone, exactly as the Case reader does.
+        from .thesis_format import format_failure
+        return format_failure(call, kind) if kind is not None else (None, [])
     paths = missing_reason_paths(candidate, kind)
     if (paths and errors and not call.get("error_type") and all(e.get("type") == "missing" for e in errors)
             and {tuple(e["loc"]) for e in errors} == {tuple(p) for p in paths}):
@@ -238,12 +252,19 @@ def failure_reason(call, candidate=None, errors=(), kind=None):
     return None, []
 
 
+def _chained(policy):
+    """Reasons that may follow one transport retry of the same stage."""
+    return {"MISSING_REASON", "UNPARSEABLE", "ENUM_INVALID"} if policy == POLICY_V3 else {"MISSING_REASON"}
+
+
 class RecoveryState:
-    def __init__(self, value=None):
+    def __init__(self, value=None, *, policy=POLICY):
         self.value = deepcopy(value) if value is not None else {
-            "policy": POLICY, "max_extra_calls": 2, "max_per_stage": 2, "attempts": [], "halted": None,
+            "policy": policy, "max_extra_calls": 2, "max_per_stage": 2, "attempts": [], "halted": None,
             "retired_final_calls": []}
         validate_state(self.value)
+        if self.value["policy"] != policy:
+            raise ValueError("THESIS_RECOVERY_STATE_INVALID")
 
     def assert_open(self, node, kind):
         halted = self.value["halted"]
@@ -254,8 +275,8 @@ class RecoveryState:
         attempts = self.value["attempts"]
         prior = [a for a in attempts if (a["node"], a["kind"]) == (node, kind)]
         return len(attempts) < 2 and (not prior or (
-            len(prior) == 1 and prior[0]["reason"] in {"CONNECTION", "READ_TIMEOUT"}
-            and reason == "MISSING_REASON" and prior[0]["retry_run_id"] == failed_call["run_id"]))
+            len(prior) == 1 and prior[0]["reason"] in _TRANSPORT_REASONS
+            and reason in _chained(self.value["policy"]) and prior[0]["retry_run_id"] == failed_call["run_id"]))
 
     def reserve(self, node, kind, failed_call, reason, paths, first_effort):
         attempts = self.value["attempts"]
@@ -265,6 +286,9 @@ class RecoveryState:
         entry = {"node": node, "kind": kind, "reason": reason, "missing_reason_paths": deepcopy(paths),
                  "failed_run_id": failed_call["run_id"], "retry_run_id": None,
                  "retry_effort": "high" if reason == "LENGTH" else first_effort}
+        if self.value["policy"] == POLICY_V3:
+            entry["missing_reason_paths"] = deepcopy(paths) if reason == "MISSING_REASON" else []
+            entry["enum_paths"] = deepcopy(paths) if reason == "ENUM_INVALID" else []
         attempts.append(entry)
         return entry
 
@@ -277,23 +301,27 @@ class RecoveryState:
 
 def validate_state(state):
     if (not isinstance(state, dict) or set(state) != {"policy", "max_extra_calls", "max_per_stage", "attempts", "halted", "retired_final_calls"}
-            or state["policy"] != POLICY or type(state["max_extra_calls"]) is not int or state["max_extra_calls"] != 2
+            or state["policy"] not in (POLICY, POLICY_V3) or type(state["max_extra_calls"]) is not int or state["max_extra_calls"] != 2
             or type(state["max_per_stage"]) is not int or state["max_per_stage"] != 2
             or not isinstance(state["attempts"], list) or len(state["attempts"]) > 2
             or not isinstance(state["retired_final_calls"], list) or len(state["retired_final_calls"]) not in (0, 2, 3)):
         raise ValueError("THESIS_RECOVERY_STATE_INVALID")
+    current = state["policy"] == POLICY_V3
     seen = {}
     for row in state["attempts"]:
-        if (not isinstance(row, dict) or set(row) != {"node", "kind", "reason", "missing_reason_paths", "failed_run_id", "retry_run_id", "retry_effort"}
+        if (not isinstance(row, dict) or set(row) != (_ROW_KEYS | {"enum_paths"} if current else _ROW_KEYS)
                 or any(not isinstance(row[k], str) or not row[k] for k in ("node", "kind", "failed_run_id", "retry_effort"))
-                or row["reason"] not in REASONS or not isinstance(row["missing_reason_paths"], list)
+                or row["reason"] not in (REASONS_V3 if current else REASONS) or not isinstance(row["missing_reason_paths"], list)
                 or (row["retry_run_id"] is not None and not isinstance(row["retry_run_id"], str))
+                or (current and (not isinstance(row["enum_paths"], list)
+                    or (row["reason"] != "MISSING_REASON" and row["missing_reason_paths"])
+                    or (row["reason"] != "ENUM_INVALID" and row["enum_paths"])))
                 ):
             raise ValueError("THESIS_RECOVERY_STATE_INVALID")
         key = (row["node"], row["kind"])
         if key in seen:
             previous = seen[key]
-            if (previous["reason"] not in {"CONNECTION", "READ_TIMEOUT"} or row["reason"] != "MISSING_REASON"
+            if (previous["reason"] not in _TRANSPORT_REASONS or row["reason"] not in _chained(state["policy"])
                     or previous["retry_run_id"] is None or previous["retry_run_id"] != row["failed_run_id"]):
                 raise ValueError("THESIS_RECOVERY_STATE_INVALID")
         seen[key] = row
@@ -310,10 +338,14 @@ def validate_state(state):
             raise ValueError("THESIS_RECOVERY_RETIRED_FINAL_INVALID")
 
 
-def validate_recoveries(calls, state, *, complete=False):
+def validate_recoveries(calls, state, *, complete=False, protocol_version=16):
     """Bind each recovery to the failed and retried raw calls, without Pydantic."""
     from .thesis_responses import response_candidate
     validate_state(state)
+    if state["policy"] != policy_for(protocol_version):
+        raise ValueError("THESIS_RECOVERY_STATE_INVALID")
+    if protocol_version >= 18:
+        return _validate_v3(calls, state, complete)
     if complete and state["halted"] is not None:
         raise ValueError("THESIS_RECOVERY_HALTED_CASE")
     combined = [*state["retired_final_calls"], *calls]
@@ -375,6 +407,73 @@ def validate_recoveries(calls, state, *, complete=False):
     return excluded, dependencies
 
 
+def _validate_v3(calls, state, complete):
+    """Policy v3: every failure is re-proven from its saved call by the live rule."""
+    from .thesis_format import check_enum_repair, enum_repair_messages
+    from .thesis_responses import response_candidate
+    if complete and state["halted"] is not None:
+        raise ValueError("THESIS_RECOVERY_HALTED_CASE")
+    combined = [*state["retired_final_calls"], *calls]
+    by_id = {c["run_id"]: (i, c) for i, c in enumerate(combined)}
+    if len(by_id) != len(combined):
+        raise ValueError("THESIS_RECOVERY_CALL_BINDING_INVALID")
+    excluded, dependencies = set(), {}
+    for row in state["attempts"]:
+        if row["failed_run_id"] not in by_id:
+            raise ValueError("THESIS_RECOVERY_CALL_BINDING_INVALID")
+        first_i, failed = by_id[row["failed_run_id"]]
+        if failed["node"] != row["node"]:
+            raise ValueError("THESIS_RECOVERY_CALL_BINDING_INVALID")
+        stage = failed.get("thesis_stage")
+        expected_attempt = dependencies[row["failed_run_id"]]["thesis_stage"]["attempt"] + 1 if row["failed_run_id"] in dependencies else 1
+        if (not isinstance(stage, dict) or stage.get("kind") != row["kind"] or stage.get("attempt") != expected_attempt
+                or row["retry_effort"] != ("high" if row["reason"] == "LENGTH" else stage.get("reasoning_effort"))):
+            raise ValueError("THESIS_RECOVERY_EFFORT_INVALID")
+        actual, paths = failure_reason(failed, kind=row["kind"], protocol_version=18)
+        if actual != row["reason"] or paths != (row["missing_reason_paths"] or row["enum_paths"]):
+            raise ValueError("THESIS_RECOVERY_FAILURE_NOT_PROVEN")
+        if row["reason"] == "LENGTH" and retained_length_outputs(failed) is not None:
+            raise ValueError("THESIS_COMPLETE_ANSWER_CANNOT_BE_RETRIED")
+        # An unparseable answer is asked again with the unchanged prompt.
+        expected, previous = call_messages(failed), None
+        if row["reason"] == "MISSING_REASON":
+            previous = response_candidate(failed["output"], row["kind"], protocol_version=18)
+            expected = repair_messages(expected, previous, paths)
+        elif row["reason"] == "ENUM_INVALID":
+            previous = response_candidate(failed["output"], row["kind"], protocol_version=18)
+            expected = enum_repair_messages(expected, row["kind"], previous, paths)
+        excluded.add(row["failed_run_id"])
+        retry_id = row["retry_run_id"]
+        if retry_id is None:
+            if complete:
+                raise ValueError("THESIS_RECOVERY_INCOMPLETE")
+            continue
+        if retry_id not in by_id:
+            raise ValueError("THESIS_RECOVERY_CALL_BINDING_INVALID")
+        retry_i, retry = by_id[retry_id]
+        if retry_i != first_i + 1 or retry["node"] != row["node"]:
+            raise ValueError("THESIS_RECOVERY_CALL_BINDING_INVALID")
+        if retry.get("thesis_stage") != {"kind": row["kind"], "attempt": expected_attempt + 1, "reasoning_effort": row["retry_effort"]}:
+            raise ValueError("THESIS_RECOVERY_EFFORT_INVALID")
+        if call_messages(retry) != expected:
+            raise ValueError("THESIS_RECOVERY_INPUT_CHANGED")
+        if successful_call(retry) and retry.get("output") and previous is not None:
+            try:
+                after = response_candidate(retry["output"], row["kind"], protocol_version=18)
+                if row["reason"] == "MISSING_REASON":
+                    check_missing_repair(previous, after, paths, row["kind"])
+                else:
+                    check_enum_repair(previous, after, paths, row["kind"])
+            except (ValueError, TypeError, KeyError):
+                if complete:
+                    raise
+                excluded.add(retry_id)
+        if complete and (not successful_call(retry) or not retry.get("output")):
+            raise ValueError("THESIS_RECOVERY_INCOMPLETE")
+        dependencies[retry_id] = failed
+    return excluded, dependencies
+
+
 def validate_budget_reservations(checkpoint, calls, state, prior_reuse=None):
     """Check an independent reserve lower bound from the saved request bodies."""
     if checkpoint is None:
@@ -392,7 +491,7 @@ def validate_budget_reservations(checkpoint, calls, state, prior_reuse=None):
         size = len(canonical_json_bytes(call["messages"]))
         return (Decimal(size + 8192) * rate_in + Decimal(maximum) * rate_out) / Decimal(1000000)
     lower = sum((reserve(c) for c in known), Decimal(0)) + (receipt["calls"] - len(known)) * base
-    if prior_reuse and prior_reuse.get("budget_origin") in ("SAME_V16_FLOW", "SAME_V17_FLOW"):
+    if prior_reuse and prior_reuse.get("budget_origin") in ("SAME_V16_FLOW", "SAME_V17_FLOW", "SAME_V18_FLOW"):
         prior = prior_reuse["prior_budget"]
         previous_ids = set(prior_reuse["prior_model_run_ids"])
         new = [c for c in known if c["run_id"] not in previous_ids]

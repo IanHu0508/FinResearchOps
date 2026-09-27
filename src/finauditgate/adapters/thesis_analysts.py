@@ -16,7 +16,7 @@ _RISKS = ("Aggressive Analyst", "Conservative Analyst", "Neutral Analyst")
 
 
 def main_stages(version):
-    if type(version) is not int or version not in (10, 11, 13, 16, 17):
+    if type(version) is not int or version not in (10, 11, 13, 16, 17, 18):
         raise ValueError("THESIS_PROTOCOL_VERSION_INVALID")
     stages = [(node, "InitialBrief") for node in _RESEARCHERS]
     stages += [(node, "RevisionBrief") for node in _RESEARCHERS]
@@ -25,7 +25,7 @@ def main_stages(version):
     stages += [("Portfolio Manager", "IndependentAssessment"), ("Portfolio Manager", "UnderwritingDraft")]
     stages += ([("Portfolio Manager", "FinalAssessment")] if version == 10 else
                [("Portfolio Manager", "ForwardRevision"), ("Portfolio Manager", "FinalResearchReport")])
-    return [(node, "AnalystReport") for node in ANALYSTS] + stages if version == 17 else stages
+    return [(node, "AnalystReport") for node in ANALYSTS] + stages if version >= 17 else stages
 
 
 def expected_topology():

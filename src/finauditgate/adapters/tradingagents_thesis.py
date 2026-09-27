@@ -7,12 +7,29 @@ from pathlib import Path
 
 from finauditgate.adapters.thesis_protocol import ThesisSession, validate_sources
 from finauditgate.adapters.thesis_responses import CompletedCalls
-from finauditgate.adapters.thesis_recovery import RecoveryState
+from finauditgate.adapters.thesis_recovery import RecoveryState, policy_for
 from finauditgate.adapters.tradingagents_native import (
     REPORT_FIELDS, UPSTREAM_COMMIT, _capture_handler, _topology,
 )
 from finauditgate.core.artifacts import canonical_json_bytes, sha256_hex, write_once
 from finauditgate.research import thesis_request
+
+
+def resume_protocol(resume_from, default):
+    """A resumed current runtime keeps the protocol it started with; new runs use default."""
+    path = Path(resume_from) / "runtime-receipt.json" if resume_from is not None else None
+    if path is None or not path.is_file():
+        return default
+    raw = path.read_bytes()
+    if len(raw) > 32 * 1024 * 1024:
+        raise ValueError("THESIS_RESUME_RECEIPT_TOO_LARGE")
+    data = json.loads(raw)
+    if data.get("schema_version") != "finresearchops.thesis-runtime/v3":
+        return default
+    version = data.get("protocol_version")
+    if version not in (16, 17, 18) or (version == 16) != (default == 16):
+        raise ValueError("THESIS_RESUME_PROTOCOL_MISMATCH")
+    return version
 
 
 class ThesisResearcher:
@@ -24,11 +41,11 @@ class ThesisResearcher:
         self.resume_from = resume_from
         self.reassess_final = reassess_final
         self.replay_presentation_failure = replay_presentation_failure
-        if type(fetch_news_social) is not bool or (fetch_news_social and protocol_version != 17):
+        if type(fetch_news_social) is not bool or (fetch_news_social and protocol_version not in (17, 18)):
             raise ValueError("THESIS_FETCH_REQUIRES_FOUR_ANALYSTS")
         self.fetch_news_social, self.source_collector = fetch_news_social, source_collector
         self.last_acquisition_path = None
-        if protocol_version not in (10, 11, 13, 16, 17):
+        if protocol_version not in (10, 11, 13, 16, 17, 18):
             raise ValueError("THESIS_PROTOCOL_VERSION_INVALID")
         self.protocol_version = protocol_version
 
@@ -41,7 +58,7 @@ class ThesisResearcher:
             raise ValueError("NATIVE_UPSTREAM_VERSION_MISMATCH")
         root = Path(output_root)
         request = thesis_request(command)
-        if self.protocol_version == 17 and command.sources is None:
+        if self.protocol_version >= 17 and command.sources is None:
             raise ValueError("THESIS_FOUR_ANALYSTS_REQUIRE_FROZEN_SOURCES")
         bundle = deepcopy(command.sources) if command.sources is not None else {
             "schema_version": "finresearchops.thesis-sources/v2", "symbol": request["symbol"],
@@ -100,7 +117,7 @@ class ThesisResearcher:
         session = None
         try:
             with tracing_context(enabled=False):
-                if self.protocol_version == 17:
+                if self.protocol_version >= 17:
                     from .thesis_analysts import KEYS, REPORT_FIELDS as report_fields
                     selected_analysts = list(KEYS)
                 else:
@@ -142,7 +159,7 @@ class ThesisResearcher:
                     "model_calls": capture.model_calls, "tool_calls": capture.tool_calls,
                     "budget": self.budget.receipt() if live else None,
                     "financial_gate": "NOT_REQUIRED", "automatic_trading": False}
-                if self.protocol_version == 17:
+                if self.protocol_version >= 17:
                     record["analyst_reports"] = deepcopy(session.analyst_reports)
                 if self.protocol_version >= 11:
                     record.pop("final_assessment")
@@ -190,7 +207,8 @@ class ThesisResearcher:
         finally:
             if http is not None:
                 http.close()
-            recovery_state = session.recovery.snapshot() if session and self.protocol_version >= 16 else RecoveryState(completed.recovery_state).snapshot()
+            recovery_state = (session.recovery.snapshot() if session and self.protocol_version >= 16 else
+                RecoveryState(completed.recovery_state, policy=policy_for(self.protocol_version)).snapshot())
             if self.protocol_version >= 16:
                 completed.complete_checkpoint_calls(capture, recovery_state)
             write_once(root / "runtime-receipt.json", canonical_json_bytes({

@@ -20,7 +20,10 @@ def response_candidate(outputs, kind, *, protocol_version=13):
             merged.update(args)
         if protocol_version >= 16:
             from .thesis_recovery import normalize_role
-            return normalize_role(merged, kind)
+            merged = normalize_role(merged, kind)
+        if protocol_version >= 18:
+            from .thesis_format import normalize_format
+            merged = normalize_format(merged, kind)
         return merged
     if len(outputs) != 1:
         raise ValueError("THESIS_RESPONSE_COUNT_INVALID")
@@ -54,6 +57,9 @@ def response_candidate(outputs, kind, *, protocol_version=13):
     if kind == "AnalystReport":
         from .thesis_analysts import normalize_limits
         candidate = normalize_limits(candidate)
+    if protocol_version >= 18:
+        from .thesis_format import normalize_format
+        candidate = normalize_format(candidate, kind)
     return candidate
 
 
@@ -125,7 +131,7 @@ class CompletedCalls:
 
     def __init__(self, root, request, sources, model, *, reassess_final=False, protocol_version=10,
                  replay_presentation_failure=False):
-        if protocol_version not in (10, 11, 13, 16, 17):
+        if protocol_version not in (10, 11, 13, 16, 17, 18):
             raise ValueError("THESIS_PROTOCOL_VERSION_INVALID")
         self.rows = []
         self.used = 0
@@ -150,7 +156,7 @@ class CompletedCalls:
         current = data.get("schema_version") == "finresearchops.thesis-runtime/v3"
         self.current_runtime = current
         if (data.get("schema_version") not in ("finresearchops.thesis-runtime/v1", "finresearchops.thesis-runtime/v3")
-                or (current and (protocol_version not in (16, 17) or data.get("protocol_version") != protocol_version))
+                or (current and (protocol_version not in (16, 17, 18) or data.get("protocol_version") != protocol_version))
                 or original != {"request": request, "sources": sources}):
             raise ValueError("THESIS_RESUME_INPUT_MISMATCH")
         excluded = set()
@@ -161,7 +167,8 @@ class CompletedCalls:
             if ((self.budget_checkpoint is None) != (data["budget"] is None)
                     or (self.budget_checkpoint is not None and self.budget_checkpoint.get("receipt") != data["budget"])):
                 raise ValueError("THESIS_RESUME_BUDGET_BINDING_INVALID")
-            excluded, self._recovery_dependencies = validate_recoveries(data["model_calls"], self.recovery_state)
+            excluded, self._recovery_dependencies = validate_recoveries(data["model_calls"], self.recovery_state,
+                                                                        protocol_version=protocol_version)
             validate_budget_reservations(self.budget_checkpoint, data["model_calls"], self.recovery_state, data.get("reused_calls"))
             self._prior_calls = deepcopy(data["model_calls"])
             if reassess_final and self.recovery_state["halted"] is None and not self.recovery_state["retired_final_calls"]:
@@ -179,7 +186,7 @@ class CompletedCalls:
             types.update(correction_schemas(types, bound=protocol_version >= 13, selected=protocol_version >= 14))
         from .thesis_analysts import main_stages
         stages = main_stages(protocol_version)
-        if protocol_version == 17:
+        if protocol_version >= 17:
             from .thesis_analysts import schemas as analyst_schemas
             types.update(analyst_schemas())
         if reassess_final:
@@ -221,7 +228,7 @@ class CompletedCalls:
                             if len(parsed[key]) != len(expected) or {r[field] for r in parsed[key]} != set(expected):
                                 raise ValueError("THESIS_RESUME_INCOMPLETE_REVISION")
                         from .thesis_correction import valid_belief_updates
-                        if not valid_belief_updates(parsed["belief_updates"], allow_maintain_restatement=protocol_version == 17):
+                        if not valid_belief_updates(parsed["belief_updates"], allow_maintain_restatement=protocol_version >= 17):
                             raise ValueError("THESIS_RESUME_INCOMPLETE_REVISION")
                     if kind == "FinalResearchReport":
                         from finauditgate.application.research_numbers import render_research_block
@@ -232,7 +239,8 @@ class CompletedCalls:
                             if selected:
                                 from finauditgate.application.research_delivery import report_context
                             report_context(parsed, payload["effective_forward_draft"], payload["effective_forward_calculations"], sources, request,
-                                changes=payload["change_context"], beliefs=payload["research_resolution"]["belief_updates"])
+                                changes=payload["change_context"], beliefs=payload["research_resolution"]["belief_updates"],
+                                **({"contract": 2} if protocol_version >= 18 else {}))
                         expected = [s["scenario_id"] for s in payload["effective_forward_draft"]["scenarios"]]
                         given = parsed["scenario_assessments"]
                         if len(given) != len(expected) or {r["scenario_id"] for r in given} != set(expected):
@@ -331,7 +339,7 @@ class CompletedCalls:
         if protocol_version >= 13:
             self.receipt["prefix_stop"] = prefix_stop
         if current:
-            self.receipt["budget_origin"] = "SAME_V17_FLOW" if protocol_version == 17 else "SAME_V16_FLOW"
+            self.receipt["budget_origin"] = f"SAME_V{protocol_version}_FLOW"
             self.receipt["prior_model_run_ids"] = [c["run_id"] for c in [*data["recovery"]["retired_final_calls"], *data["model_calls"]]]
 
     def _dependencies(self, row):

@@ -100,7 +100,7 @@ def _parser() -> argparse.ArgumentParser:
     _add_optional_trace_root(inspect)
 
     formal = subparsers.add_parser("render-research-report",
-        help="Write the formal readable research report of one saved v16/v17 thesis Case; no model or network call.")
+        help="Write the formal readable research report of one saved v16/v17/v18 thesis Case; no model or network call.")
     formal.add_argument("--case-ref", required=True)
     _add_optional_trace_root(formal)
 
@@ -332,8 +332,10 @@ def _execute(arguments: argparse.Namespace) -> int:
             budget = ModelBudget(ceiling_cny=None if arguments.max_spend_cny == "unlimited" else arguments.max_spend_cny,
                 input_per_million="3" if flash else "9", output_per_million="9" if flash else "27",
                 max_calls=24, max_input_bytes=524288, max_output_tokens=arguments.max_output_tokens)
+            from finauditgate.adapters.tradingagents_thesis import resume_protocol
+            protocol = resume_protocol(resume, 18 if arguments.all_analysts or arguments.fetch_news_social else 16)
             researcher = ThesisResearcher(model=arguments.model, live=True, budget=budget,
-                                           protocol_version=17 if arguments.all_analysts or arguments.fetch_news_social else 16,
+                                           protocol_version=protocol,
                                            reasoning_effort=arguments.reasoning_effort, resume_from=resume,
                                            reassess_final=arguments.reassess_final,
                                            replay_presentation_failure=arguments.replay_presentation_failure,

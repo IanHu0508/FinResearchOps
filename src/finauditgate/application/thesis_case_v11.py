@@ -27,10 +27,12 @@ def _coverage(rows, ids, key):
 
 
 def validate(record):
-    full_analysts = record.get("schema_version") == "finresearchops.thesis-case/v17"
+    current = record.get("schema_version") == "finresearchops.thesis-case/v18"
+    full_analysts = current or record.get("schema_version") == "finresearchops.thesis-case/v17"
     selected = full_analysts or record.get("schema_version") == "finresearchops.thesis-case/v16"
+    protocol = 18 if current else 16
     bound = selected or record.get("schema_version") == "finresearchops.thesis-case/v13"
-    if (record.get("schema_version") not in ("finresearchops.thesis-case/v11", "finresearchops.thesis-case/v13", "finresearchops.thesis-case/v16", "finresearchops.thesis-case/v17")
+    if (record.get("schema_version") not in ("finresearchops.thesis-case/v11", "finresearchops.thesis-case/v13", "finresearchops.thesis-case/v16", "finresearchops.thesis-case/v17", "finresearchops.thesis-case/v18")
             or record.get("status") not in (("COMPLETED", "PARTIAL") if selected else ("COMPLETED",)) or record.get("review_status") != "AWAITING_REVIEW"
             or record.get("financial_gate") != "NOT_REQUIRED" or record.get("automatic_trading") is not False
             or record.get("sensitivity_policy") != "DECLARED_SCENARIOS_REPORT_ONLY"):
@@ -58,7 +60,8 @@ def validate(record):
     excluded = set()
     if selected:
         from finauditgate.adapters.thesis_recovery import successful_call, validate_recoveries, validate_stage_tag
-        excluded, dependencies = validate_recoveries(record["model_calls"], record["recovery"], complete=True)
+        excluded, dependencies = validate_recoveries(record["model_calls"], record["recovery"], complete=True,
+                                                     protocol_version=protocol)
     order = []
     for exchange in exchanges:
         matches = [(i, c) for i, c in enumerate(record["model_calls"]) if c["node"] == exchange["node"]
@@ -74,7 +77,7 @@ def validate(record):
         messages = [{"role": "user" if m["type"] == "human" else m["type"], "content": m["content"]} for m in call["messages"][0]]
         if messages != exchange["messages"]:
             raise ValueError("THESIS_INPUT_BINDING_INVALID")
-        raw_parsed = response_candidate(call["output"], exchange["kind"], protocol_version=16 if selected else 13)
+        raw_parsed = response_candidate(call["output"], exchange["kind"], protocol_version=protocol if selected else 13)
         selected_final = selected and exchange["kind"] == "FinalResearchReport"
         if selected_final:
             from finauditgate.application.research_delivery import normalize_report, final_source_view
@@ -196,7 +199,8 @@ def validate(record):
         if selected:
             from finauditgate.application.research_delivery import report_context
         context = report_context(report, draft, calc, sources, request,
-                                 changes=change_view(record["applied_changes"]), beliefs=resolution["belief_updates"])
+                                 changes=change_view(record["applied_changes"]), beliefs=resolution["belief_updates"],
+                                 **({"contract": 2 if current else 1} if selected else {}))
         if selected and (record.get("evidence_check") != context.evidence_check()
                          or record["status"] != context.evidence_check()["status"]):
             raise ValueError("THESIS_EVIDENCE_CHECK_CHANGED")
