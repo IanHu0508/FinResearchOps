@@ -2,7 +2,7 @@
 
 **Financial research workflow engineering on top of TradingAgents, plus a separate A-share quantitative-research module.**
 
-The upstream TradingAgents graph and role topology are retained. This project changes the information flow, revision process and handling of financial numbers; the Quant module is independent and does not feed the Agent workflow.
+The upstream TradingAgents graph and role topology are retained. This project changes the information flow, revision process and handling of financial numbers; the Quant module is a separate study whose frozen signal reaches the Agent workflow only as a deterministic, citable research note.
 
 ## What I changed
 

@@ -85,8 +85,8 @@ REVIEW. Every scenario still left the exit multiple empty: the model found no gu
 consensus, comparable companies or cycle-normalized earnings to calibrate one, and trailing
 earnings were distorted by non-recurring gains. Conditional prices and returns therefore remain
 uncomputed; only the price-implied break-even multiples are shown. The forward template values
-exit with a price-to-earnings multiple only, so share and balance-sheet data alone cannot produce
-a directional valuation for a cyclical company. That template limit is recorded, not changed.
+exit with a price-to-earnings multiple only; one case cannot show whether that limit is what
+keeps the rating at REVIEW.
 
 The run stopped three times on presentation, never on content, and each captured answer was
 diagnosed offline before a narrow repair and explicit replay. A bear brief added a text
