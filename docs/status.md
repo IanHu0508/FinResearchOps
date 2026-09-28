@@ -68,6 +68,25 @@ result is claimed; that narrow repair did not change the source, prompt or retry
 still reads no quant signal directly.
 
 
+### Protocol 19: schema-invalid answers asked again once — 2026-09-28
+
+Implementation and tests are COMPLETED. New four-analyst executions write
+`finresearchops.thesis-case/v19` with recovery policy `thesis-stage-recovery/v4`; resumed v16, v17 and
+v18 executions keep their recorded protocol, rules and prompts, and their readers and saved files are
+unchanged. Besides the v18 recoveries, any other schema error that the standard-library validator
+proves on the saved answer (an extra, missing or oversized field, a wrong type, or a value outside its
+vocabulary) is asked again once with the unchanged prompt and recorded as `SCHEMA_INVALID` with each proven
+error's type and path; the Case reader proves the same list again from the saved call. The frozen schema is checked before any content check, so
+content and citation checks only run on schema-valid answers. `*_note` fields holding an empty or whitespace-only string
+are dropped without a call. The v19 final instruction no longer asks to spell numbers out in words,
+because Chinese number words containing 百, 千, 万 or 亿 are refused as amounts. Per-stage and per-run
+retry limits are unchanged, and content, citation, coverage and numeric failures still halt.
+
+Core 511, integration 255 and Quant 186 checks pass. They include a date written as a date-time,
+which is asked again at its own stage while an unknown citation still halts, a second schema-invalid
+answer that halts, and checks that v18 prompts, rules and saved Cases are unchanged. Protocol 19 changes which format failures get one more attempt; it does not by itself
+establish a higher delivery rate or better research.
+
 ### Protocol 18: bounded format recovery and number contract 2 — 2026-09-27
 
 Implementation and tests are COMPLETED. New four-analyst executions write

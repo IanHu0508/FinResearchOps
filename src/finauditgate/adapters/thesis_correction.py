@@ -142,8 +142,8 @@ def complete_corrected_report(session, node, config):
     selected = session.protocol_version >= 14
     contract = 2 if session.protocol_version >= 18 else 1
     if selected:
-        from finauditgate.application.research_delivery import INSTRUCTION, INSTRUCTION_V18, final_source_view, report_context
-    narrative_instruction = ((INSTRUCTION_V18 if contract == 2 else INSTRUCTION) if selected
+        from finauditgate.application.research_delivery import final_instruction, final_source_view, report_context
+    narrative_instruction = (final_instruction(session.protocol_version) if selected
                              else NARRATIVE_INSTRUCTION if bound else "")
     payload = session.corpus({})
     payload.update(independent_beliefs=belief_view(session.independent),

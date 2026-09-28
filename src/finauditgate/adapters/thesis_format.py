@@ -1,10 +1,11 @@
-"""v18 format failures, proven from a saved answer with the standard library only.
+"""Format failures of v18/v19 answers, proven from the saved answer with the standard library only.
 
 Live stages and the Case reader call the same functions, so a retry is granted
 only when the saved first answer demonstrably cannot be used: it cannot be
-parsed, it lacks a required reason, or a basis label lies outside its
-vocabulary. Content, citation, coverage and numeric-contract failures are
-never format failures, and every other schema error still halts the stage.
+parsed, it lacks a required reason, a basis label lies outside its vocabulary,
+or (protocol 19) it violates the frozen stage schema in any other way.
+Content, citation, coverage and numeric-contract failures are never format
+failures. The stage schemas are identical in protocols 18 and 19.
 """
 
 from copy import deepcopy
@@ -98,39 +99,40 @@ def _at(value, path):
     return value
 
 
-def _drop_notes(value):
+def _drop_notes(value, blank):
     if isinstance(value, list):
         for item in value:
-            _drop_notes(item)
+            _drop_notes(item, blank)
     elif isinstance(value, dict):
         for key in [k for k in value if k.endswith("_note") and k != "_note"]:
-            stem = key[:-len("_note")]
-            if value[key] is None or (stem in value and canonical_json_bytes(value[key]) == canonical_json_bytes(value[stem])):
+            stem, note = key[:-len("_note")], value[key]
+            if (note is None or (blank and isinstance(note, str) and not note.strip())
+                    or (stem in value and canonical_json_bytes(note) == canonical_json_bytes(value[stem]))):
                 del value[key]
         for child in value.values():
-            _drop_notes(child)
+            _drop_notes(child, blank)
 
 
-def normalize_format(value, kind):
+def normalize_format(value, kind, protocol_version=18):
     """Drop `*_note` fields that are null or repeat their named sibling exactly.
 
-    No v18 schema has such a property, so these fields are always extra and
-    removing them loses no information. A note with any other content stays
-    for the schema to refuse.
+    Protocol 19 also drops empty or whitespace-only notes. No stage schema has
+    such a property, so these fields are always extra and removing them loses
+    no information. A note with any other content stays for the schema to refuse.
     """
     value = deepcopy(value)
-    _drop_notes(value)
+    _drop_notes(value, blank=protocol_version >= 19)
     return value
 
 
-def format_failure(call, kind):
-    """Why a saved v18 answer cannot be used: (reason, paths), or (None, []) for no retry."""
+def format_failure(call, kind, protocol_version=18):
+    """Why a saved v18/v19 answer cannot be used: (reason, paths), or (None, []) for no retry."""
     from .thesis_recovery import missing_reason_paths
     from .thesis_responses import response_candidate
     if call.get("error_type") or not call.get("output") or kind not in SCHEMAS:
         return None, []
     try:
-        candidate = response_candidate(call["output"], kind, protocol_version=18)
+        candidate = response_candidate(call["output"], kind, protocol_version=protocol_version)
     except json.JSONDecodeError:
         return "UNPARSEABLE", []
     except ValueError as exc:
@@ -144,7 +146,13 @@ def format_failure(call, kind):
     if paths and all(error == "missing" for error, _, _ in errors) and {p for _, p, _ in errors} == {tuple(p) for p in paths}:
         return "MISSING_REASON", paths
     paths = format_paths(candidate, kind)
-    return ("ENUM_INVALID", paths) if paths else (None, [])
+    if paths:
+        return "ENUM_INVALID", paths
+    # Protocol 19: any other proven schema error is asked again with the unchanged prompt; the
+    # recovery row keeps each (error type, path) so the reader proves exactly the same list.
+    if protocol_version >= 19:
+        return "SCHEMA_INVALID", [[error, *path] for error, path, _ in errors]
+    return None, []
 
 
 def enum_repair_messages(base, kind, candidate, paths):

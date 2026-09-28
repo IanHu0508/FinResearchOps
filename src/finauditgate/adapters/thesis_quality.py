@@ -111,8 +111,8 @@ REVISION_INSTRUCTION = (
 def _invoke(session, types, kind, instruction, payload, config, exchanges):
     from .thesis_protocol import messages
     if kind == "QualityRevision":
-        from finauditgate.application.research_delivery import INSTRUCTION, INSTRUCTION_V18
-        rules = INSTRUCTION_V18 if session.protocol_version >= 18 else INSTRUCTION
+        from finauditgate.application.research_delivery import final_instruction
+        rules = final_instruction(session.protocol_version)
         instruction = rules + "\n以上财务引用规则适用于replacement_text；本次只返回下面QualityRevision结构，不生成FinalResearchReport。\n" + instruction
     prompt = messages("Data Review Agent", instruction, payload)
     prompt[0]["content"] += "\n只返回一个完整JSON对象；不使用Markdown或工具调用。所有required字段必须存在：\n" + canonical_json_bytes(types[kind].model_json_schema()).decode()

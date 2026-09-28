@@ -38,11 +38,23 @@ INSTRUCTION_V18 = INSTRUCTION + (
     "Quant期限照QUANT说明原样写成“N个交易日”，不写“N日”。均线周期、产品型号、页码和计数等其他含数字的写法会被标为待核，"
     "能用文字表达时不写数字。这些写法只避免待核标记，不证明对应事实。"
 )
+# Protocol 19: the v18 spellings without the sentence that asked to spell numbers out,
+# which led to Chinese numerals such as 二百日 being refused as amounts.
+INSTRUCTION_V19 = INSTRUCTION + (
+    "年份写成“2025年”并与期间连写（2025年上半年、2025年前三季度、2025年第四季度、2025年全年、2025年和2026年），"
+    "不写“2025上半年”“9M”或单独的H1/H2。来源编号逐个完整写出（AUTO_NEWS01、AUTO_NEWS02），不写“01/02”“01-03”这类简写。"
+    "Quant期限照QUANT说明原样写成“N个交易日”，不写“N日”。这些写法只避免待核标记，不证明对应事实。"
+)
+
+
+def final_instruction(protocol_version):
+    """The final-report citation rules a protocol version sends; saved prompts keep theirs."""
+    return INSTRUCTION_V19 if protocol_version >= 19 else INSTRUCTION_V18 if protocol_version >= 18 else INSTRUCTION
 
 
 def contract_for(record):
     """Number contract of a saved Case: 2 from thesis-case/v18, otherwise the original 1."""
-    return 2 if record.get("schema_version") == "finresearchops.thesis-case/v18" else 1
+    return 2 if record.get("schema_version") in ("finresearchops.thesis-case/v18", "finresearchops.thesis-case/v19") else 1
 
 
 def evidence_catalog(sources):

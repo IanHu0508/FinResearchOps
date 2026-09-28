@@ -68,7 +68,11 @@ checked with number contract 2, which only removes listed time and source-identi
 the pending findings and changes no refusal;
 `reused_calls.budget_origin` is `SAME_V18_FLOW`, and presentation replay is not available.
 
-`finresearchops.research-report/v1` and `/v2` are the formal reading layouts of a v16/v17/v18 Case
+Case v19 (`thesis-case.v19.schema.json`) keeps the v18 shape with recovery policy `thesis-stage-recovery/v4`,
+which adds reason `SCHEMA_INVALID`: any other schema error the validator proves is asked again once with the
+unchanged prompt, and the attempt row lists the proven errors (type and path) in `schema_errors`. `reused_calls.budget_origin` is `SAME_V19_FLOW`; number contract 2 applies as in v18.
+
+`finresearchops.research-report/v1` and `/v2` are the formal reading layouts of a v16-v19 Case
 (new Cases write v2, which lists citation findings and unbound-number findings apart on the
 cover, notice and appendix; v1 files stay as saved):
 `research-report.md` plus `research-report.html`, written at save or later by the offline
@@ -81,7 +85,7 @@ byte for byte, refusing unknown or mismatched versions. The Markdown is written 
 interrupted HTML-only write is treated as absent and is completed in the HTML's version. Layout is
 not financial approval.
 
-In v16/v17/v18 `evidence_check.findings`, reason `UNBOUND_RESEARCH_NUMBER_PENDING` records a
+In v16-v19 `evidence_check.findings`, reason `UNBOUND_RESEARCH_NUMBER_PENDING` records a
 numeral the program did not bind that is not in a value position (for example an unregistered
 label or technical version). The finding shape and schema are unchanged; the Case is saved as
 `PARTIAL` instead of halting. Numerals in value positions still refuse the final answer.

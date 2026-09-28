@@ -20,6 +20,7 @@ from test_four_analyst_flow import CONSTRAINT, HYPOTHESIS, USER_VIEW, FourAnalys
 from test_research_numbers import inputs
 from test_thesis_correction import support
 from finauditgate.adapters.thesis_format import schema_errors
+from finauditgate.application.research_delivery import final_instruction
 from finauditgate.adapters.thesis_responses import CompletedCalls
 from finauditgate.adapters.thesis_schemas_v18 import SCHEMAS
 from finauditgate.adapters.tradingagents_thesis import ThesisResearcher, resume_protocol
@@ -65,6 +66,18 @@ class FormatDriftLLM(FourAnalystLLM):
             value["beliefs"][1]["belief_id_note"] = value["beliefs"][1]["belief_id"]
         elif self.drift == "labels_in_prose":
             value["summary"]["text"] += "2025上半年的经营变化仍需核对，H2资料尚未披露。"
+        elif self.drift == "action_note":
+            value["proposal"]["action_note"] = "SYNTHETIC：该动作仅为过程提案，不作为最终经理的硬门槛。"
+        elif self.drift == "missing_refs":
+            del value["evidence_refs"]
+        elif self.drift == "blank_note":
+            for claim in value["claims"]:
+                claim["claims_note"] = ""
+        elif self.drift in ("lax_date", "lax_date_bad_ref", "bad_ref"):
+            if self.drift != "bad_ref":
+                value["forecast_start"] += "T00:00:00"
+            if self.drift != "lax_date":
+                value["scenarios"][0]["revenue"]["evidence_refs"].append("S99_SYNTHETIC_UNKNOWN")
         return self._result(json.dumps(value, ensure_ascii=False))
 
 
@@ -102,6 +115,7 @@ class ProtocolV18FlowTest(unittest.TestCase):
         self.assertEqual(17, len(record["model_calls"]))
         final = [r for r in model.requests if r["schema"] == "FinalResearchReport"]
         self.assertIn("年份写成“2025年”并与期间连写", final[0]["text"])
+        self.assertIn(final_instruction(18), final[0]["text"])
         self.assertEqual(view, app.read_case(view.case_ref))
         repo = Path(__file__).parents[1]
         script = ("import sys;from pathlib import Path;from finauditgate.application import FinResearchOps;"
@@ -222,7 +236,7 @@ class ProtocolV18FlowTest(unittest.TestCase):
         self.assertEqual("COMPLETED", view.review["status"])
         self.assertEqual("quality-report.md", Path(view.delivery_report_path).name)
         revision = next(r for r in model.requests if r["schema"] == "QualityRevision")
-        self.assertIn("年份写成“2025年”并与期间连写", revision["text"])
+        self.assertIn(final_instruction(18), revision["text"])
         self.assertEqual(view, app.read_case(view.case_ref))
 
     def test_standard_library_and_pydantic_agree_on_boundary_values(self):

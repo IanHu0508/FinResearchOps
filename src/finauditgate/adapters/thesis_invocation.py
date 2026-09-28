@@ -5,13 +5,19 @@ import re
 from time import sleep
 
 from .thesis_recovery import check_missing_repair, failure_reason, repair_messages, retained_length_outputs
-from .thesis_format import check_enum_repair, enum_repair_messages
+from .thesis_format import check_enum_repair, enum_repair_messages, schema_errors
+from .thesis_schemas_v18 import SCHEMAS
 from .thesis_responses import response_candidate
 
 
 def _parse(session, raw, kind):
     candidate = response_candidate([{"content": raw.content, "tool_calls": raw.tool_calls}], kind,
                                    protocol_version=max(16, session.protocol_version))
+    if session.protocol_version >= 19 and kind in SCHEMAS and schema_errors(kind, candidate):
+        # Pydantic accepts some spellings the frozen schema refuses (a date-time for a date, a
+        # numeric string for a number). Refuse them here, as the reader would, so content and
+        # citation checks only ever run on schema-valid answers.
+        raise ValueError("THESIS_STAGE_SCHEMA_INVALID")
     value = session.types[kind].model_validate(candidate).model_dump(mode="json")
     if kind == "FinalResearchReport":
         from finauditgate.application.research_delivery import normalize_report

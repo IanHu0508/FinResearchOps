@@ -20,7 +20,7 @@ STATUS = {"maintain": "维持", "revise": "修改", "withdraw": "撤回", "unres
 
 def validate(record):
     """Check protocol receipt bindings without certifying the financial opinion."""
-    if isinstance(record, dict) and record.get("schema_version") in ("finresearchops.thesis-case/v11", "finresearchops.thesis-case/v13", "finresearchops.thesis-case/v16", "finresearchops.thesis-case/v17", "finresearchops.thesis-case/v18"):
+    if isinstance(record, dict) and record.get("schema_version") in ("finresearchops.thesis-case/v11", "finresearchops.thesis-case/v13", "finresearchops.thesis-case/v16", "finresearchops.thesis-case/v17", "finresearchops.thesis-case/v18", "finresearchops.thesis-case/v19"):
         from finauditgate.application.thesis_case_v11 import validate as validate_v11
         return validate_v11(record)
     if (not isinstance(record, dict) or record.get("schema_version") not in ("finresearchops.thesis-case/v1", "finresearchops.thesis-case/v2", "finresearchops.thesis-case/v10")
@@ -168,7 +168,7 @@ def validate(record):
 
 
 def render(record):
-    if record["schema_version"] in ("finresearchops.thesis-case/v17", "finresearchops.thesis-case/v18"):
+    if record["schema_version"] in ("finresearchops.thesis-case/v17", "finresearchops.thesis-case/v18", "finresearchops.thesis-case/v19"):
         from finauditgate.application.thesis_report_v17 import render as render_v17
         return render_v17(record)
     if record["schema_version"] == "finresearchops.thesis-case/v16":
@@ -308,8 +308,8 @@ def run(application, command):
         write_once(directory / "case.json", raw)
         report = render(record)
         write_once(directory / "report.md", report)
-        if record["schema_version"] in ("finresearchops.thesis-case/v11", "finresearchops.thesis-case/v13", "finresearchops.thesis-case/v16", "finresearchops.thesis-case/v17", "finresearchops.thesis-case/v18"):
-            if record["schema_version"] in ("finresearchops.thesis-case/v17", "finresearchops.thesis-case/v18"):
+        if record["schema_version"] in ("finresearchops.thesis-case/v11", "finresearchops.thesis-case/v13", "finresearchops.thesis-case/v16", "finresearchops.thesis-case/v17", "finresearchops.thesis-case/v18", "finresearchops.thesis-case/v19"):
+            if record["schema_version"] in ("finresearchops.thesis-case/v17", "finresearchops.thesis-case/v18", "finresearchops.thesis-case/v19"):
                 from finauditgate.application.thesis_report_v17 import render_process
             elif record["schema_version"] == "finresearchops.thesis-case/v16":
                 from finauditgate.application.thesis_report_v16 import render_process
@@ -425,8 +425,8 @@ def load(application, case_ref):
         validate(record)
         if (directory / "report.md").read_bytes() != render(record):
             raise ValueError("THESIS_REPORT_CHANGED")
-        if record["schema_version"] in ("finresearchops.thesis-case/v11", "finresearchops.thesis-case/v13", "finresearchops.thesis-case/v16", "finresearchops.thesis-case/v17", "finresearchops.thesis-case/v18"):
-            if record["schema_version"] in ("finresearchops.thesis-case/v17", "finresearchops.thesis-case/v18"):
+        if record["schema_version"] in ("finresearchops.thesis-case/v11", "finresearchops.thesis-case/v13", "finresearchops.thesis-case/v16", "finresearchops.thesis-case/v17", "finresearchops.thesis-case/v18", "finresearchops.thesis-case/v19"):
+            if record["schema_version"] in ("finresearchops.thesis-case/v17", "finresearchops.thesis-case/v18", "finresearchops.thesis-case/v19"):
                 from finauditgate.application.thesis_report_v17 import render_process
             elif record["schema_version"] == "finresearchops.thesis-case/v16":
                 from finauditgate.application.thesis_report_v16 import render_process

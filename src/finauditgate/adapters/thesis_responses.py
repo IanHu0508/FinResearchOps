@@ -23,7 +23,7 @@ def response_candidate(outputs, kind, *, protocol_version=13):
             merged = normalize_role(merged, kind)
         if protocol_version >= 18:
             from .thesis_format import normalize_format
-            merged = normalize_format(merged, kind)
+            merged = normalize_format(merged, kind, protocol_version)
         return merged
     if len(outputs) != 1:
         raise ValueError("THESIS_RESPONSE_COUNT_INVALID")
@@ -59,7 +59,7 @@ def response_candidate(outputs, kind, *, protocol_version=13):
         candidate = normalize_limits(candidate)
     if protocol_version >= 18:
         from .thesis_format import normalize_format
-        candidate = normalize_format(candidate, kind)
+        candidate = normalize_format(candidate, kind, protocol_version)
     return candidate
 
 
@@ -131,7 +131,7 @@ class CompletedCalls:
 
     def __init__(self, root, request, sources, model, *, reassess_final=False, protocol_version=10,
                  replay_presentation_failure=False):
-        if protocol_version not in (10, 11, 13, 16, 17, 18):
+        if protocol_version not in (10, 11, 13, 16, 17, 18, 19):
             raise ValueError("THESIS_PROTOCOL_VERSION_INVALID")
         self.rows = []
         self.used = 0
@@ -156,7 +156,7 @@ class CompletedCalls:
         current = data.get("schema_version") == "finresearchops.thesis-runtime/v3"
         self.current_runtime = current
         if (data.get("schema_version") not in ("finresearchops.thesis-runtime/v1", "finresearchops.thesis-runtime/v3")
-                or (current and (protocol_version not in (16, 17, 18) or data.get("protocol_version") != protocol_version))
+                or (current and (protocol_version not in (16, 17, 18, 19) or data.get("protocol_version") != protocol_version))
                 or original != {"request": request, "sources": sources}):
             raise ValueError("THESIS_RESUME_INPUT_MISMATCH")
         excluded = set()
