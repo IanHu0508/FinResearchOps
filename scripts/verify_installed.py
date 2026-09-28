@@ -22,9 +22,11 @@ def main():
     env = {key: value for key, value in os.environ.items() if key not in ("PYTHONPATH", "PYTHONHOME")}
     with tempfile.TemporaryDirectory(prefix="finresearchops-installed-") as directory:
         root = Path(directory)
-        for name in ("tests", "fixtures", "schemas", "scripts", "manifests"):
+        for name in ("tests", "fixtures", "schemas", "scripts", "manifests", "docs"):
             shutil.copytree(REPOSITORY / name, root / name, ignore=shutil.ignore_patterns("__pycache__"))
-        shutil.copy2(REPOSITORY / "pyproject.toml", root / "pyproject.toml")
+        # Documents only: tests/test_readme_results.py checks README against docs/status.md.
+        for name in ("pyproject.toml", "README.md"):
+            shutil.copy2(REPOSITORY / name, root / name)
         assert not (root / "src").exists()
         probe = subprocess.run([str(interpreter), "-I", "-c",
             "import pathlib,finauditgate; print(pathlib.Path(finauditgate.__file__).resolve().parent)"],
