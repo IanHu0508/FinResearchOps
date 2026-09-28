@@ -1,6 +1,6 @@
 # FinResearchOps
 
-**A financial-research workflow on top of TradingAgents in which forward numbers are recomputed by the program and every model step can be re-proven from saved evidence, plus a separate A-share quantitative-research module.**
+**An auditable multi-agent research workflow on TradingAgents in which forward numbers are recomputed by the program and every model step can be re-proven from saved evidence, together with a preregistered A-share quantitative research study whose frozen signal reaches the agents as citable evidence.**
 
 The upstream TradingAgents graph and role topology are kept. This project changes what each role sees, how opinions are revised and how financial numbers reach the report. Models propose; validators decide; people approve.
 
@@ -10,9 +10,9 @@ The upstream TradingAgents graph and role topology are kept. This project change
 - **Numbers come from calculations or sources.** Forward assumptions are stored as parameters and recalculated in Python (attribution, EPS, cash bridge, conditional valuation). The final report cites them as `{{metric:F1:eps_per_traded_unit}}` and historical figures as evidence blocks such as `{{source:E0001}}`; a bare number in a value position is refused rather than saved.
 - **Replayable Cases.** Each Case is content-addressed and keeps requests, raw model calls, failed answers and budget receipts. The Case reader re-proves every binding with the Python standard library only.
 - **Bounded, proven recovery.** Transport failures, truncation and unparseable or schema-invalid answers each have a proof rule and a one-time allowance, decided identically at run time and on reopen. Protocol 20 continues past a non-critical analyst or trader failure with an explicit placeholder (the Case is saved PARTIAL) and rewrites at most five refused final-report sentences once.
-- **Quant evidence as a citable note.** The separate Quant module's frozen signal reaches the Agent workflow only as a deterministic research note; it produces no rating, probability or trade instruction.
+- **Preregistered A-share quant research.** Each date's universe is rebuilt from dated security identities rather than today's survivors. Sixty-session price-volume paths and market state predict 20-session forward-return ranks, with unknown outcomes kept as intervals, and purged date splits keep labels from leaking. Ridge, XGBoost and GRU are compared with and without market context in a four-stage preregistered study in which every final-period forecast is persisted and replayed exactly before performance is revealed. The frozen signal reaches the agents as a deterministic, citable research note.
 
-The offline workflow, contracts and replay are complete; end-to-end delivery with real models is still being iterated. These controls narrow specific failure modes; they do not establish that the model's investment judgment is correct.
+Model ratings stay proposals until a person reviews them.
 
 ## Example: a financial correction changes EPS, not consolidated cash flow
 
@@ -23,17 +23,28 @@ The public offline demo applies a minority-interest correction through the curre
 | EPS | 1.7 | 1.3 |
 | Consolidated operating cash flow | 16 | 16 |
 
-An intentionally unbound forecast number is rejected instead of being saved into the report. The example is synthetic and demonstrates workflow behavior, not model quality or investment performance.
+An intentionally unbound forecast number is rejected instead of being saved into the report. The example is synthetic; it shows how the workflow keeps report numbers tied to calculations.
 
 [Run the offline demo](#try-the-current-research-workflow-offline) ·
 [Research workflow](docs/thesis-research.md) ·
 [Current status](docs/status.md)
 
-## Separate A-share Quant module
+## A-share quant research
 
-The independent [Quant module](quant/README.md) defines 60-session market inputs, 20-session forward-return targets, purged date splits, stock-only/context ablations, Rank IC evaluation and versioned research signals.
+The [Quant module](quant/README.md) asks which price-volume paths tend to persist or reverse under different market states, and whether sequence models add out-of-sample information beyond engineered features and tree models.
 
-The data pipeline resolves dated security identities before constructing historical universes and uses full-universe rank intervals when outcomes remain unknown. An earlier ticker-alias failure and its invalidated outputs are retained in the research history. See [current research results and limitations](docs/status.md) for the fixed window, model and final-period comparisons, and the distinction between public code and private execution artifacts.
+| Stage | What it does |
+| --- | --- |
+| Data | Raw daily acquisition into a normalized private store; security identities are resolved by date and historical universes are built as they were, without survivorship backfill |
+| Features | 60-session price-volume paths; trend, risk, activity and liquidity proxies; contemporaneous market state and relative strength |
+| Labels | Holding return from the next session's open to the 20th session's close, ranked within the complete eligible pool; unknown outcomes stay rank intervals |
+| Splits and models | Date-level splits with label-end and availability purges; preprocessing fitted on training dates only; Ridge, XGBoost and GRU, each stock-only and with market context |
+| Evaluation | Conservative full-pool Rank IC identification bounds, HAC intervals and fixed market-regime breakdowns, recomputed from persisted daily metrics |
+| Agent integration | Date-bounded scoring reads only records up to the scoring date; versioned signals bind the fingerprint of the scoring input; a deterministic research note enters the agents as a citable source |
+
+The preregistered study runs in four stages: data admission and freeze; a registered comparison of training windows decided by a preset Rank IC lower-bound rule; annual development candidates; and a final period with annual refits, in which every forecast is persisted and replayed exactly before a one-way performance reveal. Candidates, samples and directions are fixed before performance is seen. The final-period results for all six models and the complete research history are in [project status](docs/status.md#previous-slice-completed-fixed-research-study--2026-09-22).
+
+This repository distributes the data, label, split and evaluation contracts, the XGBoost adapter and synthetic tests; real-data runs and the Ridge/GRU fitters stay in the private research workspace.
 
 ## TradingAgents research integration
 
