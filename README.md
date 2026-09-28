@@ -1,18 +1,18 @@
 # FinResearchOps
 
-**Financial research workflow engineering on top of TradingAgents, plus a separate A-share quantitative-research module.**
+**A financial-research workflow on top of TradingAgents in which forward numbers are recomputed by the program and every model step can be re-proven from saved evidence, plus a separate A-share quantitative-research module.**
 
-The upstream TradingAgents graph and role topology are retained. This project changes the information flow, revision process and handling of financial numbers; the Quant module is a separate study whose frozen signal reaches the Agent workflow only as a deterministic, citable research note.
+The upstream TradingAgents graph and role topology are kept. This project changes what each role sees, how opinions are revised and how financial numbers reach the report. Models propose; validators decide; people approve.
 
-## What I changed
+## Highlights
 
-- Bull and bear researchers write independent first drafts from the same source material, then respond to each other's sealed draft.
-- The final assessment does not inherit earlier ratings or trader-defined thresholds.
-- Forward assumptions are stored explicitly and recalculated in Python before the final report is produced.
-- Report figures reference the effective recalculated outputs rather than free-form numbers copied by the model.
-- Saved cases, traces and failed outputs can be reopened or replayed for review.
+- **Independent drafts, then rebuttal.** Bull and bear researchers write first drafts from the same sources and then answer each other's sealed draft. The portfolio manager forms a source-only initial view, and the final assessment inherits no earlier rating or trader-defined threshold.
+- **Numbers come from calculations or sources.** Forward assumptions are stored as parameters and recalculated in Python (attribution, EPS, cash bridge, conditional valuation). The final report cites them as `{{metric:F1:eps_per_traded_unit}}` and historical figures as evidence blocks such as `{{source:E0001}}`; a bare number in a value position is refused rather than saved.
+- **Replayable Cases.** Each Case is content-addressed and keeps requests, raw model calls, failed answers and budget receipts. The Case reader re-proves every binding with the Python standard library only.
+- **Bounded, proven recovery.** Transport failures, truncation and unparseable or schema-invalid answers each have a proof rule and a one-time allowance, decided identically at run time and on reopen. Protocol 20 continues past a non-critical analyst or trader failure with an explicit placeholder (the Case is saved PARTIAL) and rewrites at most five refused final-report sentences once.
+- **Quant evidence as a citable note.** The separate Quant module's frozen signal reaches the Agent workflow only as a deterministic research note; it produces no rating, probability or trade instruction.
 
-These controls narrow specific failure modes; they do not establish that the model's investment judgment is correct.
+The offline workflow, contracts and replay are complete; end-to-end delivery with real models is still being iterated. These controls narrow specific failure modes; they do not establish that the model's investment judgment is correct.
 
 ## Example: a financial correction changes EPS, not consolidated cash flow
 
@@ -45,7 +45,7 @@ Models can give an actual rating or `REVIEW` when there is no defensible rating.
 Each newly saved Case includes a formal research report (`research-report.md` / `.html`)
 laid out like a conventional company report, with numbered citations and a compact
 appendix; the complete workpaper and process record stay alongside it for review.
-Earlier v16/v17 Cases can add it offline with `render-research-report`.
+Earlier v16-v20 Cases can add it offline with `render-research-report`.
 
 Use `--fetch-news-social --sources <base.json>` to acquire dated A-share news/events
 and public investor discussions before the four-analyst flow. The supplied base
