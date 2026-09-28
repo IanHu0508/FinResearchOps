@@ -7,7 +7,10 @@ it must be safe to publish.
 
 1. `docs/status.md` is the only status source in this repository. Do not
    restate status, test counts, hashes, or verdicts in other documents;
-   link here instead.
+   link here instead. One exception: the README first screen may quote the
+   headline research results already recorded there (the final-period Quant
+   Rank IC bounds and their scale), rounded but otherwise unchanged and linked
+   to their section. `tests/test_readme_results.py` keeps the two equal.
 2. `docs/architecture.md` describes the mechanism; `docs/cli.md` the CLI;
    `docs/runbook-private-case.md` how to run one real case.
 

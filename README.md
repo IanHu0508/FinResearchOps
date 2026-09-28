@@ -4,6 +4,18 @@
 
 The upstream TradingAgents graph and role topology are kept. This project changes what each role sees, how opinions are revised and how financial numbers reach the report. Models propose; validators decide; people approve.
 
+### Quant results: final period 2024–2025
+
+Preregistered study with annual refits over 485 trading days and 2,424,608 stock-days; every forecast was persisted and replayed exactly before the one-way performance reveal. Mean Rank IC identification bounds:
+
+| Model | Stock-only | With market context |
+| --- | ---: | ---: |
+| Ridge | 0.1147–0.1162 | 0.1234–0.1249 |
+| XGBoost | 0.1241–0.1256 | 0.1329–0.1344 |
+| GRU | 0.1091–0.1106 | 0.1353–0.1366 |
+
+All six models had positive annual mean IC bounds, and market context raised every model family. The bounds reflect unknown outcomes; they are not confidence intervals or returns. [Full results](docs/status.md#previous-slice-completed-fixed-research-study--2026-09-22)
+
 ## Highlights
 
 - **Independent drafts, then rebuttal.** Bull and bear researchers write first drafts from the same sources and then answer each other's sealed draft. The portfolio manager forms a source-only initial view, and the final assessment inherits no earlier rating or trader-defined threshold.
@@ -42,7 +54,7 @@ The [Quant module](quant/README.md) asks which price-volume paths tend to persis
 | Evaluation | Conservative full-pool Rank IC identification bounds, HAC intervals and fixed market-regime breakdowns, recomputed from persisted daily metrics |
 | Agent integration | Date-bounded scoring reads only records up to the scoring date; versioned signals bind the fingerprint of the scoring input; a deterministic research note enters the agents as a citable source |
 
-The preregistered study runs in four stages: data admission and freeze; a registered comparison of training windows decided by a preset Rank IC lower-bound rule; annual development candidates; and a final period with annual refits, in which every forecast is persisted and replayed exactly before a one-way performance reveal. Candidates, samples and directions are fixed before performance is seen. The final-period results for all six models and the complete research history are in [project status](docs/status.md#previous-slice-completed-fixed-research-study--2026-09-22).
+The preregistered study runs in four stages: data admission and freeze; a registered comparison of training windows decided by a preset Rank IC lower-bound rule; annual development candidates; and a final period with annual refits, in which every forecast is persisted and replayed exactly before a one-way performance reveal. Candidates, samples and directions are fixed before performance is seen. The complete results and research history are in [project status](docs/status.md#previous-slice-completed-fixed-research-study--2026-09-22).
 
 This repository distributes the data, label, split and evaluation contracts, the XGBoost adapter and synthetic tests; real-data runs and the Ridge/GRU fitters stay in the private research workspace.
 
