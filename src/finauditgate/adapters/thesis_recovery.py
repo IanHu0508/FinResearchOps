@@ -7,6 +7,7 @@ visible in the saved call; a valid answer is never rejected for its conclusion.
 from copy import deepcopy
 from decimal import Decimal
 import json
+import re
 
 from finauditgate.core.artifacts import canonical_json_bytes
 
@@ -20,8 +21,16 @@ REASONS_V3 = REASONS | {"UNPARSEABLE", "ENUM_INVALID"}
 # v4 (protocol 19): any other schema error the validator proves is also asked again unchanged.
 POLICY_V4 = "thesis-stage-recovery/v4"
 REASONS_V4 = REASONS_V3 | {"SCHEMA_INVALID"}
+# v5 (protocol 20): three extra calls per run; one NUMBER_REPAIR of the final report after
+# any earlier final recovery; non-critical stages proven unusable are listed in "degraded".
+POLICY_V5 = "thesis-stage-recovery/v5"
+REASONS_V5 = REASONS_V4 | {"NUMBER_REPAIR"}
 _FORMAT_REASONS = {POLICY: {"MISSING_REASON"}, POLICY_V3: {"MISSING_REASON", "UNPARSEABLE", "ENUM_INVALID"},
-                   POLICY_V4: {"MISSING_REASON", "UNPARSEABLE", "ENUM_INVALID", "SCHEMA_INVALID"}}
+                   POLICY_V4: {"MISSING_REASON", "UNPARSEABLE", "ENUM_INVALID", "SCHEMA_INVALID"},
+                   POLICY_V5: {"MISSING_REASON", "UNPARSEABLE", "ENUM_INVALID", "SCHEMA_INVALID"}}
+_REASONS = {POLICY: REASONS, POLICY_V3: REASONS_V3, POLICY_V4: REASONS_V4, POLICY_V5: REASONS_V5}
+_STATE_KEYS = {"policy", "max_extra_calls", "max_per_stage", "attempts", "halted", "retired_final_calls"}
+FINAL = ("Portfolio Manager", "FinalResearchReport")
 _ROW_KEYS = {"node", "kind", "reason", "missing_reason_paths", "failed_run_id", "retry_run_id", "retry_effort"}
 _TRANSPORT_REASONS = {"CONNECTION", "READ_TIMEOUT"}
 TRANSPORT = {"OpenAITimeoutError": "READ_TIMEOUT", "APITimeoutError": "READ_TIMEOUT", "ReadTimeout": "READ_TIMEOUT",
@@ -233,7 +242,12 @@ def validate_stage_tag(call, kind, dependencies):
 
 
 def policy_for(protocol_version):
-    return POLICY_V4 if protocol_version >= 19 else POLICY_V3 if protocol_version >= 18 else POLICY
+    return (POLICY_V5 if protocol_version >= 20 else POLICY_V4 if protocol_version >= 19
+            else POLICY_V3 if protocol_version >= 18 else POLICY)
+
+
+def extra_call_limit(policy):
+    return 3 if policy == POLICY_V5 else 2
 
 
 def failure_reason(call, candidate=None, errors=(), kind=None, *, protocol_version=16):
@@ -265,8 +279,8 @@ def _chained(policy):
 class RecoveryState:
     def __init__(self, value=None, *, policy=POLICY):
         self.value = deepcopy(value) if value is not None else {
-            "policy": policy, "max_extra_calls": 2, "max_per_stage": 2, "attempts": [], "halted": None,
-            "retired_final_calls": []}
+            "policy": policy, "max_extra_calls": extra_call_limit(policy), "max_per_stage": 2, "attempts": [], "halted": None,
+            "retired_final_calls": [], **({"degraded": []} if policy == POLICY_V5 else {})}
         validate_state(self.value)
         if self.value["policy"] != policy:
             raise ValueError("THESIS_RECOVERY_STATE_INVALID")
@@ -278,8 +292,13 @@ class RecoveryState:
 
     def may_reserve(self, node, kind, failed_call, reason):
         attempts = self.value["attempts"]
+        if len(attempts) >= extra_call_limit(self.value["policy"]):
+            return False
+        if reason == "NUMBER_REPAIR":
+            return (self.value["policy"] == POLICY_V5 and (node, kind) == FINAL
+                    and not any(a["reason"] == "NUMBER_REPAIR" for a in attempts))
         prior = [a for a in attempts if (a["node"], a["kind"]) == (node, kind)]
-        return len(attempts) < 2 and (not prior or (
+        return (not prior or (
             len(prior) == 1 and prior[0]["reason"] in _TRANSPORT_REASONS
             and reason in _chained(self.value["policy"]) and prior[0]["retry_run_id"] == failed_call["run_id"]))
 
@@ -290,14 +309,25 @@ class RecoveryState:
             raise ValueError("THESIS_STAGE_RECOVERY_EXHAUSTED")
         entry = {"node": node, "kind": kind, "reason": reason, "missing_reason_paths": deepcopy(paths),
                  "failed_run_id": failed_call["run_id"], "retry_run_id": None,
-                 "retry_effort": "high" if reason == "LENGTH" else first_effort}
+                 "retry_effort": "high" if reason in ("LENGTH", "NUMBER_REPAIR") else first_effort}
         if self.value["policy"] != POLICY:
             entry["missing_reason_paths"] = deepcopy(paths) if reason == "MISSING_REASON" else []
             entry["enum_paths"] = deepcopy(paths) if reason == "ENUM_INVALID" else []
-        if self.value["policy"] == POLICY_V4:
+        if self.value["policy"] in (POLICY_V4, POLICY_V5):
             entry["schema_errors"] = deepcopy(paths) if reason == "SCHEMA_INVALID" else []
+        if self.value["policy"] == POLICY_V5:
+            entry["number_sentences"] = deepcopy(paths) if reason == "NUMBER_REPAIR" else []
         attempts.append(entry)
         return entry
+
+    def degrade(self, node, kind, reason, run_ids):
+        """Record a non-critical stage left out after its saved answers were proven unusable."""
+        if self.value["policy"] != POLICY_V5:
+            raise ValueError("THESIS_RECOVERY_STATE_INVALID")
+        if self.value["halted"] is not None and (self.value["halted"]["node"], self.value["halted"]["kind"]) == (node, kind):
+            self.value["halted"] = None
+        self.value["degraded"].append({"node": node, "kind": kind, "reason": reason, "run_ids": list(run_ids)})
+        validate_state(self.value)
 
     def halt(self, node, kind, reason):
         self.value["halted"] = {"node": node, "kind": kind, "reason": reason}
@@ -307,46 +337,107 @@ class RecoveryState:
 
 
 def validate_state(state):
-    if (not isinstance(state, dict) or set(state) != {"policy", "max_extra_calls", "max_per_stage", "attempts", "halted", "retired_final_calls"}
-            or state["policy"] not in (POLICY, POLICY_V3, POLICY_V4) or type(state["max_extra_calls"]) is not int or state["max_extra_calls"] != 2
+    if (not isinstance(state, dict) or state.get("policy") not in _REASONS
+            or set(state) != (_STATE_KEYS | {"degraded"} if state["policy"] == POLICY_V5 else _STATE_KEYS)
+            or type(state["max_extra_calls"]) is not int or state["max_extra_calls"] != extra_call_limit(state["policy"])
             or type(state["max_per_stage"]) is not int or state["max_per_stage"] != 2
-            or not isinstance(state["attempts"], list) or len(state["attempts"]) > 2
+            or not isinstance(state["attempts"], list) or len(state["attempts"]) > extra_call_limit(state["policy"])
             or not isinstance(state["retired_final_calls"], list) or len(state["retired_final_calls"]) not in (0, 2, 3)):
         raise ValueError("THESIS_RECOVERY_STATE_INVALID")
     current = state["policy"] != POLICY
     seen = {}
     for row in state["attempts"]:
-        keys = _ROW_KEYS | {"enum_paths", "schema_errors"} if state["policy"] == POLICY_V4 else _ROW_KEYS | {"enum_paths"} if current else _ROW_KEYS
+        keys = {POLICY: _ROW_KEYS, POLICY_V3: _ROW_KEYS | {"enum_paths"}, POLICY_V4: _ROW_KEYS | {"enum_paths", "schema_errors"},
+                POLICY_V5: _ROW_KEYS | {"enum_paths", "schema_errors", "number_sentences"}}[state["policy"]]
         if (not isinstance(row, dict) or set(row) != keys
                 or any(not isinstance(row[k], str) or not row[k] for k in ("node", "kind", "failed_run_id", "retry_effort"))
-                or row["reason"] not in {POLICY: REASONS, POLICY_V3: REASONS_V3, POLICY_V4: REASONS_V4}[state["policy"]]
+                or row["reason"] not in _REASONS[state["policy"]]
                 or not isinstance(row["missing_reason_paths"], list)
                 or (row["retry_run_id"] is not None and not isinstance(row["retry_run_id"], str))
                 or (current and (not isinstance(row["enum_paths"], list)
                     or (row["reason"] != "MISSING_REASON" and row["missing_reason_paths"])
                     or (row["reason"] != "ENUM_INVALID" and row["enum_paths"])))
-                or (state["policy"] == POLICY_V4 and (not isinstance(row["schema_errors"], list)
+                or (state["policy"] in (POLICY_V4, POLICY_V5) and (not isinstance(row["schema_errors"], list)
                     or bool(row["schema_errors"]) != (row["reason"] == "SCHEMA_INVALID")))
+                or (state["policy"] == POLICY_V5 and (not isinstance(row["number_sentences"], list)
+                    or bool(row["number_sentences"]) != (row["reason"] == "NUMBER_REPAIR")
+                    or (row["reason"] == "NUMBER_REPAIR" and ((row["node"], row["kind"]) != FINAL or row["retry_effort"] != "high"))))
                 ):
             raise ValueError("THESIS_RECOVERY_STATE_INVALID")
         key = (row["node"], row["kind"])
+        if row["reason"] == "NUMBER_REPAIR":
+            if "NUMBER_REPAIR" in seen:
+                raise ValueError("THESIS_RECOVERY_STATE_INVALID")
+            seen["NUMBER_REPAIR"] = row
+            continue
         if key in seen:
             previous = seen[key]
             if (previous["reason"] not in _TRANSPORT_REASONS or row["reason"] not in _chained(state["policy"])
                     or previous["retry_run_id"] is None or previous["retry_run_id"] != row["failed_run_id"]):
                 raise ValueError("THESIS_RECOVERY_STATE_INVALID")
         seen[key] = row
+    if "NUMBER_REPAIR" in seen and state["attempts"][-1]["reason"] != "NUMBER_REPAIR":
+        raise ValueError("THESIS_RECOVERY_STATE_INVALID")
     halted = state["halted"]
     if halted is not None and (not isinstance(halted, dict) or set(halted) != {"node", "kind", "reason"}
             or any(not isinstance(v, str) or not v for v in halted.values())):
         raise ValueError("THESIS_RECOVERY_STATE_INVALID")
+    if state["policy"] == POLICY_V5:
+        _validate_degraded(state)
     retired = state["retired_final_calls"]
     if retired:
-        entries = [r for r in state["attempts"] if r["node"] == "Portfolio Manager" and r["kind"] == "FinalResearchReport"]
+        # A sentence repair belongs to the new final report, never to the retired one.
+        entries = [r for r in state["attempts"] if r["node"] == "Portfolio Manager" and r["kind"] == "FinalResearchReport"
+                   and r["reason"] != "NUMBER_REPAIR"]
         ids = list(dict.fromkeys(i for row in entries for i in (row["failed_run_id"], row["retry_run_id"])))
         if (not entries or any(not isinstance(c, dict) for c in retired)
                 or None in ids or [c.get("run_id") for c in retired] != ids):
             raise ValueError("THESIS_RECOVERY_RETIRED_FINAL_INVALID")
+
+
+def _validate_degraded(state):
+    from .thesis_degrade import DEGRADABLE
+    rows, keys = state["degraded"], set()
+    if not isinstance(rows, list):
+        raise ValueError("THESIS_RECOVERY_STATE_INVALID")
+    for row in rows:
+        if (not isinstance(row, dict) or set(row) != {"node", "kind", "reason", "run_ids"}
+                or (row["node"], row["kind"]) not in DEGRADABLE or (row["node"], row["kind"]) in keys
+                or not isinstance(row["reason"], str) or not re.fullmatch(r"[A-Za-z0-9_]{1,120}", row["reason"])
+                or not isinstance(row["run_ids"], list) or not row["run_ids"]
+                or any(not isinstance(i, str) or not i for i in row["run_ids"])
+                or len(set(row["run_ids"])) != len(row["run_ids"])
+                or (state["halted"] is not None and (state["halted"]["node"], state["halted"]["kind"]) == (row["node"], row["kind"]))):
+            raise ValueError("THESIS_RECOVERY_STATE_INVALID")
+        keys.add((row["node"], row["kind"]))
+
+
+def _validate_number_repair(row, by_id, retired, excluded, complete):
+    """The repair call follows the accepted final report and asks only for its refused sentences."""
+    from .thesis_repair import KIND, repair_messages
+    if row["failed_run_id"] not in by_id or row["failed_run_id"] in excluded:
+        raise ValueError("THESIS_RECOVERY_CALL_BINDING_INVALID")
+    first_i, failed = by_id[row["failed_run_id"]]
+    if (first_i < retired or failed["node"] != row["node"] or (failed.get("thesis_stage") or {}).get("kind") != row["kind"]
+            or not successful_call(failed) or not failed.get("output")):
+        raise ValueError("THESIS_RECOVERY_CALL_BINDING_INVALID")
+    retry_id = row["retry_run_id"]
+    if retry_id is None:
+        if complete:
+            raise ValueError("THESIS_RECOVERY_INCOMPLETE")
+        return
+    if retry_id not in by_id:
+        raise ValueError("THESIS_RECOVERY_CALL_BINDING_INVALID")
+    retry_i, retry = by_id[retry_id]
+    if retry_i != first_i + 1 or retry["node"] != row["node"]:
+        raise ValueError("THESIS_RECOVERY_CALL_BINDING_INVALID")
+    if retry.get("thesis_stage") != {"kind": KIND, "attempt": 1, "reasoning_effort": "high"}:
+        raise ValueError("THESIS_RECOVERY_EFFORT_INVALID")
+    if call_messages(retry) != repair_messages(call_messages(failed), row["number_sentences"]):
+        raise ValueError("THESIS_RECOVERY_INPUT_CHANGED")
+    if complete and (not successful_call(retry) or not retry.get("output")):
+        raise ValueError("THESIS_RECOVERY_INCOMPLETE")
+    excluded.add(retry_id)
 
 
 def validate_recoveries(calls, state, *, complete=False, protocol_version=16):
@@ -429,7 +520,12 @@ def _validate_v3(calls, state, complete, protocol_version):
     if len(by_id) != len(combined):
         raise ValueError("THESIS_RECOVERY_CALL_BINDING_INVALID")
     excluded, dependencies = set(), {}
+    # v5: a degraded stage keeps every saved call as evidence; none of them is used.
+    degraded = {(d["node"], d["kind"]) for d in state.get("degraded", [])}
     for row in state["attempts"]:
+        if row["reason"] == "NUMBER_REPAIR":
+            _validate_number_repair(row, by_id, len(state["retired_final_calls"]), excluded, complete)
+            continue
         if row["failed_run_id"] not in by_id:
             raise ValueError("THESIS_RECOVERY_CALL_BINDING_INVALID")
         first_i, failed = by_id[row["failed_run_id"]]
@@ -440,6 +536,7 @@ def _validate_v3(calls, state, complete, protocol_version):
         if (not isinstance(stage, dict) or stage.get("kind") != row["kind"] or stage.get("attempt") != expected_attempt
                 or row["retry_effort"] != ("high" if row["reason"] == "LENGTH" else stage.get("reasoning_effort"))):
             raise ValueError("THESIS_RECOVERY_EFFORT_INVALID")
+        left_out = (row["node"], row["kind"]) in degraded
         actual, paths = failure_reason(failed, kind=row["kind"], protocol_version=protocol_version)
         if actual != row["reason"] or paths != (row["missing_reason_paths"] or row["enum_paths"] or row.get("schema_errors") or []):
             raise ValueError("THESIS_RECOVERY_FAILURE_NOT_PROVEN")
@@ -456,7 +553,7 @@ def _validate_v3(calls, state, complete, protocol_version):
         excluded.add(row["failed_run_id"])
         retry_id = row["retry_run_id"]
         if retry_id is None:
-            if complete:
+            if complete or left_out:
                 raise ValueError("THESIS_RECOVERY_INCOMPLETE")
             continue
         if retry_id not in by_id:
@@ -468,7 +565,7 @@ def _validate_v3(calls, state, complete, protocol_version):
             raise ValueError("THESIS_RECOVERY_EFFORT_INVALID")
         if call_messages(retry) != expected:
             raise ValueError("THESIS_RECOVERY_INPUT_CHANGED")
-        if successful_call(retry) and retry.get("output") and previous is not None:
+        if successful_call(retry) and retry.get("output") and previous is not None and not left_out:
             try:
                 after = response_candidate(retry["output"], row["kind"], protocol_version=protocol_version)
                 if row["reason"] == "MISSING_REASON":
@@ -479,9 +576,15 @@ def _validate_v3(calls, state, complete, protocol_version):
                 if complete:
                     raise
                 excluded.add(retry_id)
-        if complete and (not successful_call(retry) or not retry.get("output")):
+        if complete and not left_out and (not successful_call(retry) or not retry.get("output")):
             raise ValueError("THESIS_RECOVERY_INCOMPLETE")
         dependencies[retry_id] = failed
+    for entry in state.get("degraded", []):
+        ids = [c["run_id"] for c in calls if c["node"] == entry["node"]
+               and (c.get("thesis_stage") or {}).get("kind") == entry["kind"]]
+        if ids != entry["run_ids"]:
+            raise ValueError("THESIS_DEGRADED_STAGE_INVALID")
+        excluded.update(ids)
     return excluded, dependencies
 
 
@@ -502,7 +605,8 @@ def validate_budget_reservations(checkpoint, calls, state, prior_reuse=None):
         size = len(canonical_json_bytes(call["messages"]))
         return (Decimal(size + 8192) * rate_in + Decimal(maximum) * rate_out) / Decimal(1000000)
     lower = sum((reserve(c) for c in known), Decimal(0)) + (receipt["calls"] - len(known)) * base
-    if prior_reuse and prior_reuse.get("budget_origin") in ("SAME_V16_FLOW", "SAME_V17_FLOW", "SAME_V18_FLOW", "SAME_V19_FLOW"):
+    if prior_reuse and prior_reuse.get("budget_origin") in ("SAME_V16_FLOW", "SAME_V17_FLOW", "SAME_V18_FLOW", "SAME_V19_FLOW",
+                                                             "SAME_V20_FLOW"):
         prior = prior_reuse["prior_budget"]
         previous_ids = set(prior_reuse["prior_model_run_ids"])
         new = [c for c in known if c["run_id"] not in previous_ids]

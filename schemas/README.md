@@ -72,7 +72,18 @@ Case v19 (`thesis-case.v19.schema.json`) keeps the v18 shape with recovery polic
 which adds reason `SCHEMA_INVALID`: any other schema error the validator proves is asked again once with the
 unchanged prompt, and the attempt row lists the proven errors (type and path) in `schema_errors`. `reused_calls.budget_origin` is `SAME_V19_FLOW`; number contract 2 applies as in v18.
 
-`finresearchops.research-report/v1` and `/v2` are the formal reading layouts of a v16-v19 Case
+Case v20 (`thesis-case.v20.schema.json`) records recovery policy `thesis-stage-recovery/v5`
+(`max_extra_calls` 3). `recovery.degraded` lists each non-critical stage (one of the four analysts
+or the trader) left out because every saved answer failed its checks, with the reason code and the
+run IDs of those calls; its `analyst_reports` or `execution_review` entry is then an explicit
+placeholder, that stage has no exchange (12 to 17 exchanges), and the Case status is PARTIAL.
+Reason `NUMBER_REPAIR` records the one sentence-level repair of the final report: `number_sentences`
+lists the refused sentences, the repair call follows the accepted final call, and `number_repair`
+holds its run ID and replacements. The exchange keeps the original answer; `final_report` is the
+spliced report, which the reader rebuilds and checks again. `reused_calls.budget_origin` is
+`SAME_V20_FLOW`; number contract 2 applies as in v18.
+
+`finresearchops.research-report/v1` and `/v2` are the formal reading layouts of a v16-v20 Case
 (new Cases write v2, which lists citation findings and unbound-number findings apart on the
 cover, notice and appendix; v1 files stay as saved):
 `research-report.md` plus `research-report.html`, written at save or later by the offline

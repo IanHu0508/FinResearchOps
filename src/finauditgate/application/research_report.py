@@ -15,6 +15,7 @@ import re
 import unicodedata
 
 from .forward_report import _DISPOSITION, _EARNINGS_BASIS, _cell
+from finauditgate.adapters.thesis_degrade import case_status
 from .research_delivery import contract_for, evidence_catalog, report_context
 from .research_narrative import _TOKEN, _escape, change_view
 from .research_numbers import _INPUT_KEYS, _METRICS
@@ -26,7 +27,7 @@ VERSIONS = (V1, V2)
 VERSION = V2  # written for newly saved Cases; saved files keep their recorded version
 NUMBER_PENDING = "UNBOUND_RESEARCH_NUMBER_PENDING"
 SUPPORTED = ("finresearchops.thesis-case/v16", "finresearchops.thesis-case/v17", "finresearchops.thesis-case/v18",
-             "finresearchops.thesis-case/v19")
+             "finresearchops.thesis-case/v19", "finresearchops.thesis-case/v20")
 FILES = ("research-report.md", "research-report.html")
 
 _RATINGS = {"Buy": "买入", "Overweight": "增持", "Hold": "中性", "Underweight": "减持", "Sell": "卖出",
@@ -116,7 +117,8 @@ class _Report:
             record["source_bundle"], record["request"], changes=change_view(record["applied_changes"]),
             beliefs=record["forward_revision"]["belief_updates"], contract=contract_for(record))
         check = self.context.evidence_check()
-        if record["evidence_check"] != check or record["status"] != check["status"]:
+        self.degraded = record.get("recovery", {}).get("degraded", [])
+        if record["evidence_check"] != check or record["status"] != case_status(self.degraded, check["status"]):
             raise ValueError("THESIS_EVIDENCE_CHECK_CHANGED")
         self.number_findings = [f for f in check["findings"] if f["reason"] == NUMBER_PENDING]
         self.citation_findings = [f for f in check["findings"] if f["reason"] != NUMBER_PENDING]
@@ -271,6 +273,10 @@ class _Report:
         blocks = [("title", title, subtitle)]
         if record["evidence_check"]["status"] != "COMPLETED":
             blocks.append(("notice", self.notice()))
+        if self.degraded:
+            names = "、".join(dict(_ANALYSTS).get(row["node"], "交易员") for row in self.degraded)
+            blocks.append(("notice", f"本次{names}的输出未通过程序校验，已按降级规则省略，报告状态为部分完成；"
+                                     "省略不代表资料中没有相关信息，其余研究阶段照常完成，详见附录一。"))
         blocks.append(("lead", self.facts(), self.paragraphs(final["summary"]["text"], field="summary")))
         blocks += self.forecast_table()
         for key, heading in _SECTIONS:
@@ -410,12 +416,14 @@ class _Report:
         flow = (("基本面、市场、新闻与情绪四类分析 → " if analysts else "")
                 + "多空研究员独立初稿与相互反证 → 研究经理 → 交易员 → 激进、保守、中性三类风险讨论 → "
                   "组合经理独立初判、前瞻推演、参数修正与终稿")
+        left_out = f"（另有{len(self.degraded)}个非关键阶段按降级规则省略）" if self.degraded else ""
         blocks = [("h2", "附录一　研究流程与观点更新"),
-                  ("p", [("text", f"本报告由{len(record['exchanges'])}个模型阶段依次产生：{flow}。组合经理的独立初判评级为"
+                  ("p", [("text", f"本报告由{len(record['exchanges'])}个模型阶段依次产生{left_out}：{flow}。组合经理的独立初判评级为"
                           f"{comparison['before']}，终稿评级为{comparison['after']}（{'有变化' if comparison['changed'] else '未变化'}）。"
                           "各阶段原始输出、多空论点和逐处原文摘录见完整核对稿与过程记录。")])]
         if analysts:
-            rows = [[title, _COVERAGE.get(report["coverage"], report["coverage"]), str(len(report["observations"])),
+            rows = [[title, "缺失（程序降级）", "—", "—"] if report.get("degraded") is True else
+                    [title, _COVERAGE.get(report["coverage"], report["coverage"]), str(len(report["observations"])),
                      str(len(report["evidence_refs"]))]
                     for node, title in _ANALYSTS for report in [record["analyst_reports"][node]]]
             blocks += [("h3", "四类分析资料覆盖"), ("table", ["分析角色", "资料覆盖", "观察条数", "引用来源数"], rows, {2, 3}, {0, 1}),
@@ -446,6 +454,10 @@ class _Report:
                                                                        f"change_explanations[{index}].explanation")]
         else:
             blocks.append(("p", [("text", "参数修正阶段未改动情景参数；原假设沿用，不表示已获验证。")]))
+        if record.get("number_repair"):
+            count = len(record["number_repair"]["replacements"])
+            blocks.append(("note", f"终稿有{count}个句子因含未绑定数字被拒收，已只改写这些句子；其余文字、评级和情景采纳未变，"
+                                   "改写后整份终稿按同一数字规则重新检查。原句与改写句见过程记录。"))
         blocks += self.quant_note()
         blocks += self.user_inputs()
         return blocks
@@ -742,7 +754,7 @@ def _html(title, blocks, version):
 
 
 def render(record, version=VERSION):
-    """Return (Markdown bytes, HTML bytes) for a v16-v19 thesis Case in one format version."""
+    """Return (Markdown bytes, HTML bytes) for a v16-v20 thesis Case in one format version."""
     report = _Report(record, version)
     title, blocks = report.build()
     return _markdown(title, blocks, version), _html(title, blocks, version)

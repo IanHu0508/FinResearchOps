@@ -348,6 +348,10 @@ class ThesisSession:
         if protocol_version >= 17:
             from .thesis_analysts import schemas as analyst_schemas
             self.types.update(analyst_schemas())
+        if protocol_version >= 20:
+            from .thesis_repair import KIND, repair_type
+            self.types[KIND] = repair_type()
+        self.number_repair = None
         self.analyst_reports = {}
         self.final_generation = []
         self.initial = {}
@@ -454,6 +458,40 @@ class ThesisSession:
             check_refs(parsed, {s["id"] for s in payload["source_bundle"]["sources"]})
         return parsed
 
+    def degradable(self, node, kind, produce):
+        """Protocol 20: a non-critical stage whose saved answers are all proven unusable becomes a placeholder.
+
+        Budget, trace-limit and pending-retry failures still stop the run; the
+        proof is repeated from the saved calls alone when the Case is read.
+        """
+        if self.protocol_version < 20:
+            return produce()
+        import re
+        from .thesis_degrade import is_stop, placeholder, proven
+        saved = next((d for d in self.recovery.value["degraded"] if (d["node"], d["kind"]) == (node, kind)), None)
+        if saved is not None:
+            self.completed.carry_degraded_calls(saved, self.capture)
+            return placeholder(node, kind, saved["reason"])
+        halted = self.recovery.value["halted"]
+        if halted is not None and (halted["node"], halted["kind"]) == (node, kind):
+            return produce()  # stopped before this resume: it stays stopped, never degraded
+        count = len(self.exchanges)
+        try:
+            return produce()
+        except Exception as exc:
+            code = str(exc) if re.fullmatch(r"[A-Z0-9_]{1,120}", str(exc)) else type(exc).__name__
+            pending = any(a["retry_run_id"] is None for a in self.recovery.value["attempts"]
+                          if (a["node"], a["kind"]) == (node, kind))
+            rows = None if pending or is_stop(code) else proven(
+                self.capture.model_calls, node, kind, self.protocol_version,
+                {s["id"] for s in source_view(self.bundle)["sources"]})
+            if rows is None:
+                raise
+            del self.exchanges[count:]
+            self.recovery.degrade(node, kind, code, [c["run_id"] for c in rows])
+            self.last_stage = None
+            return placeholder(node, kind, code)
+
     def seal_failure(self, error):
         """Domain failures after parsing must not become fresh model attempts."""
         if self.protocol_version < 16 or self.last_stage is None or self.recovery.value["halted"] is not None:
@@ -532,9 +570,9 @@ class ThesisSession:
                 structured = value["plan"]
             elif node == "Trader":
                 payload["research_evaluation"] = self.research
-                value = self.ask(node, "ExecutionReview", "检查研究计划转化为交易提案所需的条件。未知持仓、风险偏好和交易约束如实列为缺项，不能假定已有或零仓位。价格、止损和比例必须有根据，否则为空。feasibility_conditions 只写执行条件和风险限制，不写评级或买卖方向；它仅作为过程提案保存，不作为最终经理的硬门槛。", payload, config)
+                value = self.degradable(node, "ExecutionReview", lambda: self.ask(node, "ExecutionReview", "检查研究计划转化为交易提案所需的条件。未知持仓、风险偏好和交易约束如实列为缺项，不能假定已有或零仓位。价格、止损和比例必须有根据，否则为空。feasibility_conditions 只写执行条件和风险限制，不写评级或买卖方向；它仅作为过程提案保存，不作为最终经理的硬门槛。", payload, config))
                 self.execution = value
-                structured = value["proposal"]
+                structured = None if value.get("degraded") is True else value["proposal"]
             elif node in RISKS:
                 lens = {RISKS[0]: "机会成本与上行情景的失败条件", RISKS[1]: "资本损失、下行情景与流动性", RISKS[2]: "不同情景的权衡、估值敏感性和信息缺口"}[node]
                 value = self.ask(node, "RiskBrief", "独立检查" + lens + "。没有其他风险角色的观点，也不需要猜测或迎合它们。直接引用资料与更新论点；不要生成评级或买卖指令。", payload, config)
@@ -675,9 +713,13 @@ class ThesisSession:
             def run(state, config):
                 if self.protocol_version >= 17:
                     from langchain_core.messages import AIMessage
-                    value = self.ask(node, "AnalystReport", instruction(node),
-                                     self.corpus(state, include_analysts=False), config)
-                    validate_report(value, {s["id"] for s in source_view(self.bundle)["sources"]})
+
+                    def produce():
+                        value = self.ask(node, "AnalystReport", instruction(node),
+                                         self.corpus(state, include_analysts=False), config)
+                        validate_report(value, {s["id"] for s in source_view(self.bundle)["sources"]})
+                        return value
+                    value = self.degradable(node, "AnalystReport", produce)
                     self.analyst_reports[node] = value
                     text = render_analyst(value, node)
                     return {"messages": [AIMessage(content=text)], analyst_fields[node]: text}

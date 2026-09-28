@@ -16,7 +16,7 @@ _RISKS = ("Aggressive Analyst", "Conservative Analyst", "Neutral Analyst")
 
 
 def main_stages(version):
-    if type(version) is not int or version not in (10, 11, 13, 16, 17, 18, 19):
+    if type(version) is not int or version not in (10, 11, 13, 16, 17, 18, 19, 20):
         raise ValueError("THESIS_PROTOCOL_VERSION_INVALID")
     stages = [(node, "InitialBrief") for node in _RESEARCHERS]
     stages += [(node, "RevisionBrief") for node in _RESEARCHERS]
@@ -148,6 +148,9 @@ def verbatim(value):
 
 def render_analyst(value, title):
     title = re.sub(r"[\r\n]+", " ", title)
+    if value.get("degraded") is True:
+        return "\n".join(["### " + title, "", "资料覆盖：本角色已按降级规则省略（原因代码：" + value["reason"] + "）。", "",
+                          value["note"], ""])
     coverage = {"available": "已有资料", "partial": "资料不完整", "unavailable": "没有可用的该类资料"}[value["coverage"]]
     parts = ["### " + title, "", "资料覆盖：" + coverage + "；不是事实认证。", "",
              verbatim(value["analysis"]), "", "#### 观察与来源", ""]

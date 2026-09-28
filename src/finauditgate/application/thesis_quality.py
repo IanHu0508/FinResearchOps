@@ -353,7 +353,8 @@ def validate(record, review):
             _require(i > 0 and no_answer_length(calls[i-1]) and calls[i-1]["thesis_stage"] == {
                 "kind": tag["kind"], "attempt": 1, "reasoning_effort": "max"}
                 and calls[i-1]["messages"] == call["messages"], "RETRY_NOT_PROVEN")
-    _require(retries + len(record["recovery"]["attempts"]) <= 2, "RETRY_LIMIT")
+    from finauditgate.adapters.thesis_recovery import extra_call_limit
+    _require(retries + len(record["recovery"]["attempts"]) <= extra_call_limit(record["recovery"]["policy"]), "RETRY_LIMIT")
     for i, exchange in enumerate(exchanges):
         from finauditgate.adapters.thesis_recovery import successful_call
         matches = [(index, c) for index, c in enumerate(calls) if any(o.get("id") == exchange["response_id"] for o in c.get("output", []))]
@@ -434,18 +435,21 @@ def render_report(record, review):
         rows.append((item["scenario_id"] or "共同", label, value, basis))
     warning = ("存在未解决的实质疑点；下列模型评级不能视为可用的已核结论。" if effective["status"] == "PARTIAL" else
                "模型复核与校订已完成，机械检查不证明经济判断正确；尚需人工审阅。")
+    degraded = record.get("recovery", {}).get("degraded", [])
+    if degraded:
+        warning += "本次有" + str(len(degraded)) + "个非关键角色按降级规则省略，原Case状态为PARTIAL。"
     header = "> 自动校订稿；" + warning + "原稿完整保留为[原始报告](report.md)。\n\n"
     meanings = ["", "## 参数性质与计算含义（程序提供）", "", *_table(("情景", "参数", "取值", "依据性质"), rows), "",
                 *["- " + value for value in MEANINGS.values()]]
     rendered = (header + body + "\n".join(meanings) + "\n\n## 引用原文\n\n" + "\n\n".join(footnotes)).encode()
-    if record["schema_version"] in ("finresearchops.thesis-case/v17", "finresearchops.thesis-case/v18", "finresearchops.thesis-case/v19"):
+    if record["schema_version"] in ("finresearchops.thesis-case/v17", "finresearchops.thesis-case/v18", "finresearchops.thesis-case/v19", "finresearchops.thesis-case/v20"):
         from .thesis_report_v17 import supplement
         rendered += supplement(display)
     return rendered
 
 
 def render_process(record, review):
-    if record["schema_version"] in ("finresearchops.thesis-case/v17", "finresearchops.thesis-case/v18", "finresearchops.thesis-case/v19"):
+    if record["schema_version"] in ("finresearchops.thesis-case/v17", "finresearchops.thesis-case/v18", "finresearchops.thesis-case/v19", "finresearchops.thesis-case/v20"):
         from .thesis_report_v17 import render_process as original_process
     else:
         from .thesis_report_v16 import render_process as original_process

@@ -1,9 +1,9 @@
 # Architecture
 
 The main research path crosses `handle(ResearchThesis(...))` and `read_case`.
-The optional `--all-analysts` frozen-source route uses protocol/Case v19 for new
-runs (a resumed execution keeps the protocol it started with, so earlier v17 and
-v18 executions resume as such): four actual analyst reports precede the existing
+The optional `--all-analysts` frozen-source route uses protocol/Case v20 for new
+runs (a resumed execution keeps the protocol it started with, so earlier v17,
+v18 and v19 executions resume as such): four actual analyst reports precede the existing
 thirteen research stages. The
 reports and original sources reach downstream research; the independent
 assessment retains source-only input. It saves fundamental, market, news and
@@ -28,9 +28,19 @@ or numeric failure, still halts the stage. Protocol 19 checks the frozen schema
 before any content check, asks any other schema-invalid answer the validator
 proves once more with the unchanged prompt, and drops blank `*_note` fields; its final instruction no longer asks to spell
 numbers out, since Chinese number words with 百/千/万/亿 are refused as amounts.
-Final-report number contract 2 (v18 and v19) only removes listed time and
+Final-report number contract 2 (v18 to v20) only removes listed time and
 source-identifier labels from contract 1's pending items; every refusal is
-unchanged.
+unchanged. Protocol 20 separates critical from non-critical stages. The four
+analysts and the trader feed context, not calculations: when every saved answer
+of such a stage is proven unusable by the same standard-library checks, the run
+continues with an explicit placeholder and the Case is saved PARTIAL. A final
+report refused only because at most five whole sentences hold unbound numbers,
+confirmed in the context of the complete report, gets one further call that
+rewrites just those sentences; the program splices them in and checks the
+complete report again under the unchanged contract. The reader re-derives the
+refused sentences, the repair prompt and the spliced report from saved calls,
+and proves for each degraded stage that no retry was left. Recovery policy v5
+allows three extra calls per run.
 Its instance-local protocol keeps native graph routing while isolating initial
 drafts, limiting round-two discussion to sealed first drafts, and obtaining
 source-only independent underwriting before the portfolio manager sees peer

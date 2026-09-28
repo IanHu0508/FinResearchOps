@@ -26,13 +26,40 @@ def _coverage(rows, ids, key):
         raise ValueError("THESIS_CLAIM_COVERAGE_INVALID")
 
 
+def _number_repair(record, base, base_call, protocol, request):
+    """Protocol 20: the delivered final report is the saved answer with only its refused sentences replaced."""
+    from finauditgate.adapters.thesis_repair import parse_replacements, refused_sentences, repaired_report
+    rows = [r for r in record["recovery"]["attempts"] if r["reason"] == "NUMBER_REPAIR"]
+    if "number_repair" not in record:
+        raise ValueError("THESIS_NUMBER_REPAIR_INVALID")
+    if not rows:
+        if record["number_repair"] is not None:
+            raise ValueError("THESIS_NUMBER_REPAIR_INVALID")
+        return base
+    row = rows[0]
+    from finauditgate.application.research_narrative import change_view
+    refused = refused_sentences(base, record["effective_forward_draft"], record["effective_forward_calculations"],
+                                record["source_bundle"], request, changes=change_view(record["applied_changes"]),
+                                beliefs=record["forward_revision"]["belief_updates"])
+    repair = [c for c in record["model_calls"] if c["run_id"] == row["retry_run_id"]]
+    if row["failed_run_id"] != base_call["run_id"] or refused is None or refused != row["number_sentences"] or len(repair) != 1:
+        raise ValueError("THESIS_NUMBER_REPAIR_INVALID")
+    replacements = parse_replacements(repair[0]["output"])
+    _, repaired = repaired_report(base_call["output"], refused, replacements, protocol, record["source_bundle"])
+    if (_without_nulls(repaired) != _without_nulls(record["final_report"])
+            or record["number_repair"] != {"repair_run_id": row["retry_run_id"], "replacements": replacements}):
+        raise ValueError("THESIS_NUMBER_REPAIR_INVALID")
+    return record["final_report"]
+
+
 def validate(record):
-    current = record.get("schema_version") in ("finresearchops.thesis-case/v18", "finresearchops.thesis-case/v19")
+    current = record.get("schema_version") in ("finresearchops.thesis-case/v18", "finresearchops.thesis-case/v19",
+                                               "finresearchops.thesis-case/v20")
     full_analysts = current or record.get("schema_version") == "finresearchops.thesis-case/v17"
     selected = full_analysts or record.get("schema_version") == "finresearchops.thesis-case/v16"
     protocol = int(record["schema_version"].rsplit("/v", 1)[1]) if current else 16
     bound = selected or record.get("schema_version") == "finresearchops.thesis-case/v13"
-    if (record.get("schema_version") not in ("finresearchops.thesis-case/v11", "finresearchops.thesis-case/v13", "finresearchops.thesis-case/v16", "finresearchops.thesis-case/v17", "finresearchops.thesis-case/v18", "finresearchops.thesis-case/v19")
+    if (record.get("schema_version") not in ("finresearchops.thesis-case/v11", "finresearchops.thesis-case/v13", "finresearchops.thesis-case/v16", "finresearchops.thesis-case/v17", "finresearchops.thesis-case/v18", "finresearchops.thesis-case/v19", "finresearchops.thesis-case/v20")
             or record.get("status") not in (("COMPLETED", "PARTIAL") if selected else ("COMPLETED",)) or record.get("review_status") != "AWAITING_REVIEW"
             or record.get("financial_gate") != "NOT_REQUIRED" or record.get("automatic_trading") is not False
             or record.get("sensitivity_policy") != "DECLARED_SCENARIOS_REPORT_ONLY"):
@@ -40,6 +67,9 @@ def validate(record):
     validate_sources(record["source_bundle"], record["request"])
     from finauditgate.adapters.thesis_analysts import main_stages
     stages = main_stages(17 if full_analysts else 16)
+    # Protocol 20: a degraded non-critical stage has no exchange; its placeholder is checked below.
+    degraded = {(d["node"], d["kind"]): d for d in record["recovery"]["degraded"]} if protocol >= 20 else {}
+    stages = [stage for stage in stages if stage not in degraded]
     expected_nodes, kinds = [s[0] for s in stages], [s[1] for s in stages]
     exchanges = record["exchanges"]
     if [e["kind"] for e in exchanges] != kinds or [e["node"] for e in exchanges] != expected_nodes:
@@ -53,8 +83,13 @@ def validate(record):
                 or record["topology"] != expected_topology()
                 or request["data_mode"] != "FROZEN_SOURCES"):
             raise ValueError("THESIS_ANALYST_REPORTS_INCOMPLETE")
+        from finauditgate.adapters.thesis_degrade import placeholder
         for node, field in ANALYSTS.items():
-            validate_report(record["analyst_reports"][node], allowed_refs)
+            if (node, "AnalystReport") in degraded:
+                if record["analyst_reports"][node] != placeholder(node, "AnalystReport", degraded[node, "AnalystReport"]["reason"]):
+                    raise ValueError("THESIS_DEGRADED_PLACEHOLDER_INVALID")
+            else:
+                validate_report(record["analyst_reports"][node], allowed_refs)
             if record["reports"][field] != render_analyst(record["analyst_reports"][node], node):
                 raise ValueError("THESIS_ANALYST_REPORT_CHANGED")
     excluded = set()
@@ -62,6 +97,9 @@ def validate(record):
         from finauditgate.adapters.thesis_recovery import successful_call, validate_recoveries, validate_stage_tag
         excluded, dependencies = validate_recoveries(record["model_calls"], record["recovery"], complete=True,
                                                      protocol_version=protocol)
+        if protocol >= 20:
+            from finauditgate.adapters.thesis_degrade import check_degraded
+            check_degraded(record["model_calls"], record["recovery"], protocol, allowed_refs)
     order = []
     for exchange in exchanges:
         matches = [(i, c) for i, c in enumerate(record["model_calls"]) if c["node"] == exchange["node"]
@@ -169,6 +207,12 @@ def validate(record):
     if rebuilt != record["updated_claims"]:
         raise ValueError("THESIS_UPDATED_CLAIMS_CHANGED")
     by_kind = {e["kind"]: e["parsed"] for e in exchanges}
+    if protocol >= 20:
+        from finauditgate.adapters.thesis_degrade import placeholder
+        by_kind["FinalResearchReport"] = _number_repair(record, by_kind["FinalResearchReport"],
+                                                        record["model_calls"][order[-1]], protocol, request)
+        if ("Trader", "ExecutionReview") in degraded:
+            by_kind["ExecutionReview"] = placeholder("Trader", "ExecutionReview", degraded["Trader", "ExecutionReview"]["reason"])
     for kind, field in (("ResearchEvaluation", "research_evaluation"), ("ExecutionReview", "execution_review"),
                         ("IndependentAssessment", "independent_assessment"), ("UnderwritingDraft", "forward_draft"),
                         ("ForwardRevision", "forward_revision"), ("FinalResearchReport", "final_report")):
@@ -201,8 +245,9 @@ def validate(record):
         context = report_context(report, draft, calc, sources, request,
                                  changes=change_view(record["applied_changes"]), beliefs=resolution["belief_updates"],
                                  **({"contract": 2 if current else 1} if selected else {}))
+        from finauditgate.adapters.thesis_degrade import case_status
         if selected and (record.get("evidence_check") != context.evidence_check()
-                         or record["status"] != context.evidence_check()["status"]):
+                         or record["status"] != case_status(list(degraded), context.evidence_check()["status"])):
             raise ValueError("THESIS_EVIDENCE_CHECK_CHANGED")
     before, after = record["independent_assessment"]["decision"]["rating"], report["rating"]
     if record["rating_comparison"] != {"before": before, "after": after, "changed": before != after}:

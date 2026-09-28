@@ -134,6 +134,48 @@ def render_decision(report, draft, calculations, *, context=None):
                       *render_research_block(context.block(report["summary"]) if context else report["summary"], draft, calculations)])
 
 
+def _repair_numbers(session, node, final, request, changes, beliefs, config):
+    """Protocol 20: one call rewrites only the sentences number contract 2 refuses.
+
+    The refused sentences, the prompt and the spliced report are all rebuilt
+    from saved calls when the Case is read; the complete report is checked again.
+    """
+    import json
+    from finauditgate.application.research_delivery import normalize_report
+    from .thesis_recovery import call_messages
+    from .thesis_repair import KIND, parse_replacements, refused_sentences, repair_messages, repaired_report
+    capture, policy = session.capture, session.recovery
+    refused = refused_sentences(final, session.effective_forward_draft, session.effective_forward_calculations,
+                                session.bundle, request, changes=changes, beliefs=beliefs)
+    response_id = session.exchanges[-1]["response_id"]
+    base = [c for c in capture.model_calls if c["node"] == node
+            and any(o.get("id") == response_id for o in c.get("output", []))]
+    if refused is None or len(base) != 1 or not policy.may_reserve(node, "FinalResearchReport", base[0], "NUMBER_REPAIR"):
+        raise ValueError("UNBOUND_RESEARCH_NUMBER")
+    entry = policy.reserve(node, "FinalResearchReport", base[0], "NUMBER_REPAIR", refused, "high")
+    model = session.model
+    if hasattr(model, "reasoning_effort"):
+        model = model.model_copy(update={"reasoning_effort": "high"})
+    stage_config = {**config, "metadata": {**config.get("metadata", {}),
+        "thesis_stage": {"kind": KIND, "attempt": 1, "reasoning_effort": "high"}}}
+    start = len(capture.model_calls)
+    try:
+        response = model.with_structured_output(session.types[KIND], method="json_mode", include_raw=True).invoke(
+            repair_messages(call_messages(base[0]), refused), config=stage_config)
+    finally:
+        if len(capture.model_calls) > start:
+            entry["retry_run_id"] = capture.model_calls[-1]["run_id"]
+    if not isinstance(response, dict) or response.get("raw") is None:
+        raise ValueError("THESIS_STRUCTURED_RESPONSE_REQUIRED")
+    raw = response["raw"]
+    replacements = parse_replacements([{"content": raw.content, "tool_calls": raw.tool_calls}])
+    candidate, _ = repaired_report(base[0]["output"], refused, replacements, session.protocol_version, session.bundle)
+    repaired = normalize_report(session.types["FinalResearchReport"].model_validate(candidate).model_dump(mode="json"),
+                                session.bundle)
+    session.number_repair = {"repair_run_id": entry["retry_run_id"], "replacements": json.loads(json.dumps(replacements))}
+    return repaired
+
+
 def complete_corrected_report(session, node, config):
     from finauditgate.adapters.thesis_protocol import belief_view, claim_view, risk_view
 
@@ -204,12 +246,22 @@ def complete_corrected_report(session, node, config):
     ids = [s["scenario_id"] for s in session.effective_forward_draft["scenarios"]]
     if len(final["scenario_assessments"]) != len(ids) or {s["scenario_id"] for s in final["scenario_assessments"]} != set(ids):
         raise ValueError("THESIS_FORWARD_ASSESSMENT_COVERAGE_INVALID")
-    for block in (final["summary"], *final["financial_analysis"].values(), final["strongest_counterevidence"]):
-        render_research_block(block, session.effective_forward_draft, session.effective_forward_calculations)
-    context = report_context(final, session.effective_forward_draft, session.effective_forward_calculations,
-                             session.bundle if selected else final_payload["source_bundle"], final_payload["request"],
-                             changes=final_payload["change_context"], beliefs=resolution["belief_updates"],
-                             **({"contract": contract} if selected else {})) if bound else None
+
+    def check(report):
+        for block in (report["summary"], *report["financial_analysis"].values(), report["strongest_counterevidence"]):
+            render_research_block(block, session.effective_forward_draft, session.effective_forward_calculations)
+        return report_context(report, session.effective_forward_draft, session.effective_forward_calculations,
+                              session.bundle if selected else final_payload["source_bundle"], final_payload["request"],
+                              changes=final_payload["change_context"], beliefs=resolution["belief_updates"],
+                              **({"contract": contract} if selected else {})) if bound else None
+    try:
+        context = check(final)
+    except ValueError as exc:
+        if session.protocol_version < 20 or str(exc) != "UNBOUND_RESEARCH_NUMBER":
+            raise
+        final = _repair_numbers(session, node, final, final_payload["request"], final_payload["change_context"],
+                                resolution["belief_updates"], config)
+        context = check(final)
     session.final = final
     if selected:
         session.evidence_check = context.evidence_check()

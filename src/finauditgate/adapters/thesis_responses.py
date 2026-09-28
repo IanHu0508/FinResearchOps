@@ -131,7 +131,7 @@ class CompletedCalls:
 
     def __init__(self, root, request, sources, model, *, reassess_final=False, protocol_version=10,
                  replay_presentation_failure=False):
-        if protocol_version not in (10, 11, 13, 16, 17, 18, 19):
+        if protocol_version not in (10, 11, 13, 16, 17, 18, 19, 20):
             raise ValueError("THESIS_PROTOCOL_VERSION_INVALID")
         self.rows = []
         self.used = 0
@@ -156,7 +156,7 @@ class CompletedCalls:
         current = data.get("schema_version") == "finresearchops.thesis-runtime/v3"
         self.current_runtime = current
         if (data.get("schema_version") not in ("finresearchops.thesis-runtime/v1", "finresearchops.thesis-runtime/v3")
-                or (current and (protocol_version not in (16, 17, 18, 19) or data.get("protocol_version") != protocol_version))
+                or (current and (protocol_version not in (16, 17, 18, 19, 20) or data.get("protocol_version") != protocol_version))
                 or original != {"request": request, "sources": sources}):
             raise ValueError("THESIS_RESUME_INPUT_MISMATCH")
         excluded = set()
@@ -170,9 +170,18 @@ class CompletedCalls:
             excluded, self._recovery_dependencies = validate_recoveries(data["model_calls"], self.recovery_state,
                                                                         protocol_version=protocol_version)
             validate_budget_reservations(self.budget_checkpoint, data["model_calls"], self.recovery_state, data.get("reused_calls"))
+            if protocol_version >= 20:
+                # A repaired final report is not resumed; its repair call cannot be re-bound to a new final.
+                if any(a["reason"] == "NUMBER_REPAIR" for a in self.recovery_state["attempts"]):
+                    raise ValueError("THESIS_RESUME_AFTER_NUMBER_REPAIR_UNSUPPORTED")
+                from .thesis_degrade import check_degraded
+                from finauditgate.adapters.thesis_protocol import source_view
+                check_degraded(data["model_calls"], self.recovery_state, protocol_version,
+                               {s["id"] for s in source_view(sources)["sources"]})
             self._prior_calls = deepcopy(data["model_calls"])
             if reassess_final and self.recovery_state["halted"] is None and not self.recovery_state["retired_final_calls"]:
-                entries = [a for a in self.recovery_state["attempts"] if a["kind"] == "FinalResearchReport"]
+                entries = [a for a in self.recovery_state["attempts"] if a["kind"] == "FinalResearchReport"
+                           and a["reason"] != "NUMBER_REPAIR"]
                 ids = list(dict.fromkeys(i for a in entries for i in (a["failed_run_id"], a["retry_run_id"])))
                 by_id = {c["run_id"]: c for c in data["model_calls"]}
                 self.recovery_state["retired_final_calls"] = [deepcopy(by_id[i]) for i in ids]
@@ -186,6 +195,9 @@ class CompletedCalls:
             types.update(correction_schemas(types, bound=protocol_version >= 13, selected=protocol_version >= 14))
         from .thesis_analysts import main_stages
         stages = main_stages(protocol_version)
+        if protocol_version >= 20 and current:
+            left_out = {(d["node"], d["kind"]) for d in self.recovery_state["degraded"]}
+            stages = [stage for stage in stages if stage not in left_out]
         if protocol_version >= 17:
             from .thesis_analysts import schemas as analyst_schemas
             types.update(analyst_schemas())
@@ -395,6 +407,13 @@ class CompletedCalls:
                     and call["run_id"] not in present):
                 capture.model_calls.append(deepcopy(call))
 
+    def carry_degraded_calls(self, entry, capture):
+        """A stage degraded before the interruption keeps its proven calls, in their original order."""
+        present = {c["run_id"] for c in capture.model_calls}
+        for call in self._prior_calls:
+            if call["run_id"] in entry["run_ids"] and call["run_id"] not in present:
+                capture.model_calls.append(deepcopy(call))
+
     def carry_pending_call(self, entry, prompts, capture):
         from .thesis_recovery import call_messages
         found = [c for c in self._prior_calls if c["run_id"] == entry["failed_run_id"]]
@@ -414,5 +433,6 @@ class CompletedCalls:
         present = {c["run_id"] for c in capture.model_calls}
         needed = {identity for r in state["attempts"] for identity in (r["failed_run_id"], r["retry_run_id"])
                   if identity in original and identity not in retired}
+        needed |= {identity for d in state.get("degraded", []) for identity in d["run_ids"] if identity in original}
         if not needed <= present and present <= original:
             capture.model_calls[:] = [deepcopy(c) for c in self._prior_calls if c["run_id"] not in retired]

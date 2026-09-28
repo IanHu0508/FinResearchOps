@@ -116,7 +116,7 @@ def _invoke(session, types, kind, instruction, payload, config, exchanges):
         instruction = rules + "\n以上财务引用规则适用于replacement_text；本次只返回下面QualityRevision结构，不生成FinalResearchReport。\n" + instruction
     prompt = messages("Data Review Agent", instruction, payload)
     prompt[0]["content"] += "\n只返回一个完整JSON对象；不使用Markdown或工具调用。所有required字段必须存在：\n" + canonical_json_bytes(types[kind].model_json_schema()).decode()
-    from .thesis_recovery import retained_length_outputs, successful_call
+    from .thesis_recovery import extra_call_limit, retained_length_outputs, successful_call
     previous = [] if not session.completed else [c for c in session.completed._prior_calls
         if c.get("thesis_stage", {}).get("kind") == kind and c.get("node") == "Data Review Agent"]
     quality._require(len(previous) <= 2, "PRIOR_CALL_LIMIT")
@@ -157,7 +157,8 @@ def _invoke(session, types, kind, instruction, payload, config, exchanges):
             response_id = outputs[0]["id"] if outputs else None
             break
         if (attempt != 1 or not quality.no_answer_length(call)
-                or session.quality_retries + len(session.recovery.value["attempts"]) >= 2):
+                or session.quality_retries + len(session.recovery.value["attempts"])
+                    >= extra_call_limit(session.recovery.value["policy"])):
             raise ValueError("THESIS_QUALITY_PRIOR_ATTEMPT_FAILED")
         session.quality_retries += 1
         if session.budget is not None:

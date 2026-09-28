@@ -68,6 +68,34 @@ result is claimed; that narrow repair did not change the source, prompt or retry
 still reads no quant signal directly.
 
 
+### Protocol 20: non-critical stage degradation and final sentence repair — 2026-09-28
+
+Implementation and tests are COMPLETED. New four-analyst executions write
+`finresearchops.thesis-case/v20` with recovery policy `thesis-stage-recovery/v5`; resumed v16 to v19
+executions keep their recorded protocol, rules and prompts, and their readers and saved files are
+unchanged. The four analysts and the trader are non-critical: when every saved answer of such a stage
+is proven unusable by the same standard-library checks, the run continues with an explicit placeholder,
+the stage has no exchange, and the Case is saved PARTIAL; the reader proves each degradation again from
+the saved calls. Budget or trace-limit stops, unsent retries and every failure of the researchers,
+managers and risk stages still halt; a stage stopped before a resume stays stopped. A final report refused
+only because at most five whole sentences hold unbound numbers gets one further call that rewrites just
+those sentences. The refusal must be confirmed in context first: with the listed sentences replaced by a
+neutral placeholder the complete report has to pass, so no call is made while another contract error
+remains. The program splices the rewritten sentences in and checks the complete report again under the
+unchanged number contract 2. The reader rebuilds the refused sentences, the repair prompt and the spliced
+report from saved calls, and proves for each degraded stage that no retry was left. Recovery policy v5
+allows three extra calls per run, shared with the data review; a run that used its sentence repair is
+not resumed.
+
+Core 528, integration 273 and Quant 186 checks pass. They include analyst and trader degradation, a limit
+stop that is not degraded (also after a resume), a critical-stage failure that still halts, a repaired
+final report that reopens with the standard library only, a reassessed final report that uses its
+sentence repair, a data review after three extra calls, repairs that stay refused or misquote a sentence,
+more than five refused sentences, resume after degradation, and tampered placeholders, proofs, repair
+prompts and spliced reports.
+Protocol 20 changes how a run continues after these failures; it does not by itself establish a higher
+delivery rate or better research.
+
 ### Protocol 19: schema-invalid answers asked again once — 2026-09-28
 
 Implementation and tests are COMPLETED. New four-analyst executions write
