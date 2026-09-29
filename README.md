@@ -21,7 +21,7 @@ All six models had positive annual mean IC bounds, and market context raised eve
 - **Independent drafts, then rebuttal.** Bull and bear researchers write first drafts from the same sources and then answer each other's sealed draft. The portfolio manager forms a source-only initial view, and the final assessment inherits no earlier rating or trader-defined threshold.
 - **Numbers come from calculations or sources.** Forward assumptions are stored as parameters and recalculated in Python (attribution, EPS, cash bridge, conditional valuation). The final report cites them as `{{metric:F1:eps_per_traded_unit}}` and historical figures as evidence blocks such as `{{source:E0001}}`; a bare number in a value position is refused rather than saved.
 - **Replayable Cases.** Each Case is content-addressed and keeps requests, raw model calls, failed answers and budget receipts. The Case reader re-proves every binding with the Python standard library only.
-- **Bounded, proven recovery.** Transport failures, truncation and unparseable or schema-invalid answers each have a proof rule and a one-time allowance, decided identically at run time and on reopen. Protocol 20 continues past a non-critical analyst or trader failure with an explicit placeholder (the Case is saved PARTIAL) and rewrites at most five refused final-report sentences once.
+- **Bounded, proven recovery.** Transport failures, truncation and unparseable or schema-invalid answers each have a proof rule and a one-time allowance, decided identically at run time and on reopen. Protocol 20 continues past a non-critical analyst or trader failure with an explicit placeholder (the Case is saved PARTIAL) and rewrites at most five refused final-report sentences once; protocol 22 also asks once more when the program proves an inconsistent forward draft or an unknown source cited by a critical stage before the final report.
 - **Cost-aware prompts.** Every stage before the final report sends the same fixed system message and starts with the same shared sources, so the provider's prefix cache can serve them; the final report shares its own prefix with its retries and repair, which are appended after the unchanged prompt. Reasoning effort is set per stage, and a truncated answer is asked again one level lower.
 - **Preregistered A-share quant research.** Each date's universe is rebuilt from dated security identities rather than today's survivors. Sixty-session price-volume paths and market state predict 20-session forward-return ranks, with unknown outcomes kept as intervals, and purged date splits keep labels from leaking. Ridge, XGBoost and GRU are compared with and without market context in a four-stage preregistered study in which every final-period forecast is persisted and replayed exactly before performance is revealed. The frozen signal reaches the agents as a deterministic, citable research note.
 
@@ -69,7 +69,7 @@ Models can give an actual rating or `REVIEW` when there is no defensible rating.
 Each newly saved Case includes a formal research report (`research-report.md` / `.html`)
 laid out like a conventional company report, with numbered citations and a compact
 appendix; the complete workpaper and process record stay alongside it for review.
-Earlier v16-v21 Cases can add it offline with `render-research-report`.
+Earlier v16-v22 Cases can add it offline with `render-research-report`.
 
 Use `--fetch-news-social --sources <base.json>` to acquire dated A-share news/events
 and public investor discussions before the four-analyst flow. The supplied base

@@ -69,12 +69,12 @@ def _number_repair(record, base, base_call, protocol, request):
 
 def validate(record):
     current = record.get("schema_version") in ("finresearchops.thesis-case/v18", "finresearchops.thesis-case/v19",
-                                               "finresearchops.thesis-case/v20", "finresearchops.thesis-case/v21")
+                                               "finresearchops.thesis-case/v20", "finresearchops.thesis-case/v21", "finresearchops.thesis-case/v22")
     full_analysts = current or record.get("schema_version") == "finresearchops.thesis-case/v17"
     selected = full_analysts or record.get("schema_version") == "finresearchops.thesis-case/v16"
     protocol = int(record["schema_version"].rsplit("/v", 1)[1]) if current else 16
     bound = selected or record.get("schema_version") == "finresearchops.thesis-case/v13"
-    if (record.get("schema_version") not in ("finresearchops.thesis-case/v11", "finresearchops.thesis-case/v13", "finresearchops.thesis-case/v16", "finresearchops.thesis-case/v17", "finresearchops.thesis-case/v18", "finresearchops.thesis-case/v19", "finresearchops.thesis-case/v20", "finresearchops.thesis-case/v21")
+    if (record.get("schema_version") not in ("finresearchops.thesis-case/v11", "finresearchops.thesis-case/v13", "finresearchops.thesis-case/v16", "finresearchops.thesis-case/v17", "finresearchops.thesis-case/v18", "finresearchops.thesis-case/v19", "finresearchops.thesis-case/v20", "finresearchops.thesis-case/v21", "finresearchops.thesis-case/v22")
             or record.get("status") not in (("COMPLETED", "PARTIAL") if selected else ("COMPLETED",)) or record.get("review_status") != "AWAITING_REVIEW"
             or record.get("financial_gate") != "NOT_REQUIRED" or record.get("automatic_trading") is not False
             or record.get("sensitivity_policy") != "DECLARED_SCENARIOS_REPORT_ONLY"):
@@ -239,6 +239,10 @@ def validate(record):
             raise ValueError("THESIS_DELIVERED_ASSESSMENT_CHANGED")
     if calculate_forward(record["forward_draft"]) != record["forward_calculations"]:
         raise ValueError("THESIS_FORWARD_CALCULATION_MISMATCH")
+    if protocol >= 22:
+        from finauditgate.adapters.thesis_content import forward_error
+        if forward_error(record["forward_draft"], request) is not None:
+            raise ValueError("THESIS_FORWARD_INCONSISTENT")
     effective = apply_forward_revision(record["forward_draft"], record["forward_revision"]["changes"])
     if any(record[k] != effective[k] for k in effective):
         raise ValueError("THESIS_EFFECTIVE_REVISION_MISMATCH")

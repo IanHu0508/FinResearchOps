@@ -1,9 +1,9 @@
 # Architecture
 
 The main research path crosses `handle(ResearchThesis(...))` and `read_case`.
-The optional `--all-analysts` frozen-source route uses protocol/Case v21 for new
+The optional `--all-analysts` frozen-source route uses protocol/Case v22 for new
 runs (a resumed execution keeps the protocol it started with, so earlier v17 to
-v20 executions resume as such): four actual analyst reports precede the existing
+v21 executions resume as such): four actual analyst reports precede the existing
 thirteen research stages. The
 reports and original sources reach downstream research; the independent
 assessment retains source-only input. It saves fundamental, market, news and
@@ -28,7 +28,7 @@ or numeric failure, still halts the stage. Protocol 19 checks the frozen schema
 before any content check, asks any other schema-invalid answer the validator
 proves once more with the unchanged prompt, and drops blank `*_note` fields; its final instruction no longer asks to spell
 numbers out, since Chinese number words with 百/千/万/亿 are refused as amounts.
-Final-report number contract 2 (v18 to v20) only removes listed time and
+Final-report number contract 2 (v18 to v22) only removes listed time and
 source-identifier labels from contract 1's pending items; every refusal is
 unchanged. Protocol 20 separates critical from non-critical stages. The four
 analysts and the trader feed context, not calculations: when every saved answer
@@ -51,6 +51,15 @@ reasoning effort (analysts and trader low, independent assessment and forward
 draft max, the rest high) and asks a truncated answer again one level lower.
 The reader parses each version's own layout only, and from 21 rebuilds every
 saved prompt exactly and checks the system message and first-attempt efforts.
+Protocol 22 (recovery policy v6) adds `CONTENT_CHECK`: when the program proves
+from a saved answer and its own prompt that the forward draft fails a check run
+before calculating, or that a critical stage before the final report cites an
+unknown source, the stage is asked once more with the proven problems appended
+after the unchanged prompt, as its only recovery apart from one transport retry;
+the reader re-proves the checks, rebuilds the retry and repeats the forward checks
+on the saved draft. Both failures stopped protocol 21. The final task restates
+that citations name evidence blocks; a final report citing source IDs is still
+delivered with findings, as before.
 Its instance-local protocol keeps native graph routing while isolating initial
 drafts, limiting round-two discussion to sealed first drafts, and obtaining
 source-only independent underwriting before the portfolio manager sees peer

@@ -442,14 +442,14 @@ def render_report(record, review):
     meanings = ["", "## 参数性质与计算含义（程序提供）", "", *_table(("情景", "参数", "取值", "依据性质"), rows), "",
                 *["- " + value for value in MEANINGS.values()]]
     rendered = (header + body + "\n".join(meanings) + "\n\n## 引用原文\n\n" + "\n\n".join(footnotes)).encode()
-    if record["schema_version"] in ("finresearchops.thesis-case/v17", "finresearchops.thesis-case/v18", "finresearchops.thesis-case/v19", "finresearchops.thesis-case/v20", "finresearchops.thesis-case/v21"):
+    if record["schema_version"] in ("finresearchops.thesis-case/v17", "finresearchops.thesis-case/v18", "finresearchops.thesis-case/v19", "finresearchops.thesis-case/v20", "finresearchops.thesis-case/v21", "finresearchops.thesis-case/v22"):
         from .thesis_report_v17 import supplement
         rendered += supplement(display)
     return rendered
 
 
 def render_process(record, review):
-    if record["schema_version"] in ("finresearchops.thesis-case/v17", "finresearchops.thesis-case/v18", "finresearchops.thesis-case/v19", "finresearchops.thesis-case/v20", "finresearchops.thesis-case/v21"):
+    if record["schema_version"] in ("finresearchops.thesis-case/v17", "finresearchops.thesis-case/v18", "finresearchops.thesis-case/v19", "finresearchops.thesis-case/v20", "finresearchops.thesis-case/v21", "finresearchops.thesis-case/v22"):
         from .thesis_report_v17 import render_process as original_process
     else:
         from .thesis_report_v16 import render_process as original_process

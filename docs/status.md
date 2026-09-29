@@ -1,6 +1,6 @@
 # Project Status
 
-> Updated 2026-09-27. This file is the only public status source; other
+> Updated 2026-09-29. This file is the only public status source; other
 > documents describe mechanisms and link here.
 
 ## Current slice: Quant Evidence Integration V1 — 2026-09-23
@@ -67,6 +67,33 @@ changed by that narrow repair. The original paid round remains stopped. No seman
 result is claimed; that narrow repair did not change the source, prompt or retry contracts. The Agent flow
 still reads no quant signal directly.
 
+
+### Protocol 22: bounded re-ask for proven content failures — 2026-09-29
+
+Implementation and tests are COMPLETED. New four-analyst executions write
+`finresearchops.thesis-case/v22` with recovery policy `thesis-stage-recovery/v6`; resumed v16 to v21
+executions keep their recorded protocol, prompts and readers. Protocol 22 keeps the protocol 21 layout
+and reasoning efforts. When the program proves, from a saved schema-valid answer and its own prompt
+alone, that the forward draft fails a check run before calculating (scenario order, a price date after
+the cutoff, the fixed valuation date, or any rule of the calculator itself) or that a critical stage
+before the final report cites a source the prompt never gave it, the stage is asked once more
+(`CONTENT_CHECK`) with the proven problems appended after the unchanged prompt. This is the stage's only
+recovery apart from one transport retry, within the run's three extra calls. Both failures stopped a
+protocol 21 run, so the extra request cannot stop a run protocol 21 would have delivered. When no request
+is left, the answer still fails, or it was kept at the output limit, the stage stops as in protocol 21,
+with `THESIS_FORWARD_INCONSISTENT` or `THESIS_UNKNOWN_SOURCE_REFERENCE`. The analysts and the trader keep
+the protocol 20 degradation rule. The final task now ends by restating that citations name evidence
+blocks, not source IDs; a final report that still cites source IDs is delivered with findings, as before.
+The reader proves each recorded check again from the saved call, rebuilds the retry exactly and repeats
+the forward checks on the saved draft.
+
+Core 546, integration 290 and Quant 186 checks pass. They include both checks, an empty-string
+reference, a content request after a transport retry and one resumed while pending, the stops of a
+forward draft that fails again, was kept at the output limit or failed after a length retry, degradation
+rather than a re-ask for an analyst, an unchanged protocol 21 path, a standard-library reopen, and refusal
+of a recorded check the failed answer does not prove, of a malformed saved call and of a forward draft
+the run would refuse.
+The effect on delivery is measured separately.
 
 ### Protocol 21: cache-friendly prompt layout and staged reasoning effort — 2026-09-28
 

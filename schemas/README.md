@@ -88,7 +88,13 @@ the protocol 21 layout (fixed system message; shared sources, stage input and ta
 which the reader parses with `payload_of`; the final report's first attempt runs at high reasoning effort.
 `reused_calls.budget_origin` is `SAME_V21_FLOW`.
 
-`finresearchops.research-report/v1` and `/v2` are the formal reading layouts of a v16-v21 Case
+Case v22 (`thesis-case.v22.schema.json`) keeps the v21 prompt layout and records recovery policy
+`thesis-stage-recovery/v6`, which adds reason `CONTENT_CHECK`. Its attempt rows carry `check`: for that
+reason a list of every proven problem in fixed order, `FORWARD_INCONSISTENT` with the text of the failed checks,
+then `UNKNOWN_SOURCE_REFERENCE` with the unknown IDs (an empty string included); otherwise null.
+The reader re-proves the list from the saved answer and its prompt. `reused_calls.budget_origin` is `SAME_V22_FLOW`.
+
+`finresearchops.research-report/v1` and `/v2` are the formal reading layouts of a v16-v22 Case
 (new Cases write v2, which lists citation findings and unbound-number findings apart on the
 cover, notice and appendix; v1 files stay as saved):
 `research-report.md` plus `research-report.html`, written at save or later by the offline

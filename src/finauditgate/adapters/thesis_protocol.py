@@ -442,6 +442,9 @@ class ThesisSession:
                 + "、".join(row["id"] for row in payload["updated_claims"])
                 + "。用户假设H1/H2、来源号QUANT/AUTO_*只能在理由中讨论，不能替代claim_id。"
                 "这是中间研究计划；不得把未逐项评价的论点声称为已经核查。")
+        if self.protocol_version >= 22 and kind == "FinalResearchReport":
+            prompt[0]["content"] += ("\n最后提醒：{{source:…}}里只能写source_bundle中content_blocks的证据块编号（形如E0001），"
+                                     "不能写来源编号（如S01、QUANT）。")
         if self.protocol_version >= 21 and kind != "DataReview":
             prompt = layout(node, prompt[0]["content"][len(SYSTEM) + 1:], payload)
             legacy_prompt = prompt
@@ -657,6 +660,11 @@ class ThesisSession:
                     "现金资本购买已包括固定和无形资产，不能再扣同一笔维护开支。股数预测和分红需论证，未知分红填null而不是0；回购通过有依据的股数路径体现。"
                     "这只是经营公司年度盈利法的研究工具。若经济类型不适用，可给空scenarios并解释，不能为了结构或方向性评级强造参数。",
                     forward_payload, config)
+                if self.protocol_version >= 22:
+                    # A draft kept at the length limit, or reused on resume, reaches here without the stage check.
+                    from .thesis_content import forward_error
+                    if forward_error(self.forward_draft, self.request) is not None:
+                        raise ValueError("THESIS_FORWARD_INCONSISTENT")
                 scenario_ids = [s["scenario_id"] for s in self.forward_draft["scenarios"]]
                 if scenario_ids != [f"F{i}" for i in range(1, len(scenario_ids) + 1)]:
                     raise ValueError("THESIS_FORWARD_SCENARIO_IDS_INVALID")

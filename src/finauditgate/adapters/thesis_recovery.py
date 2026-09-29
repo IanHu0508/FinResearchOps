@@ -25,10 +25,16 @@ REASONS_V4 = REASONS_V3 | {"SCHEMA_INVALID"}
 # any earlier final recovery; non-critical stages proven unusable are listed in "degraded".
 POLICY_V5 = "thesis-stage-recovery/v5"
 REASONS_V5 = REASONS_V4 | {"NUMBER_REPAIR"}
+# v6 (protocol 22): v5 plus CONTENT_CHECK, one more request at the same stage for a content failure
+# the program proves from the saved answer and its own prompt (thesis_content.py).
+POLICY_V6 = "thesis-stage-recovery/v6"
+REASONS_V6 = REASONS_V5 | {"CONTENT_CHECK"}
+_V5_UP = ("thesis-stage-recovery/v5", "thesis-stage-recovery/v6")
 _FORMAT_REASONS = {POLICY: {"MISSING_REASON"}, POLICY_V3: {"MISSING_REASON", "UNPARSEABLE", "ENUM_INVALID"},
                    POLICY_V4: {"MISSING_REASON", "UNPARSEABLE", "ENUM_INVALID", "SCHEMA_INVALID"},
-                   POLICY_V5: {"MISSING_REASON", "UNPARSEABLE", "ENUM_INVALID", "SCHEMA_INVALID"}}
-_REASONS = {POLICY: REASONS, POLICY_V3: REASONS_V3, POLICY_V4: REASONS_V4, POLICY_V5: REASONS_V5}
+                   POLICY_V5: {"MISSING_REASON", "UNPARSEABLE", "ENUM_INVALID", "SCHEMA_INVALID"},
+                   POLICY_V6: {"MISSING_REASON", "UNPARSEABLE", "ENUM_INVALID", "SCHEMA_INVALID", "CONTENT_CHECK"}}
+_REASONS = {POLICY: REASONS, POLICY_V3: REASONS_V3, POLICY_V4: REASONS_V4, POLICY_V5: REASONS_V5, POLICY_V6: REASONS_V6}
 _STATE_KEYS = {"policy", "max_extra_calls", "max_per_stage", "attempts", "halted", "retired_final_calls"}
 FINAL = ("Portfolio Manager", "FinalResearchReport")
 _ROW_KEYS = {"node", "kind", "reason", "missing_reason_paths", "failed_run_id", "retry_run_id", "retry_effort"}
@@ -243,8 +249,8 @@ def validate_stage_tag(call, kind, dependencies):
 
 
 def policy_for(protocol_version):
-    return (POLICY_V5 if protocol_version >= 20 else POLICY_V4 if protocol_version >= 19
-            else POLICY_V3 if protocol_version >= 18 else POLICY)
+    return (POLICY_V6 if protocol_version >= 22 else POLICY_V5 if protocol_version >= 20
+            else POLICY_V4 if protocol_version >= 19 else POLICY_V3 if protocol_version >= 18 else POLICY)
 
 
 def length_retry_effort(first_effort, protocol_version):
@@ -255,7 +261,7 @@ def length_retry_effort(first_effort, protocol_version):
 
 
 def extra_call_limit(policy):
-    return 3 if policy == POLICY_V5 else 2
+    return 3 if policy in _V5_UP else 2
 
 
 def failure_reason(call, candidate=None, errors=(), kind=None, *, protocol_version=16):
@@ -271,7 +277,13 @@ def failure_reason(call, candidate=None, errors=(), kind=None, *, protocol_versi
     if protocol_version >= 18:
         # Decided from the saved call alone, exactly as the Case reader does.
         from .thesis_format import format_failure
-        return format_failure(call, kind, protocol_version) if kind is not None else (None, [])
+        if kind is None:
+            return None, []
+        found = format_failure(call, kind, protocol_version)
+        if found[0] is None and protocol_version >= 22:
+            from .thesis_content import content_failure
+            return content_failure(call, kind, protocol_version)
+        return found
     paths = missing_reason_paths(candidate, kind)
     if (paths and errors and not call.get("error_type") and all(e.get("type") == "missing" for e in errors)
             and {tuple(e["loc"]) for e in errors} == {tuple(p) for p in paths}):
@@ -288,7 +300,7 @@ class RecoveryState:
     def __init__(self, value=None, *, policy=POLICY):
         self.value = deepcopy(value) if value is not None else {
             "policy": policy, "max_extra_calls": extra_call_limit(policy), "max_per_stage": 2, "attempts": [], "halted": None,
-            "retired_final_calls": [], **({"degraded": []} if policy == POLICY_V5 else {})}
+            "retired_final_calls": [], **({"degraded": []} if policy in _V5_UP else {})}
         validate_state(self.value)
         if self.value["policy"] != policy:
             raise ValueError("THESIS_RECOVERY_STATE_INVALID")
@@ -303,7 +315,7 @@ class RecoveryState:
         if len(attempts) >= extra_call_limit(self.value["policy"]):
             return False
         if reason == "NUMBER_REPAIR":
-            return (self.value["policy"] == POLICY_V5 and (node, kind) == FINAL
+            return (self.value["policy"] in _V5_UP and (node, kind) == FINAL
                     and not any(a["reason"] == "NUMBER_REPAIR" for a in attempts))
         prior = [a for a in attempts if (a["node"], a["kind"]) == (node, kind)]
         return (not prior or (
@@ -321,16 +333,18 @@ class RecoveryState:
         if self.value["policy"] != POLICY:
             entry["missing_reason_paths"] = deepcopy(paths) if reason == "MISSING_REASON" else []
             entry["enum_paths"] = deepcopy(paths) if reason == "ENUM_INVALID" else []
-        if self.value["policy"] in (POLICY_V4, POLICY_V5):
+        if self.value["policy"] in (POLICY_V4, *_V5_UP):
             entry["schema_errors"] = deepcopy(paths) if reason == "SCHEMA_INVALID" else []
-        if self.value["policy"] == POLICY_V5:
+        if self.value["policy"] in _V5_UP:
             entry["number_sentences"] = deepcopy(paths) if reason == "NUMBER_REPAIR" else []
+        if self.value["policy"] == POLICY_V6:
+            entry["check"] = deepcopy(paths) if reason == "CONTENT_CHECK" else None
         attempts.append(entry)
         return entry
 
     def degrade(self, node, kind, reason, run_ids):
         """Record a non-critical stage left out after its saved answers were proven unusable."""
-        if self.value["policy"] != POLICY_V5:
+        if self.value["policy"] not in _V5_UP:
             raise ValueError("THESIS_RECOVERY_STATE_INVALID")
         if self.value["halted"] is not None and (self.value["halted"]["node"], self.value["halted"]["kind"]) == (node, kind):
             self.value["halted"] = None
@@ -346,7 +360,7 @@ class RecoveryState:
 
 def validate_state(state):
     if (not isinstance(state, dict) or state.get("policy") not in _REASONS
-            or set(state) != (_STATE_KEYS | {"degraded"} if state["policy"] == POLICY_V5 else _STATE_KEYS)
+            or set(state) != (_STATE_KEYS | {"degraded"} if state["policy"] in _V5_UP else _STATE_KEYS)
             or type(state["max_extra_calls"]) is not int or state["max_extra_calls"] != extra_call_limit(state["policy"])
             or type(state["max_per_stage"]) is not int or state["max_per_stage"] != 2
             or not isinstance(state["attempts"], list) or len(state["attempts"]) > extra_call_limit(state["policy"])
@@ -356,7 +370,8 @@ def validate_state(state):
     seen = {}
     for row in state["attempts"]:
         keys = {POLICY: _ROW_KEYS, POLICY_V3: _ROW_KEYS | {"enum_paths"}, POLICY_V4: _ROW_KEYS | {"enum_paths", "schema_errors"},
-                POLICY_V5: _ROW_KEYS | {"enum_paths", "schema_errors", "number_sentences"}}[state["policy"]]
+                POLICY_V5: _ROW_KEYS | {"enum_paths", "schema_errors", "number_sentences"},
+                POLICY_V6: _ROW_KEYS | {"enum_paths", "schema_errors", "number_sentences", "check"}}[state["policy"]]
         if (not isinstance(row, dict) or set(row) != keys
                 or any(not isinstance(row[k], str) or not row[k] for k in ("node", "kind", "failed_run_id", "retry_effort"))
                 or row["reason"] not in _REASONS[state["policy"]]
@@ -365,9 +380,10 @@ def validate_state(state):
                 or (current and (not isinstance(row["enum_paths"], list)
                     or (row["reason"] != "MISSING_REASON" and row["missing_reason_paths"])
                     or (row["reason"] != "ENUM_INVALID" and row["enum_paths"])))
-                or (state["policy"] in (POLICY_V4, POLICY_V5) and (not isinstance(row["schema_errors"], list)
+                or (state["policy"] in (POLICY_V4, *_V5_UP) and (not isinstance(row["schema_errors"], list)
                     or bool(row["schema_errors"]) != (row["reason"] == "SCHEMA_INVALID")))
-                or (state["policy"] == POLICY_V5 and (not isinstance(row["number_sentences"], list)
+                or (state["policy"] == POLICY_V6 and not _valid_check(row))
+                or (state["policy"] in _V5_UP and (not isinstance(row["number_sentences"], list)
                     or bool(row["number_sentences"]) != (row["reason"] == "NUMBER_REPAIR")
                     or (row["reason"] == "NUMBER_REPAIR" and ((row["node"], row["kind"]) != FINAL or row["retry_effort"] != "high"))))
                 ):
@@ -390,7 +406,7 @@ def validate_state(state):
     if halted is not None and (not isinstance(halted, dict) or set(halted) != {"node", "kind", "reason"}
             or any(not isinstance(v, str) or not v for v in halted.values())):
         raise ValueError("THESIS_RECOVERY_STATE_INVALID")
-    if state["policy"] == POLICY_V5:
+    if state["policy"] in _V5_UP:
         _validate_degraded(state)
     retired = state["retired_final_calls"]
     if retired:
@@ -401,6 +417,23 @@ def validate_state(state):
         if (not entries or any(not isinstance(c, dict) for c in retired)
                 or None in ids or [c.get("run_id") for c in retired] != ids):
             raise ValueError("THESIS_RECOVERY_RETIRED_FINAL_INVALID")
+
+
+def _valid_check(row):
+    """A CONTENT_CHECK row lists each proven problem once, in CODES order; other rows carry None."""
+    from .thesis_content import CODES
+    found = row["check"]
+    if row["reason"] != "CONTENT_CHECK":
+        return found is None
+    if (not isinstance(found, list) or not found
+            or not all(isinstance(f, dict) and set(f) == {"code", "detail"} and f["code"] in CODES for f in found)):
+        return False
+    codes = [f["code"] for f in found]
+    # An unknown reference may be an empty string: the stage schemas allow it and check_refs refuses it.
+    return codes == sorted(set(codes), key=CODES.index) and all(
+        isinstance(f["detail"], str) and f["detail"] if f["code"] == "FORWARD_INCONSISTENT" else
+        isinstance(f["detail"], list) and f["detail"] and all(isinstance(ref, str) for ref in f["detail"])
+        for f in found)
 
 
 def _validate_degraded(state):
@@ -518,7 +551,7 @@ def validate_recoveries(calls, state, *, complete=False, protocol_version=16):
 
 
 def _validate_v3(calls, state, complete, protocol_version):
-    """Policies v3/v4: every failure is re-proven from its saved call by the live rule."""
+    """Policies v3 to v6: every failure is re-proven from its saved call by the live rule."""
     from .thesis_format import check_enum_repair, enum_repair_messages
     from .thesis_responses import response_candidate
     if complete and state["halted"] is not None:
@@ -548,7 +581,9 @@ def _validate_v3(calls, state, complete, protocol_version):
         if row["reason"] == "LENGTH" and row["retry_effort"] != length_retry_effort(stage.get("reasoning_effort"), protocol_version):
             raise ValueError("THESIS_RECOVERY_EFFORT_INVALID")
         actual, paths = failure_reason(failed, kind=row["kind"], protocol_version=protocol_version)
-        if actual != row["reason"] or paths != (row["missing_reason_paths"] or row["enum_paths"] or row.get("schema_errors") or []):
+        proven = (row["check"] if row["reason"] == "CONTENT_CHECK" else
+                  row["missing_reason_paths"] or row["enum_paths"] or row.get("schema_errors") or [])
+        if actual != row["reason"] or paths != proven:
             raise ValueError("THESIS_RECOVERY_FAILURE_NOT_PROVEN")
         if row["reason"] == "LENGTH" and retained_length_outputs(failed) is not None:
             raise ValueError("THESIS_COMPLETE_ANSWER_CANNOT_BE_RETRIED")
@@ -560,6 +595,9 @@ def _validate_v3(calls, state, complete, protocol_version):
         elif row["reason"] == "ENUM_INVALID":
             previous = response_candidate(failed["output"], row["kind"], protocol_version=protocol_version)
             expected = enum_repair_messages(expected, row["kind"], previous, paths, tail=protocol_version >= 21)
+        elif row["reason"] == "CONTENT_CHECK":
+            from .thesis_content import content_repair_messages
+            expected = content_repair_messages(expected, row["check"])
         excluded.add(row["failed_run_id"])
         retry_id = row["retry_run_id"]
         if retry_id is None:
@@ -616,7 +654,7 @@ def validate_budget_reservations(checkpoint, calls, state, prior_reuse=None):
         return (Decimal(size + 8192) * rate_in + Decimal(maximum) * rate_out) / Decimal(1000000)
     lower = sum((reserve(c) for c in known), Decimal(0)) + (receipt["calls"] - len(known)) * base
     if prior_reuse and prior_reuse.get("budget_origin") in ("SAME_V16_FLOW", "SAME_V17_FLOW", "SAME_V18_FLOW", "SAME_V19_FLOW",
-                                                             "SAME_V20_FLOW", "SAME_V21_FLOW"):
+                                                             "SAME_V20_FLOW", "SAME_V21_FLOW", "SAME_V22_FLOW"):
         prior = prior_reuse["prior_budget"]
         previous_ids = set(prior_reuse["prior_model_run_ids"])
         new = [c for c in known if c["run_id"] not in previous_ids]

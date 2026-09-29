@@ -44,6 +44,9 @@ def _retry_input(session, kind, prompt, failed, entry):
     if entry["reason"] == "ENUM_INVALID":
         previous = response_candidate(failed["output"], kind, protocol_version=session.protocol_version)
         return enum_repair_messages(prompt, kind, previous, entry["enum_paths"], tail=tail), previous
+    if entry["reason"] == "CONTENT_CHECK":
+        from .thesis_content import content_repair_messages
+        return content_repair_messages(prompt, entry["check"]), None
     # Transport, length, empty and unparseable failures repeat the unchanged prompt.
     return deepcopy(prompt), None
 
@@ -55,6 +58,17 @@ def _check_repair(entry, previous, candidate, kind):
         check_missing_repair(previous, candidate, entry["missing_reason_paths"], kind)
     elif entry["reason"] == "ENUM_INVALID":
         check_enum_repair(previous, candidate, entry["enum_paths"], kind)
+
+
+def _check_content(session, kind, candidate, sent):
+    """Protocol 22: refuse a forward draft failing a pre-calculation check (_parse already refuses
+    unknown sources); failure_reason then proves every problem again from the saved call."""
+    if session.protocol_version < 22 or kind != "UnderwritingDraft":
+        return
+    from .thesis_content import forward_error
+    from .thesis_protocol import payload_of
+    if forward_error(candidate, payload_of(sent[-1]["content"], session.protocol_version)["request"]) is not None:
+        raise ValueError("THESIS_FORWARD_INCONSISTENT")
 
 
 def invoke_stage(session, node, kind, prompt, legacy_prompt, config):
@@ -120,6 +134,7 @@ def invoke_stage(session, node, kind, prompt, legacy_prompt, config):
                                            protocol_version=max(16, session.protocol_version))
             _check_repair(entry, previous, candidate, kind)
             _, parsed = _parse(session, raw, kind)
+            _check_content(session, kind, candidate, actual)
             if entry is not None:
                 entry["retry_run_id"] = capture.model_calls[-1]["run_id"]
             if kind == "FinalResearchReport":
