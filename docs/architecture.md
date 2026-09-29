@@ -1,9 +1,9 @@
 # Architecture
 
 The main research path crosses `handle(ResearchThesis(...))` and `read_case`.
-The optional `--all-analysts` frozen-source route uses protocol/Case v20 for new
-runs (a resumed execution keeps the protocol it started with, so earlier v17,
-v18 and v19 executions resume as such): four actual analyst reports precede the existing
+The optional `--all-analysts` frozen-source route uses protocol/Case v21 for new
+runs (a resumed execution keeps the protocol it started with, so earlier v17 to
+v20 executions resume as such): four actual analyst reports precede the existing
 thirteen research stages. The
 reports and original sources reach downstream research; the independent
 assessment retains source-only input. It saves fundamental, market, news and
@@ -40,7 +40,17 @@ rewrites just those sentences; the program splices them in and checks the
 complete report again under the unchanged contract. The reader re-derives the
 refused sentences, the repair prompt and the spliced report from saved calls,
 and proves for each degraded stage that no retry was left. Recovery policy v5
-allows three extra calls per run.
+allows three extra calls per run. Protocol 21 keeps every task's words and
+changes only their order and the reasoning effort: one fixed system message,
+then the shared request and frozen sources, then the stage input and task.
+Every stage before the final report starts with the same bytes for the
+provider's prefix cache; the final report, which reads the evidence-block
+catalog, shares its own prefix with its retries and repair, all of which are
+appended after the unchanged prompt. Protocol 21 fixes every stage's first
+reasoning effort (analysts and trader low, independent assessment and forward
+draft max, the rest high) and asks a truncated answer again one level lower.
+The reader parses each version's own layout only, and from 21 rebuilds every
+saved prompt exactly and checks the system message and first-attempt efforts.
 Its instance-local protocol keeps native graph routing while isolating initial
 drafts, limiting round-two discussion to sealed first drafts, and obtaining
 source-only independent underwriting before the portfolio manager sees peer

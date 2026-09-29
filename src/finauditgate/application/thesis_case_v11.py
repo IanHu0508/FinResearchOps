@@ -3,7 +3,7 @@
 import json
 
 from finauditgate.adapters.thesis_protocol import (
-    RESEARCHERS, RISKS, belief_view, check_refs, claim_view, research_request_view,
+    RESEARCHERS, RISKS, SYSTEM_V21, belief_view, check_refs, claim_view, payload_of, research_request_view,
     risk_view, source_view, validate_sources,
 )
 from finauditgate.adapters.thesis_correction import render_decision, valid_belief_updates
@@ -24,6 +24,21 @@ def _without_nulls(value):
 def _coverage(rows, ids, key):
     if len(rows) != len(ids) or {r[key] for r in rows} != set(ids):
         raise ValueError("THESIS_CLAIM_COVERAGE_INVALID")
+
+
+def _check_v21_calls(calls):
+    """Protocol 21: every saved prompt has the fixed system message and exact layout, and every
+    first attempt used its stage's reasoning effort."""
+    from finauditgate.adapters.thesis_invocation import EFFORT_V21
+    from finauditgate.adapters.thesis_recovery import call_messages
+    for call in calls:
+        tag = call.get("thesis_stage") or {}
+        sent = call_messages(call)
+        if len(sent) != 2 or sent[0]["content"] != SYSTEM_V21:
+            raise ValueError("THESIS_PROMPT_LAYOUT_INVALID")
+        payload_of(sent[1]["content"], 21)
+        if tag.get("attempt") == 1 and tag.get("kind") in EFFORT_V21 and tag.get("reasoning_effort") != EFFORT_V21[tag["kind"]]:
+            raise ValueError("THESIS_STAGE_EFFORT_INVALID")
 
 
 def _number_repair(record, base, base_call, protocol, request):
@@ -54,12 +69,12 @@ def _number_repair(record, base, base_call, protocol, request):
 
 def validate(record):
     current = record.get("schema_version") in ("finresearchops.thesis-case/v18", "finresearchops.thesis-case/v19",
-                                               "finresearchops.thesis-case/v20")
+                                               "finresearchops.thesis-case/v20", "finresearchops.thesis-case/v21")
     full_analysts = current or record.get("schema_version") == "finresearchops.thesis-case/v17"
     selected = full_analysts or record.get("schema_version") == "finresearchops.thesis-case/v16"
     protocol = int(record["schema_version"].rsplit("/v", 1)[1]) if current else 16
     bound = selected or record.get("schema_version") == "finresearchops.thesis-case/v13"
-    if (record.get("schema_version") not in ("finresearchops.thesis-case/v11", "finresearchops.thesis-case/v13", "finresearchops.thesis-case/v16", "finresearchops.thesis-case/v17", "finresearchops.thesis-case/v18", "finresearchops.thesis-case/v19", "finresearchops.thesis-case/v20")
+    if (record.get("schema_version") not in ("finresearchops.thesis-case/v11", "finresearchops.thesis-case/v13", "finresearchops.thesis-case/v16", "finresearchops.thesis-case/v17", "finresearchops.thesis-case/v18", "finresearchops.thesis-case/v19", "finresearchops.thesis-case/v20", "finresearchops.thesis-case/v21")
             or record.get("status") not in (("COMPLETED", "PARTIAL") if selected else ("COMPLETED",)) or record.get("review_status") != "AWAITING_REVIEW"
             or record.get("financial_gate") != "NOT_REQUIRED" or record.get("automatic_trading") is not False
             or record.get("sensitivity_policy") != "DECLARED_SCENARIOS_REPORT_ONLY"):
@@ -97,6 +112,8 @@ def validate(record):
         from finauditgate.adapters.thesis_recovery import successful_call, validate_recoveries, validate_stage_tag
         excluded, dependencies = validate_recoveries(record["model_calls"], record["recovery"], complete=True,
                                                      protocol_version=protocol)
+        if protocol >= 21:
+            _check_v21_calls(record["model_calls"])
         if protocol >= 20:
             from finauditgate.adapters.thesis_degrade import check_degraded
             check_degraded(record["model_calls"], record["recovery"], protocol, allowed_refs)
@@ -124,7 +141,9 @@ def validate(record):
             raise ValueError("THESIS_OUTPUT_BINDING_INVALID")
         if not selected_final:
             check_refs(exchange["parsed"], allowed_refs)
-        payload = json.loads(messages[1]["content"])
+        if protocol >= 21 and messages[0]["content"] != SYSTEM_V21:
+            raise ValueError("THESIS_PROMPT_LAYOUT_INVALID")
+        payload = payload_of(messages[1]["content"], protocol)
         expected_sources = final_source_view(sources) if selected_final else sources
         if payload.get("request") != request or payload.get("source_bundle") != expected_sources:
             raise ValueError("THESIS_RESEARCH_REQUEST_BINDING_INVALID")
@@ -268,7 +287,7 @@ def validate(record):
                 final_id = entry["failed_run_id"]
             final_status = "RETAINED_LENGTH" if record["model_calls"][order[-1]].get("retained_length") else "COMPLETED"
             expected_statuses = [*("TRUNCATED" if r["reason"] == "LENGTH" else "FAILED" for r in recovery), final_status]
-            expected_efforts = ["max", *(r["retry_effort"] for r in recovery)]
+            expected_efforts = ["high" if protocol >= 21 else "max", *(r["retry_effort"] for r in recovery)]
         else:
             expected_statuses = [a["status"] for a in attempts]
             expected_efforts = ["max"] if len(attempts) == 1 else ["max", "high"]

@@ -16,6 +16,7 @@ from finauditgate.adapters.thesis_responses import CompletedCalls
 from finauditgate.application import ApplicationError, FinResearchOps
 from finauditgate.application.thesis_case import validate
 from finauditgate.research import ResearchThesis
+from native_support import payload_of
 
 
 class SelectionLLM(NarrativeLLM):
@@ -29,7 +30,7 @@ class SelectionLLM(NarrativeLLM):
         result = super()._generate(messages, stop=stop, run_manager=run_manager, **kwargs)
         schema = kwargs.get("synthetic_schema")
         if schema and schema.__name__ == "FinalResearchReport":
-            payload = json.loads(messages[-1].content)
+            payload = payload_of(messages[-1].content)
             assert "content_blocks" in payload["source_bundle"]["sources"][0]
             assert "content" not in payload["source_bundle"]["sources"][0]
             value = json.loads(result.generations[0].message.content)

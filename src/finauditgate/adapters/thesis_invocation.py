@@ -4,10 +4,17 @@ from copy import deepcopy
 import re
 from time import sleep
 
-from .thesis_recovery import check_missing_repair, failure_reason, repair_messages, retained_length_outputs
+from .thesis_recovery import check_missing_repair, failure_reason, length_retry_effort, repair_messages, retained_length_outputs
 from .thesis_format import check_enum_repair, enum_repair_messages, schema_errors
 from .thesis_schemas_v18 import SCHEMAS
 from .thesis_responses import response_candidate
+
+# Protocol 21 reasoning effort of every stage's first attempt; the configured effort is not used.
+# Analysts and the trader are non-critical context; the final report and revision reached the
+# output cap at "max", so they start at "high".
+EFFORT_V21 = {"AnalystReport": "low", "InitialBrief": "high", "RevisionBrief": "high", "ResearchEvaluation": "high",
+              "ExecutionReview": "low", "RiskBrief": "high", "IndependentAssessment": "max", "UnderwritingDraft": "max",
+              "ForwardRevision": "high", "FinalResearchReport": "high"}
 
 
 def _parse(session, raw, kind):
@@ -30,12 +37,13 @@ def _parse(session, raw, kind):
 
 def _retry_input(session, kind, prompt, failed, entry):
     """The retry prompt and frozen previous answer, rebuilt from the saved failed call."""
+    tail = session.protocol_version >= 21
     if entry["reason"] == "MISSING_REASON":
         previous = response_candidate(failed["output"], kind, protocol_version=max(16, session.protocol_version))
-        return repair_messages(prompt, previous, entry["missing_reason_paths"]), previous
+        return repair_messages(prompt, previous, entry["missing_reason_paths"], tail=tail), previous
     if entry["reason"] == "ENUM_INVALID":
         previous = response_candidate(failed["output"], kind, protocol_version=session.protocol_version)
-        return enum_repair_messages(prompt, kind, previous, entry["enum_paths"]), previous
+        return enum_repair_messages(prompt, kind, previous, entry["enum_paths"], tail=tail), previous
     # Transport, length, empty and unparseable failures repeat the unchanged prompt.
     return deepcopy(prompt), None
 
@@ -66,8 +74,11 @@ def invoke_stage(session, node, kind, prompt, legacy_prompt, config):
             and not completed.receipt["presentation_replay"].get("new_primary_calls_allowed", False)):
         raise ValueError("THESIS_PRESENTATION_REPLAY_REQUIRES_CAPTURED_CALL")
     model = session.model
-    if kind in {"IndependentAssessment", "UnderwritingDraft", "ForwardRevision", "FinalResearchReport", "DataReview"} and hasattr(model, "reasoning_effort"):
-        model = model.model_copy(update={"reasoning_effort": "max"})
+    forced = (EFFORT_V21.get(kind) if session.protocol_version >= 21 else
+              "max" if kind in {"IndependentAssessment", "UnderwritingDraft", "ForwardRevision", "FinalResearchReport", "DataReview"}
+              else None)
+    if forced and hasattr(model, "reasoning_effort"):
+        model = model.model_copy(update={"reasoning_effort": forced})
     first_effort = (getattr(model, "reasoning_effort", None) or session.configured_effort or "provider_default")
     actual, entry, previous = deepcopy(prompt), None, None
     next_attempt = 1
@@ -145,7 +156,8 @@ def invoke_stage(session, node, kind, prompt, legacy_prompt, config):
                 code = str(exc) if re.fullmatch(r"[A-Z0-9_]{1,120}", str(exc)) else type(exc).__name__
                 policy.halt(node, kind, code)
                 raise
-            entry = policy.reserve(node, kind, call, reason, paths, first_effort)
+            entry = policy.reserve(node, kind, call, reason, paths, first_effort,
+                                   length_effort=length_retry_effort(first_effort, session.protocol_version))
             if reason == "LENGTH" and session.budget is not None:
                 if not session.budget.release_confirmed_truncation(confirmed_length=True):
                     policy.halt(node, kind, "THESIS_TRUNCATION_RECOVERY_NOT_PERMITTED")

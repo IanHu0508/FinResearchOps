@@ -21,6 +21,7 @@ from finauditgate.adapters.model_budget import ModelBudget
 from finauditgate.adapters.tradingagents_thesis import ThesisResearcher
 from finauditgate.application import FinResearchOps
 from finauditgate.research import ResearchThesis
+from native_support import payload_of
 
 
 class GuardLLM(QualityLLM):
@@ -57,7 +58,7 @@ class GuardLLM(QualityLLM):
         elif self.guard_mode == "outside_path":
             value["edits"][0]["path"] = "request.as_of"
         elif self.guard_mode == "unrelated_prose":
-            payload = json.loads(messages[-1].content)
+            payload = payload_of(messages[-1].content)
             path = next(p for p in payload["editable_text"] if p.startswith("financial_analysis."))
             original = payload["editable_text"][path]
             value["edits"].append({"finding_ids": ["R1"], "path": path,

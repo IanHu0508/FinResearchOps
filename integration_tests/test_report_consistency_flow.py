@@ -7,6 +7,7 @@ from unittest import TestCase
 import test_thesis_delivery as delivery
 from finauditgate.application.thesis_case import validate
 from finauditgate.application.research_changes import parameter_change_facts
+from native_support import payload_of
 
 
 class MisleadingExplanationLLM(delivery.SelectionLLM):
@@ -14,7 +15,7 @@ class MisleadingExplanationLLM(delivery.SelectionLLM):
         result = super()._generate(messages, stop=stop, run_manager=run_manager, **kwargs)
         schema = kwargs.get('synthetic_schema')
         if schema and schema.__name__ == 'FinalResearchReport':
-            payload = json.loads(messages[-1].content)
+            payload = payload_of(messages[-1].content)
             assert payload['parameter_change_facts']['scope'] == 'MODEL_INPUT_COMPARISON_NOT_FACT_CERTIFICATION'
             value = json.loads(result.generations[0].message.content)
             value['summary']['text'] += '2025年经营观察仍需复核，未来12个月有两点需要注意：经营与估值。'

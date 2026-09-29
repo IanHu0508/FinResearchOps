@@ -11,6 +11,7 @@ from finauditgate.application import ApplicationError
 from finauditgate.application.thesis_case import validate
 from finauditgate.adapters.thesis_recovery import repair_messages
 import test_thesis_recovery_flow as existing
+from native_support import payload_of
 
 
 class CombinedLLM(existing.RecoveryLLM):
@@ -19,7 +20,7 @@ class CombinedLLM(existing.RecoveryLLM):
 
     def _generate(self,messages,stop=None,run_manager=None,**kwargs):
         schema=kwargs.get('synthetic_schema');kind=schema.__name__ if schema else ''
-        key=json.loads(messages[-1].content).get('node','')+':'+kind
+        key=payload_of(messages[-1].content).get('node','')+':'+kind
         n=self.stage_calls.get(key,0)+1
         if self.combo_enabled and key==self.target and n==1:
             self.stage_calls[key]=n

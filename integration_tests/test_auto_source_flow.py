@@ -25,6 +25,7 @@ from finauditgate.application import ApplicationError, FinResearchOps
 from finauditgate.application.thesis_case import validate
 from finauditgate.core.artifacts import canonical_json_bytes, sha256_hex
 from finauditgate.research import ResearchThesis
+from native_support import payload_of
 
 
 QUESTION = "合成新闻和社媒自动补充后完成研究，不能以取数缺项推断市场情绪。"
@@ -66,7 +67,7 @@ class AcquiredSourceLLM(FourAnalystLLM):
         schema = kwargs.get("synthetic_schema")
         if schema is None or schema.__name__ != "AnalystReport":
             return result
-        payload = json.loads(messages[-1].content)
+        payload = payload_of(messages[-1].content)
         required = {"News Analyst": "NEWS", "Sentiment Analyst": "SOCIAL"}.get(payload["node"])
         present = {s["id"] for s in payload["source_bundle"]["sources"]}
         if required is not None and required not in present:

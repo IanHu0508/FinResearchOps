@@ -15,6 +15,7 @@ from finauditgate.application import FinResearchOps
 from finauditgate.application.thesis_case import validate
 from finauditgate.core.forward_scenarios import calculate_forward
 from finauditgate.research import ResearchThesis
+from native_support import payload_of
 
 
 NEW_REASON = (
@@ -40,7 +41,7 @@ class ReasonRevisionLLM(QualityLLM):
         kind = schema.__name__ if schema else ""
         if kind not in ("QualityReview", "QualityRevision"):
             return super()._generate(messages, stop=stop, run_manager=run_manager, **kwargs)
-        payload = json.loads(messages[-1].content)
+        payload = payload_of(messages[-1].content)
         item = {"node": payload["node"], "schema": kind, "payload": deepcopy(payload)}
         self.quality_requests.append(item)
         self.requests.append({**item, "reasoning_effort": self.reasoning_effort,

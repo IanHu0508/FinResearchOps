@@ -16,6 +16,7 @@ from finauditgate.adapters.model_budget import ModelBudget
 from finauditgate.research import RunAuditedNativeResearch
 from finauditgate.core.judgment import read_record
 from finauditgate.contracts import RunRef
+from native_support import payload_of
 
 
 class TypedModel(NativeSyntheticLLM):
@@ -33,7 +34,7 @@ class TypedModel(NativeSyntheticLLM):
             if result.generations[0].message.content:
                 result.generations[0].message.content+=' UNSAFE_UNCHECKED_DRAFT'
             return result
-        payload=json.loads(messages[-1].content);node=payload['node']
+        payload=payload_of(messages[-1].content);node=payload['node']
         self.requests.append({'node':node,'messages':[m.model_dump(mode='json') for m in messages]})
         proposals=[fact('c1','metric:operating_cashflow','NET_CASH_FLOW'),
             fact('c2','context:holdings','HOLDINGS','ZERO'),

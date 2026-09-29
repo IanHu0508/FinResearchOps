@@ -55,7 +55,7 @@ def final_instruction(protocol_version):
 def contract_for(record):
     """Number contract of a saved Case: 2 from thesis-case/v18 on, otherwise the original 1."""
     return 2 if record.get("schema_version") in ("finresearchops.thesis-case/v18", "finresearchops.thesis-case/v19",
-                                                 "finresearchops.thesis-case/v20") else 1
+                                                 "finresearchops.thesis-case/v20", "finresearchops.thesis-case/v21") else 1
 
 
 def evidence_catalog(sources):

@@ -16,7 +16,7 @@ _RISKS = ("Aggressive Analyst", "Conservative Analyst", "Neutral Analyst")
 
 
 def main_stages(version):
-    if type(version) is not int or version not in (10, 11, 13, 16, 17, 18, 19, 20):
+    if type(version) is not int or version not in (10, 11, 13, 16, 17, 18, 19, 20, 21):
         raise ValueError("THESIS_PROTOCOL_VERSION_INVALID")
     stages = [(node, "InitialBrief") for node in _RESEARCHERS]
     stages += [(node, "RevisionBrief") for node in _RESEARCHERS]

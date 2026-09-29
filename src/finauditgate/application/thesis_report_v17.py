@@ -4,6 +4,7 @@ import json
 import re
 
 from finauditgate.adapters.thesis_analysts import ANALYSTS, render_analyst, verbatim
+from finauditgate.adapters.thesis_protocol import payload_of
 from . import thesis_report_v16
 from .research_delivery import evidence_catalog
 from .forward_report import _table
@@ -47,7 +48,7 @@ def _quant(record):
     quant_blocks = {row["id"] for row in evidence_catalog(record["source_bundle"]) if row["source_id"] == "QUANT"}
     rows = []
     for i, exchange in enumerate(record["exchanges"], 1):
-        payload = json.loads(exchange["messages"][1]["content"])
+        payload = payload_of(exchange["messages"][1]["content"], int(record["schema_version"].rsplit("/v", 1)[1]))
         supplied = any(s.get("id") == "QUANT" for s in payload.get("source_bundle", {}).get("sources", []))
         cited = _quant_citations(exchange["parsed"], quant_blocks)
         rows.append((str(i), exchange["node"], exchange["kind"], "已提供" if supplied else "未提供",

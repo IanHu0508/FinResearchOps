@@ -131,7 +131,7 @@ class CompletedCalls:
 
     def __init__(self, root, request, sources, model, *, reassess_final=False, protocol_version=10,
                  replay_presentation_failure=False):
-        if protocol_version not in (10, 11, 13, 16, 17, 18, 19, 20):
+        if protocol_version not in (10, 11, 13, 16, 17, 18, 19, 20, 21):
             raise ValueError("THESIS_PROTOCOL_VERSION_INVALID")
         self.rows = []
         self.used = 0
@@ -156,7 +156,7 @@ class CompletedCalls:
         current = data.get("schema_version") == "finresearchops.thesis-runtime/v3"
         self.current_runtime = current
         if (data.get("schema_version") not in ("finresearchops.thesis-runtime/v1", "finresearchops.thesis-runtime/v3")
-                or (current and (protocol_version not in (16, 17, 18, 19, 20) or data.get("protocol_version") != protocol_version))
+                or (current and (protocol_version not in (16, 17, 18, 19, 20, 21) or data.get("protocol_version") != protocol_version))
                 or original != {"request": request, "sources": sources}):
             raise ValueError("THESIS_RESUME_INPUT_MISMATCH")
         excluded = set()
@@ -228,7 +228,8 @@ class CompletedCalls:
                         parsed = normalize_report(parsed, sources)
                     else:
                         check_refs(parsed, {s["id"] for s in source_view(sources)["sources"]})
-                    payload = json.loads(row["messages"][0][1]["content"])
+                    from .thesis_protocol import payload_of
+                    payload = payload_of(row["messages"][0][1]["content"], protocol_version)
                     if selected and payload["source_bundle"] != final_source_view(sources):
                         raise ValueError("THESIS_EVIDENCE_CATALOG_BINDING_INVALID")
                     if kind == "ForwardRevision":

@@ -155,11 +155,11 @@ def format_failure(call, kind, protocol_version=18):
     return None, []
 
 
-def enum_repair_messages(base, kind, candidate, paths):
+def enum_repair_messages(base, kind, candidate, paths, *, tail=False):
     allowed = {path: list(values) for error, path, values in schema_errors(kind, candidate) if error == "enum"}
     items = [{"path": path, "value": _at(candidate, path), "allowed": allowed[tuple(path)]} for path in paths]
     prompt = deepcopy(base)
-    prompt[0]["content"] += ("\n本次仅修正上一响应中不在候选值内的依据类型标签。返回同一完整JSON对象；"
+    prompt[-1 if tail else 0]["content"] += ("\n本次仅修正上一响应中不在候选值内的依据类型标签。返回同一完整JSON对象；"
         "只把下列路径改为该路径的候选值之一，其他所有字段、列表顺序、数值、评级、编号和文字逐字不变，不重新研究或改写。"
         "路径、原取值、候选值及原响应：\n"
         + canonical_json_bytes({"enum_paths": items, "previous_response": candidate}).decode())

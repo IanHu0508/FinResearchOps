@@ -24,6 +24,7 @@ from finauditgate.application import FinResearchOps
 from finauditgate.application import thesis_quality as quality
 from finauditgate.application.thesis_case import validate
 from finauditgate.research import ResearchThesis
+from native_support import payload_of
 
 
 class QualityLengthLLM(QualityLLM):
@@ -39,7 +40,7 @@ class QualityLengthLLM(QualityLLM):
     def _generate(self, messages, stop=None, run_manager=None, **kwargs):
         schema = kwargs.get("synthetic_schema")
         kind = schema.__name__ if schema else ""
-        node = json.loads(messages[-1].content)["node"]
+        node = payload_of(messages[-1].content)["node"]
         key = node + ":" + kind
         count = self.stage_counts.get(key, 0) + 1
         self.stage_counts[key] = count

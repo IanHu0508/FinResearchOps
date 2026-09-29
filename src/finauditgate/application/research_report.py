@@ -16,6 +16,7 @@ import unicodedata
 
 from .forward_report import _DISPOSITION, _EARNINGS_BASIS, _cell
 from finauditgate.adapters.thesis_degrade import case_status
+from finauditgate.adapters.thesis_protocol import payload_of
 from .research_delivery import contract_for, evidence_catalog, report_context
 from .research_narrative import _TOKEN, _escape, change_view
 from .research_numbers import _INPUT_KEYS, _METRICS
@@ -27,7 +28,7 @@ VERSIONS = (V1, V2)
 VERSION = V2  # written for newly saved Cases; saved files keep their recorded version
 NUMBER_PENDING = "UNBOUND_RESEARCH_NUMBER_PENDING"
 SUPPORTED = ("finresearchops.thesis-case/v16", "finresearchops.thesis-case/v17", "finresearchops.thesis-case/v18",
-             "finresearchops.thesis-case/v19", "finresearchops.thesis-case/v20")
+             "finresearchops.thesis-case/v19", "finresearchops.thesis-case/v20", "finresearchops.thesis-case/v21")
 FILES = ("research-report.md", "research-report.html")
 
 _RATINGS = {"Buy": "买入", "Overweight": "增持", "Hold": "中性", "Underweight": "减持", "Sell": "卖出",
@@ -470,7 +471,7 @@ class _Report:
         blocks_ids = {row["id"] for row in evidence_catalog(record["source_bundle"]) if row["source_id"] == "QUANT"}
         supplied = cited = 0
         for exchange in record["exchanges"]:
-            payload = json.loads(exchange["messages"][1]["content"])
+            payload = payload_of(exchange["messages"][1]["content"], int(record["schema_version"].rsplit("/v", 1)[1]))
             supplied += any(s.get("id") == "QUANT" for s in payload.get("source_bundle", {}).get("sources", []))
             cited += bool(_quant_citations(exchange["parsed"], blocks_ids))
         numbers = sorted(n for qid, n in self.citations.items() if self.context.quotes[qid]["source_id"] == "QUANT")
@@ -754,7 +755,7 @@ def _html(title, blocks, version):
 
 
 def render(record, version=VERSION):
-    """Return (Markdown bytes, HTML bytes) for a v16-v20 thesis Case in one format version."""
+    """Return (Markdown bytes, HTML bytes) for a v16-v21 thesis Case in one format version."""
     report = _Report(record, version)
     title, blocks = report.build()
     return _markdown(title, blocks, version), _html(title, blocks, version)

@@ -27,6 +27,7 @@ from finauditgate.application.thesis_case import validate
 from finauditgate.application.research_delivery import DeliveryContext
 from finauditgate.core.artifacts import sha256_hex
 from finauditgate.research import ResearchThesis
+from native_support import payload_of
 
 
 ANALYST_FIELDS = {
@@ -70,7 +71,7 @@ class FourAnalystLLM(SelectionLLM):
         kind = schema.__name__ if schema else ""
         if kind != "AnalystReport":
             return super()._generate(messages, stop=stop, run_manager=run_manager, **kwargs)
-        payload = json.loads(messages[-1].content)
+        payload = payload_of(messages[-1].content)
         node = payload["node"]
         self.requests.append({"node": node, "payload": deepcopy(payload), "schema": kind,
             "text": "\n".join(m.content for m in messages), "reasoning_effort": self.reasoning_effort,
@@ -107,7 +108,7 @@ class OverlongAnalystLimitsLLM(FourAnalystLLM):
     def _generate(self, messages, stop=None, run_manager=None, **kwargs):
         result = super()._generate(messages, stop=stop, run_manager=run_manager, **kwargs)
         schema = kwargs.get("synthetic_schema")
-        payload = json.loads(messages[-1].content)
+        payload = payload_of(messages[-1].content)
         if not schema or schema.__name__ != "AnalystReport" or payload["node"] != "News Analyst":
             return result
         value = json.loads(result.generations[0].message.content)

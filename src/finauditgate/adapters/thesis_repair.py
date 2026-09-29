@@ -153,9 +153,9 @@ def refused_sentences(report, draft, calculations, sources, request, *, changes,
     return kept or None
 
 
-def repair_messages(base, refused):
+def repair_messages(base, refused, *, tail=False):
     prompt = deepcopy(base)
-    prompt[0]["content"] += (
+    prompt[-1 if tail else 0]["content"] += (
         "\n【本次任务变更】上文终稿已经生成。本次不重写终稿，也不返回FinalResearchReport，"
         "只改写下列被数字规则拒收的句子。每一项的original必须原样照抄该句，replacement给出改写后的整句。"
         "改写句不得出现金额、比率、数量、倍数、股数等数字（阿拉伯数字或中文数字都不行），日期可写成“2025年第三季度”这种形式；"

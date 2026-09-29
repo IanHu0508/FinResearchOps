@@ -83,7 +83,12 @@ holds its run ID and replacements. The exchange keeps the original answer; `fina
 spliced report, which the reader rebuilds and checks again. `reused_calls.budget_origin` is
 `SAME_V20_FLOW`; number contract 2 applies as in v18.
 
-`finresearchops.research-report/v1` and `/v2` are the formal reading layouts of a v16-v20 Case
+Case v21 (`thesis-case.v21.schema.json`) keeps the v20 shape and recovery policy. Its saved prompts use
+the protocol 21 layout (fixed system message; shared sources, stage input and task in one user message),
+which the reader parses with `payload_of`; the final report's first attempt runs at high reasoning effort.
+`reused_calls.budget_origin` is `SAME_V21_FLOW`.
+
+`finresearchops.research-report/v1` and `/v2` are the formal reading layouts of a v16-v21 Case
 (new Cases write v2, which lists citation findings and unbound-number findings apart on the
 cover, notice and appendix; v1 files stay as saved):
 `research-report.md` plus `research-report.html`, written at save or later by the offline

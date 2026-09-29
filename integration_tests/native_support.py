@@ -235,3 +235,9 @@ def patched_native_runtime(llm, data=None):
                 if hasattr(module, name):
                     stack.enter_context(patch.object(module, name, value))
         yield data
+
+
+def payload_of(content):
+    """Synthetic providers read the stage payload of either prompt layout."""
+    from finauditgate.adapters.thesis_protocol import SHARED_HEAD, payload_of as strict
+    return strict(content, 21 if content.startswith(SHARED_HEAD) else 16)

@@ -49,8 +49,9 @@ class FormatDriftLLM(FourAnalystLLM):
             return result
         attempt = sum((r["node"], r["schema"]) == (self.broken_node, self.broken_kind) for r in self.requests)
         value = json.loads(result.generations[0].message.content)
-        if REPAIR_MARKER in messages[0].content:
-            repaired = json.loads(messages[0].content.rsplit("\n", 1)[1])["previous_response"]
+        marked = next((m.content for m in messages if REPAIR_MARKER in m.content), None)
+        if marked is not None:
+            repaired = json.loads(marked.rsplit("\n", 1)[1])["previous_response"]
             repaired["changes"][0]["replacement"]["amount"]["basis_type"] = "analyst_assumption"
             if self.tamper_repair:
                 repaired["changes"][0]["reason"] += "（修复时改写）"

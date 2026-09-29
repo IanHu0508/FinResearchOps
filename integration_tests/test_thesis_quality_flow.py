@@ -28,6 +28,7 @@ from finauditgate.application.thesis_case import render, validate
 from finauditgate.core.artifacts import canonical_json_bytes, sha256_hex
 from finauditgate.core.forward_scenarios import calculate_forward
 from finauditgate.research import ResearchThesis
+from native_support import payload_of
 
 
 SUMMARY = (
@@ -46,7 +47,7 @@ class QualityLLM(SelectionLLM):
         kind = schema.__name__ if schema else ""
         if kind not in ("QualityReview", "QualityRevision"):
             return super()._generate(messages, stop=stop, run_manager=run_manager, **kwargs)
-        payload = json.loads(messages[-1].content)
+        payload = payload_of(messages[-1].content)
         item = {"node": payload["node"], "schema": kind, "payload": deepcopy(payload)}
         self.quality_requests.append(item)
         self.requests.append({**item, "reasoning_effort": self.reasoning_effort,

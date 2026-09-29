@@ -68,6 +68,27 @@ result is claimed; that narrow repair did not change the source, prompt or retry
 still reads no quant signal directly.
 
 
+### Protocol 21: cache-friendly prompt layout and staged reasoning effort — 2026-09-28
+
+Implementation and tests are COMPLETED. New four-analyst executions write
+`finresearchops.thesis-case/v21`; resumed v16 to v20 executions keep their recorded protocol, prompts
+and readers. Every task keeps its protocol 20 words; only their order and the reasoning effort change.
+One fixed system message is followed by the shared request and frozen sources, then the stage input
+and the task, so every stage before the final report starts with the same bytes; the final report,
+which reads the evidence-block catalog, shares its prefix with its own retries and repair, all of which
+are appended after the unchanged prompt. Laying out the saved prompts of ten completed runs this way
+raises the share of each run's input that repeats an earlier prompt's opening from about 4% to about
+79% of characters; this is an offline estimate of what a prefix cache could reuse, not a measured bill.
+Protocol 21 also fixes each stage's first reasoning effort (analysts and trader low, independent
+assessment and forward draft max, the other stages high, including the final report and its revision)
+and asks a truncated answer again one level lower. The reader accepts only each version's own layout,
+rebuilds every protocol 21 prompt exactly, and checks the fixed system message and first-attempt efforts.
+
+Core 538, integration 281 and Quant 186 checks pass. They include the shared prefix, staged
+efforts and step-down retries, re-asks and repairs appended after the unchanged prompt, degradation and
+resume under protocol 21, unchanged protocol 20 prompts, and refusal of prompts, system messages and
+efforts a version never sent. The effect on delivery, answer quality and cost is measured separately.
+
 ### Protocol 20: non-critical stage degradation and final sentence repair — 2026-09-28
 
 Implementation and tests are COMPLETED. New four-analyst executions write

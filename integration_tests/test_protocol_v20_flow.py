@@ -25,6 +25,7 @@ from finauditgate.adapters.tradingagents_thesis import resume_protocol
 from finauditgate.application import ApplicationError
 from finauditgate.application.research_report import render as render_formal
 from finauditgate.application.thesis_case import validate
+from native_support import payload_of
 
 
 VALUE = "收入为12.5亿元。"
@@ -39,8 +40,8 @@ class NumberDriftLLM(FourAnalystLLM):
     def _generate(self, messages, stop=None, run_manager=None, **kwargs):
         schema = kwargs.get("synthetic_schema")
         if schema is not None and schema.__name__ == "FinalNumberRepair":
-            system = messages[0].content
-            self.requests.append({"node": json.loads(messages[-1].content)["node"], "schema": "FinalNumberRepair",
+            system = "\n".join(m.content for m in messages)
+            self.requests.append({"node": payload_of(messages[-1].content)["node"], "schema": "FinalNumberRepair",
                                   "text": "\n".join(m.content for m in messages), "reasoning_effort": self.reasoning_effort})
             line = next(row for row in system.split("\n") if row.startswith('{"refused_sentences":'))
             rows = json.loads(line)["refused_sentences"]
@@ -64,7 +65,7 @@ class DegradeLLM(NumberDriftLLM):
     def _generate(self, messages, stop=None, run_manager=None, **kwargs):
         schema = kwargs.get("synthetic_schema")
         if (self.raise_code_node and schema is not None and schema.__name__ == "AnalystReport"
-                and json.loads(messages[-1].content)["node"] == self.raise_code_node):
+                and payload_of(messages[-1].content)["node"] == self.raise_code_node):
             raise ValueError("NATIVE_TRACE_CALL_LIMIT")
         return super()._generate(messages, stop=stop, run_manager=run_manager, **kwargs)
 
@@ -78,7 +79,7 @@ class FirstDraftsUnparseableLLM(NumberDriftLLM):
         schema = kwargs.get("synthetic_schema")
         if schema is None or schema.__name__ != "InitialBrief":
             return result
-        node = json.loads(messages[-1].content)["node"]
+        node = payload_of(messages[-1].content)["node"]
         self.seen[node] = self.seen.get(node, 0) + 1
         if self.seen[node] == 1:
             return self._result(result.generations[0].message.content[:-1] + '"}')

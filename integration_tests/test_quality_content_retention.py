@@ -9,6 +9,7 @@ from pathlib import Path
 import unittest
 
 import test_thesis_quality_flow as flow
+from native_support import payload_of
 
 
 class RetentionLLM(flow.QualityLLM):
@@ -20,7 +21,7 @@ class RetentionLLM(flow.QualityLLM):
         kind = schema.__name__ if schema else ""
         if kind not in ("QualityReview", "QualityRevision"):
             return result
-        payload = json.loads(messages[-1].content)
+        payload = payload_of(messages[-1].content)
         value = json.loads(result.generations[0].message.content)
         if kind == "QualityReview":
             finding = value["findings"][0]

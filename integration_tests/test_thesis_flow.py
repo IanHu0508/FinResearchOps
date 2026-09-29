@@ -27,6 +27,7 @@ from finauditgate.application import FinResearchOps, ApplicationError
 from finauditgate.application.thesis_case import validate
 from finauditgate.core.artifacts import sha256_hex, canonical_json_bytes
 from finauditgate.research import ResearchThesis
+from native_support import payload_of
 
 
 def source_bundle():
@@ -87,7 +88,7 @@ class ThesisLLM(NativeSyntheticLLM):
     def _generate(self, messages, stop=None, run_manager=None, **kwargs):
         if kwargs.get("tools"):
             return super()._generate(messages, stop=stop, run_manager=run_manager, **kwargs)
-        payload = json.loads(messages[-1].content)
+        payload = payload_of(messages[-1].content)
         node = payload["node"]
         schema = kwargs.get("synthetic_schema")
         self.requests.append({"node": node, "payload": deepcopy(payload), "schema": schema.__name__ if schema else None,

@@ -17,6 +17,7 @@ from finauditgate.adapters.tradingagents_thesis import ThesisResearcher
 from finauditgate.adapters.model_budget import ModelBudget
 from finauditgate.application import ApplicationError, FinResearchOps
 from finauditgate.research import ResearchThesis
+from native_support import payload_of
 
 
 class NarrativeLLM(CorrectionLLM):
@@ -47,7 +48,7 @@ class NarrativeLLM(CorrectionLLM):
                     value["source_quotes"] = [{"id": "Q1", "source_id": "S01", "quote":
                         "Profit attributable to noncontrolling owners is 2 million USD and parent net income is 13 million USD."}]
             if kind == "FinalResearchReport":
-                payload = json.loads(messages[-1].content)
+                payload = payload_of(messages[-1].content)
                 def explanation(text):
                     return {"text": text, "evidence_refs": ["S01"], "metrics": []}
                 if "change_explanations" in schema.model_fields:

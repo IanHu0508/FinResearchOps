@@ -23,6 +23,7 @@ from finauditgate.application import ApplicationError, FinResearchOps
 from finauditgate.application.thesis_case import validate
 from finauditgate.core.artifacts import canonical_json_bytes, sha256_hex
 from finauditgate.research import ResearchThesis
+from native_support import payload_of
 
 
 def correction_sources():
@@ -51,7 +52,7 @@ class CorrectionLLM(ThesisLLM):
             result = super()._generate(messages, stop=stop, run_manager=run_manager, **kwargs)
             self.requests[-1]["max_tokens"] = output_limit
             return result
-        payload = json.loads(messages[-1].content)
+        payload = payload_of(messages[-1].content)
         self.requests.append({"node": payload["node"], "payload": deepcopy(payload), "schema": kind,
             "text": "\n".join(m.content for m in messages), "reasoning_effort": self.reasoning_effort,
             "structured_method": kwargs.get("synthetic_method"), "max_tokens": output_limit})

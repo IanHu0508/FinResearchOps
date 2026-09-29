@@ -23,6 +23,7 @@ from finauditgate.adapters.tradingagents_thesis import ThesisResearcher
 from finauditgate.application import ApplicationError, FinResearchOps
 from finauditgate.application.thesis_case import validate
 from finauditgate.research import ResearchThesis
+from native_support import payload_of
 
 
 class RecoveryLLM(SelectionLLM):
@@ -33,7 +34,7 @@ class RecoveryLLM(SelectionLLM):
 
     def _generate(self, messages, stop=None, run_manager=None, **kwargs):
         schema = kwargs.get("synthetic_schema")
-        payload = json.loads(messages[-1].content)
+        payload = payload_of(messages[-1].content)
         kind = schema.__name__ if schema else ""
         key = payload.get("node", "") + ":" + kind
         count = self.stage_calls.get(key, 0) + 1
@@ -52,8 +53,9 @@ class RecoveryLLM(SelectionLLM):
                     "completion_tokens_details": {"reasoning_tokens": 65536}}})
             raise LengthFinishReasonError(completion=raw)
         marker = "缺项路径及原响应：\n"
-        if marker in messages[0].content:
-            repair = json.loads(messages[0].content.split(marker, 1)[1])
+        marked = next((m.content for m in messages if marker in m.content), None)
+        if marked is not None:
+            repair = json.loads(marked.split(marker, 1)[1])
             value = repair["previous_response"]
             for key2, i, field in repair["missing_reason_paths"]:
                 value[key2][i][field] = "SYNTHETIC：原资料支持该经营机制，仍需后续反证验证。"

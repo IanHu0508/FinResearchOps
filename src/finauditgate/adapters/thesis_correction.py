@@ -161,7 +161,7 @@ def _repair_numbers(session, node, final, request, changes, beliefs, config):
     start = len(capture.model_calls)
     try:
         response = model.with_structured_output(session.types[KIND], method="json_mode", include_raw=True).invoke(
-            repair_messages(call_messages(base[0]), refused), config=stage_config)
+            repair_messages(call_messages(base[0]), refused, tail=session.protocol_version >= 21), config=stage_config)
     finally:
         if len(capture.model_calls) > start:
             entry["retry_run_id"] = capture.model_calls[-1]["run_id"]
