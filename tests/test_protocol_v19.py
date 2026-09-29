@@ -131,22 +131,22 @@ class RecoveryClassesV4Test(unittest.TestCase):
 
 
 class ProtocolSelectionTest(unittest.TestCase):
-    def test_new_runs_use_22_or_16_and_resumes_keep_their_recorded_protocol(self):
+    def test_new_runs_use_23_or_16_and_resumes_keep_their_recorded_protocol(self):
         import tempfile
         from pathlib import Path
         from finauditgate.adapters.tradingagents_thesis import select_protocol
-        self.assertEqual((22, 16), (select_protocol(None, True), select_protocol(None, False)))
+        self.assertEqual((23, 16), (select_protocol(None, True), select_protocol(None, False)))
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
-            self.assertEqual(22, select_protocol(root, True))
-            for recorded, four in ((16, False), (17, True), (18, True), (19, True), (20, True), (21, True), (22, True)):
+            self.assertEqual(23, select_protocol(root, True))
+            for recorded, four in ((16, False), (17, True), (18, True), (19, True), (20, True), (21, True), (22, True), (23, True)):
                 (root / "runtime-receipt.json").write_text(json.dumps(
                     {"schema_version": "finresearchops.thesis-runtime/v3", "protocol_version": recorded}))
                 self.assertEqual(recorded, select_protocol(root, four))
             with self.assertRaisesRegex(ValueError, "THESIS_RESUME_PROTOCOL_MISMATCH"):
                 select_protocol(root, False)
             (root / "runtime-receipt.json").write_text(json.dumps({"schema_version": "finresearchops.thesis-runtime/v1"}))
-            self.assertEqual(22, select_protocol(root, True))
+            self.assertEqual(23, select_protocol(root, True))
 
 
 class InstructionV19Test(unittest.TestCase):

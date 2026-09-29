@@ -1,10 +1,24 @@
 """One evidence-based revision, recomputation, and a compact final report."""
 
 from copy import deepcopy
+import re
 from typing import get_args
 
 from finauditgate.application.research_numbers import METRIC_KEYS, render_research_block
 from finauditgate.core.forward_revision import apply_forward_revision
+
+
+# Protocol 23: the final report always concludes; the rule's reference rating is an input, not an order.
+CONCLUDE_FINAL = ("评级必须是Buy、Overweight、Hold、Underweight、Sell之一，并给出confidence（high、medium或low）。"
+                  "评级是在本报告情景与假设下的研究结论，不是公允价值认证；缺少一致预期、可比公司或历史估值区间时，"
+                  "降低置信度并写明依据的边界，而不是拒绝评级。Hold需要中性依据，不能用来填空；不能把条件打平PE当公允倍数。"
+                  "rating_rule是程序按固定规则（各情景总回报等权平均后分档）给出的参考评级，规则数值由程序在报告中列出，"
+                  "正文不要复写这些数值；无法计算时status为NOT_COMPUTABLE。采用或偏离规则评级，都在summary中说明理由。")
+
+
+def rule_view(rule):
+    """What the final stage sees of the rule: its rating and status, never numbers to retype."""
+    return {"method": rule["method"], "status": rule["status"], "rating": rule["rating"]}
 
 
 def valid_belief_updates(updates, *, allow_maintain_restatement=False):
@@ -125,6 +139,35 @@ def correction_schemas(base, *, bound=False, selected=False):
     return {"ForwardRevision": ForwardRevision, "FinalResearchReport": FinalResearchReport}
 
 
+def concluded_schemas(types):
+    """Protocol 23: the research manager and the final report always conclude.
+
+    REVIEW is no longer a rating. The rating is a research conclusion under the
+    stated scenarios and assumptions; thin evidence lowers the final confidence.
+    """
+    from typing import Literal
+    from pydantic import Field
+
+    ratings = Literal["Buy", "Overweight", "Hold", "Underweight", "Sell"]
+
+    class ResearchPlan(types["ResearchEvaluation"].model_fields["plan"].annotation):
+        recommendation: ratings = Field(
+            description="Research stance from this analysis under its stated assumptions. When the basis is thin, say so "
+                        "in the rationale instead of withholding a rating; Hold means a supported neutral view.")
+
+    class ResearchEvaluation(types["ResearchEvaluation"]):
+        """Complete JSON response containing plan, assessments and valuation_basis_and_gaps."""
+        plan: ResearchPlan
+
+    class FinalResearchReport(types["FinalResearchReport"]):
+        rating: ratings = Field(
+            description="Research conclusion under this report's scenarios and assumptions, not a certified fair value. "
+                        "Missing consensus, comparables or valuation history lowers confidence; it never withholds the rating.")
+        confidence: Literal["high", "medium", "low"] = Field(description="How firmly the cited evidence supports the rating.")
+
+    return {"ResearchEvaluation": ResearchEvaluation, "FinalResearchReport": FinalResearchReport}
+
+
 def render_decision(report, draft, calculations, *, context=None):
     if context is not None:
         draft = deepcopy(draft)
@@ -153,27 +196,34 @@ def _repair_numbers(session, node, final, request, changes, beliefs, config):
     if refused is None or len(base) != 1 or not policy.may_reserve(node, "FinalResearchReport", base[0], "NUMBER_REPAIR"):
         raise ValueError("UNBOUND_RESEARCH_NUMBER")
     entry = policy.reserve(node, "FinalResearchReport", base[0], "NUMBER_REPAIR", refused, "high")
-    model = session.model
-    if hasattr(model, "reasoning_effort"):
-        model = model.model_copy(update={"reasoning_effort": "high"})
-    stage_config = {**config, "metadata": {**config.get("metadata", {}),
-        "thesis_stage": {"kind": KIND, "attempt": 1, "reasoning_effort": "high"}}}
-    start = len(capture.model_calls)
     try:
-        response = model.with_structured_output(session.types[KIND], method="json_mode", include_raw=True).invoke(
-            repair_messages(call_messages(base[0]), refused, tail=session.protocol_version >= 21), config=stage_config)
-    finally:
-        if len(capture.model_calls) > start:
-            entry["retry_run_id"] = capture.model_calls[-1]["run_id"]
-    if not isinstance(response, dict) or response.get("raw") is None:
-        raise ValueError("THESIS_STRUCTURED_RESPONSE_REQUIRED")
-    raw = response["raw"]
-    replacements = parse_replacements([{"content": raw.content, "tool_calls": raw.tool_calls}])
-    candidate, _ = repaired_report(base[0]["output"], refused, replacements, session.protocol_version, session.bundle)
-    repaired = normalize_report(session.types["FinalResearchReport"].model_validate(candidate).model_dump(mode="json"),
-                                session.bundle)
-    session.number_repair = {"repair_run_id": entry["retry_run_id"], "replacements": json.loads(json.dumps(replacements))}
-    return repaired
+        model = session.model
+        if hasattr(model, "reasoning_effort"):
+            model = model.model_copy(update={"reasoning_effort": "high"})
+        stage_config = {**config, "metadata": {**config.get("metadata", {}),
+            "thesis_stage": {"kind": KIND, "attempt": 1, "reasoning_effort": "high"}}}
+        start = len(capture.model_calls)
+        try:
+            response = model.with_structured_output(session.types[KIND], method="json_mode", include_raw=True).invoke(
+                repair_messages(call_messages(base[0]), refused, tail=session.protocol_version >= 21), config=stage_config)
+        finally:
+            if len(capture.model_calls) > start:
+                entry["retry_run_id"] = capture.model_calls[-1]["run_id"]
+        if not isinstance(response, dict) or response.get("raw") is None:
+            raise ValueError("THESIS_STRUCTURED_RESPONSE_REQUIRED")
+        raw = response["raw"]
+        replacements = parse_replacements([{"content": raw.content, "tool_calls": raw.tool_calls}])
+        candidate, _ = repaired_report(base[0]["output"], refused, replacements, session.protocol_version, session.bundle)
+        repaired = normalize_report(session.types["FinalResearchReport"].model_validate(candidate).model_dump(mode="json"),
+                                    session.bundle, concluded=session.protocol_version >= 23)
+        session.number_repair = {"repair_run_id": entry["retry_run_id"], "replacements": json.loads(json.dumps(replacements))}
+        return repaired
+    except Exception as exc:
+        if session.protocol_version >= 23:
+            # A stopped repair stops the final report: record it, so the run still delivers what it completed.
+            code = str(exc) if re.fullmatch(r"[A-Z0-9_]{1,120}", str(exc)) else type(exc).__name__
+            policy.halt(node, "FinalResearchReport", code)
+        raise
 
 
 def complete_corrected_report(session, node, config):
@@ -222,6 +272,10 @@ def complete_corrected_report(session, node, config):
                              ("claim_assessments", "belief_updates", "unresolved_issues")})
     if bound:
         final_payload["change_context"] = change_view(session.applied_changes)
+    if session.protocol_version >= 23:
+        from finauditgate.core.rating_rule import rule_rating
+        session.rule_rating = rule_rating(session.effective_forward_calculations, session.request["horizon_months"])
+        final_payload["rating_rule"] = rule_view(session.rule_rating)
     if selected:
         from finauditgate.application.research_changes import parameter_change_facts
         final_payload["parameter_change_facts"] = parameter_change_facts(session.forward_draft, resolution["changes"])
@@ -239,8 +293,10 @@ def complete_corrected_report(session, node, config):
         "关键前瞻数量必须通过metrics选择scenario_id和metric，由程序插入标签、数值、单位、期间；不要再在text里复制预测数值或发明未计算目标价。"
         "历史数字仍要核对来源中的期间和集团/分部、合并/归母口径。不要把公司经营利润说成未披露的分部经营利润。"
         "有效版本只表示已应用修正并复算，不等于假设获证实。若仍有重要问题，可拒绝该情景并解释缺项；不再启动新一轮修改，也不因程序成功就采信。"
-        "使用有理由的预测假设，不要求未来已验证；公司质量与当前价格吸引力分开。无可辩护定价依据时可REVIEW，不能用Hold填空，也不能把条件打平PE当公允倍数。"
-        "不重复生成B/S逐项评估或D信念更新，程序会呈现已保存的修正与观点变化。scenario_assessments仅且完整覆盖"
+        "使用有理由的预测假设，不要求未来已验证；公司质量与当前价格吸引力分开。"
+        + (CONCLUDE_FINAL if session.protocol_version >= 23 else
+           "无可辩护定价依据时可REVIEW，不能用Hold填空，也不能把条件打平PE当公允倍数。")
+        + "不重复生成B/S逐项评估或D信念更新，程序会呈现已保存的修正与观点变化。scenario_assessments仅且完整覆盖"
         + ",".join(s["scenario_id"] for s in session.effective_forward_draft["scenarios"]) + "。",
         final_payload, config)
     ids = [s["scenario_id"] for s in session.effective_forward_draft["scenarios"]]

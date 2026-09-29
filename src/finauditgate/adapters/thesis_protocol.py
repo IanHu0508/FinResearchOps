@@ -59,6 +59,14 @@ def layout(node, task, payload):
              + canonical_json_bytes(stage).decode() + TASK_HEAD + task}]
 
 
+# Protocol 23: the research manager and the forward draft no longer withhold a stance or an exit multiple.
+CONCLUDE_PLAN = ("评级必须是Buy、Overweight、Hold、Underweight、Sell之一；依据不足时在rationale写明依据的边界，"
+                 "不能以不评级代替结论。Hold需要中性依据，不能用来填空。")
+FORWARD_PE_V23 = ("每个情景都填写exit_pe数值作为研究假设：说明参考了什么（自身历史估值、同类公司常见水平、增长、风险与资本回报）；"
+                  "缺少可比依据时仍给出你认为最合理的假设，basis_type标为analyst_assumption并写明不确定性。它不是公允价值认证，"
+                  "程序据此复算条件回报。")
+
+
 def payload_of(content, protocol):
     """The request payload of a saved user message, in the layout its protocol sent.
 
@@ -385,6 +393,9 @@ class ThesisSession:
         if protocol_version >= 11:
             from finauditgate.adapters.thesis_correction import correction_schemas
             self.types.update(correction_schemas(self.types, bound=protocol_version >= 13, selected=protocol_version >= 14))
+        if protocol_version >= 23:
+            from finauditgate.adapters.thesis_correction import concluded_schemas
+            self.types.update(concluded_schemas(self.types))
         if protocol_version >= 17:
             from .thesis_analysts import schemas as analyst_schemas
             self.types.update(analyst_schemas())
@@ -403,6 +414,7 @@ class ThesisSession:
         self.independent = None
         self.forward_draft = None
         self.forward_calculations = None
+        self.rule_rating = None
         self.exchanges = []
         self.completed, self.capture = completed, capture
         if protocol_version >= 16:
@@ -497,7 +509,7 @@ class ThesisSession:
         selected = kind == "FinalResearchReport" and self.protocol_version >= 14
         if selected:
             from finauditgate.application.research_delivery import normalize_report
-            parsed = normalize_report(parsed, self.bundle)
+            parsed = normalize_report(parsed, self.bundle, concluded=self.protocol_version >= 23)
         self.exchanges.append({"node": node, "kind": kind, "messages": prompt,
                                "response_id": raw.id, "parsed": deepcopy(parsed)})
         if not selected:
@@ -609,7 +621,8 @@ class ThesisSession:
         else:
             payload["updated_claims"] = self.updated_claims()
             if node == "Research Manager":
-                value = self.ask(node, "ResearchEvaluation", "依据原始资料和更新后的论点重新研究，不统计多空票数。对每个论点给 use/conditional/reject 和实质理由，撤回论点不得直接作为证实事实。生成研究计划；评级是你这次推理的输出。说明价格隐含的预期、估值依据和缺口。缺少持仓不能推断零仓位。", payload, config)
+                value = self.ask(node, "ResearchEvaluation", "依据原始资料和更新后的论点重新研究，不统计多空票数。对每个论点给 use/conditional/reject 和实质理由，撤回论点不得直接作为证实事实。生成研究计划；评级是你这次推理的输出。说明价格隐含的预期、估值依据和缺口。缺少持仓不能推断零仓位。"
+                    + (CONCLUDE_PLAN if self.protocol_version >= 23 else ""), payload, config)
                 if self.protocol_version < 17:
                     self.coverage(value["assessments"], [c["id"] for c in payload["updated_claims"]])
                 self.research = value
@@ -652,7 +665,9 @@ class ThesisSession:
                     "优先说明业务因果，不能围绕当前价格或想要的评级反推经营假设。未披露单款业务数据时使用可解释的集团/分部驱动，不编造明细。"
                     "核对公告实际点名的产品，不混入只在其他季度出现的产品；某业务收入增长不自动证明收入占比提升。供应商TTM未注明期间时不能自行加上某一财年标签。"
                     "描述增长时给出明确比较基期和算式，说明是同比、相对历史参考期还是研究假设；模糊增长标签须与数值一致。"
-                    "PE若有合理参考，要解释增长、风险、资本回报/分配及可比性；没有可辩护参考时填null，仍完成盈利现金预测。不要机械恢复外部示例网格。"
+                    + (FORWARD_PE_V23 if self.protocol_version >= 23 else
+                       "PE若有合理参考，要解释增长、风险、资本回报/分配及可比性；没有可辩护参考时填null，仍完成盈利现金预测。")
+                    + "不要机械恢复外部示例网格。"
                     "不把未核实供应商Forward PE当校准依据；从净利润资本化的价格不再全额加净现金。现金调节从合并净利润出发，非现金损失已经入利润时只在CFO调节一次。"
                     "少数股东归属先判断经济性质：盈利用profit、亏损用loss；amount一律填非负绝对金额。报表把盈利扣减列为括号负数时仍是profit，不能解释成少数股东亏损。"
                     "净利润转CFO必须分非营运资金调整与经营性资产负债现金影响；CFO减净利润是两组的合计，不能把这整个差额当第一组后又重复加第二组。历史基准按原现金流表分组求和。"

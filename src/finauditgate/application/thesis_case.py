@@ -20,7 +20,7 @@ STATUS = {"maintain": "维持", "revise": "修改", "withdraw": "撤回", "unres
 
 def validate(record):
     """Check protocol receipt bindings without certifying the financial opinion."""
-    if isinstance(record, dict) and record.get("schema_version") in ("finresearchops.thesis-case/v11", "finresearchops.thesis-case/v13", "finresearchops.thesis-case/v16", "finresearchops.thesis-case/v17", "finresearchops.thesis-case/v18", "finresearchops.thesis-case/v19", "finresearchops.thesis-case/v20", "finresearchops.thesis-case/v21", "finresearchops.thesis-case/v22"):
+    if isinstance(record, dict) and record.get("schema_version") in ("finresearchops.thesis-case/v11", "finresearchops.thesis-case/v13", "finresearchops.thesis-case/v16", "finresearchops.thesis-case/v17", "finresearchops.thesis-case/v18", "finresearchops.thesis-case/v19", "finresearchops.thesis-case/v20", "finresearchops.thesis-case/v21", "finresearchops.thesis-case/v22", "finresearchops.thesis-case/v23"):
         from finauditgate.application.thesis_case_v11 import validate as validate_v11
         return validate_v11(record)
     if (not isinstance(record, dict) or record.get("schema_version") not in ("finresearchops.thesis-case/v1", "finresearchops.thesis-case/v2", "finresearchops.thesis-case/v10")
@@ -168,7 +168,7 @@ def validate(record):
 
 
 def render(record):
-    if record["schema_version"] in ("finresearchops.thesis-case/v17", "finresearchops.thesis-case/v18", "finresearchops.thesis-case/v19", "finresearchops.thesis-case/v20", "finresearchops.thesis-case/v21", "finresearchops.thesis-case/v22"):
+    if record["schema_version"] in ("finresearchops.thesis-case/v17", "finresearchops.thesis-case/v18", "finresearchops.thesis-case/v19", "finresearchops.thesis-case/v20", "finresearchops.thesis-case/v21", "finresearchops.thesis-case/v22", "finresearchops.thesis-case/v23"):
         from finauditgate.application.thesis_report_v17 import render as render_v17
         return render_v17(record)
     if record["schema_version"] == "finresearchops.thesis-case/v16":
@@ -308,8 +308,8 @@ def run(application, command):
         write_once(directory / "case.json", raw)
         report = render(record)
         write_once(directory / "report.md", report)
-        if record["schema_version"] in ("finresearchops.thesis-case/v11", "finresearchops.thesis-case/v13", "finresearchops.thesis-case/v16", "finresearchops.thesis-case/v17", "finresearchops.thesis-case/v18", "finresearchops.thesis-case/v19", "finresearchops.thesis-case/v20", "finresearchops.thesis-case/v21", "finresearchops.thesis-case/v22"):
-            if record["schema_version"] in ("finresearchops.thesis-case/v17", "finresearchops.thesis-case/v18", "finresearchops.thesis-case/v19", "finresearchops.thesis-case/v20", "finresearchops.thesis-case/v21", "finresearchops.thesis-case/v22"):
+        if record["schema_version"] in ("finresearchops.thesis-case/v11", "finresearchops.thesis-case/v13", "finresearchops.thesis-case/v16", "finresearchops.thesis-case/v17", "finresearchops.thesis-case/v18", "finresearchops.thesis-case/v19", "finresearchops.thesis-case/v20", "finresearchops.thesis-case/v21", "finresearchops.thesis-case/v22", "finresearchops.thesis-case/v23"):
+            if record["schema_version"] in ("finresearchops.thesis-case/v17", "finresearchops.thesis-case/v18", "finresearchops.thesis-case/v19", "finresearchops.thesis-case/v20", "finresearchops.thesis-case/v21", "finresearchops.thesis-case/v22", "finresearchops.thesis-case/v23"):
                 from finauditgate.application.thesis_report_v17 import render_process
             elif record["schema_version"] == "finresearchops.thesis-case/v16":
                 from finauditgate.application.thesis_report_v16 import render_process
@@ -326,8 +326,36 @@ def run(application, command):
         saved.append((ref, directory))
         return report.decode()
 
+    halted = []
+
+    def save_halted(record):
+        """Protocol 23: keep what a stopped run completed as its own Case; refusals are recorded."""
+        from . import thesis_halted
+        try:
+            thesis_halted.validate(record)
+            if record["request"] != thesis_request(command):
+                raise ValueError("THESIS_TASK_MISMATCH")
+            raw = canonical_json_bytes(record)
+            if len(raw) > MAX_BYTES:
+                raise ValueError("THESIS_CASE_SIZE_LIMIT")
+            report = thesis_halted.render(record)
+        except Exception as exc:
+            code = str(exc) if isinstance(exc, ValueError) and re.fullmatch(r"[A-Z0-9_]{1,120}", str(exc)) else None
+            write_once(root / "halted-refused.json", canonical_json_bytes({
+                "schema_version": "finresearchops.thesis-halted-refusal/v1", "error_code": code,
+                "error_type": type(exc).__name__}))
+            raise
+        ref = "case-" + sha256_hex(raw)
+        directory = application._application_root / "thesis-cases" / ref
+        write_once(directory / "case.json", raw)
+        write_once(directory / "halted-report.md", report)
+        halted.append(ref)
+
     try:
-        _, review = application._researcher.run_thesis(command, root, save_main=save_main)
+        import inspect
+        halting = ({"save_halted": save_halted}
+                   if "save_halted" in inspect.signature(application._researcher.run_thesis).parameters else {})
+        _, review = application._researcher.run_thesis(command, root, save_main=save_main, **halting)
     except Exception as exc:
         if not saved:
             causes, seen, error = [], set(), exc
@@ -339,6 +367,8 @@ def run(application, command):
             write_once(root / "failure.json", canonical_json_bytes({
                 "schema_version": "finresearchops.thesis-failure/v1",
                 "error_code": code, "cause_types": causes}))
+            if halted:
+                return application.read_case(halted[0])
             raise ApplicationError("THESIS_RESEARCH_FAILED") from exc
         review = {"schema_version": "finresearchops.thesis-review/v1", "main_sha256": saved[0][0][5:],
                   "status": "PARTIAL", "reason": "REVIEW_INTERRUPTED_AFTER_MAIN_SAVED", "error_type": type(exc).__name__, "findings": []}
@@ -422,11 +452,19 @@ def load(application, case_ref):
         if len(raw) > MAX_BYTES or "case-" + sha256_hex(raw) != case_ref:
             raise ValueError("THESIS_CASE_CHANGED")
         record = json.loads(raw)
+        if isinstance(record, dict) and record.get("schema_version") == "finresearchops.thesis-halted-case/v1":
+            from . import thesis_halted
+            thesis_halted.validate(record)
+            if (directory / "halted-report.md").read_bytes() != thesis_halted.render(record):
+                raise ValueError("THESIS_REPORT_CHANGED")
+            return ThesisCaseView(case_ref, "HALTED", str(directory / "halted-report.md"), record,
+                                  {"schema_version": "finresearchops.thesis-review/v1", "main_sha256": case_ref[5:],
+                                   "status": "DEFERRED", "reason": "HALTED_DELIVERY", "findings": []})
         validate(record)
         if (directory / "report.md").read_bytes() != render(record):
             raise ValueError("THESIS_REPORT_CHANGED")
-        if record["schema_version"] in ("finresearchops.thesis-case/v11", "finresearchops.thesis-case/v13", "finresearchops.thesis-case/v16", "finresearchops.thesis-case/v17", "finresearchops.thesis-case/v18", "finresearchops.thesis-case/v19", "finresearchops.thesis-case/v20", "finresearchops.thesis-case/v21", "finresearchops.thesis-case/v22"):
-            if record["schema_version"] in ("finresearchops.thesis-case/v17", "finresearchops.thesis-case/v18", "finresearchops.thesis-case/v19", "finresearchops.thesis-case/v20", "finresearchops.thesis-case/v21", "finresearchops.thesis-case/v22"):
+        if record["schema_version"] in ("finresearchops.thesis-case/v11", "finresearchops.thesis-case/v13", "finresearchops.thesis-case/v16", "finresearchops.thesis-case/v17", "finresearchops.thesis-case/v18", "finresearchops.thesis-case/v19", "finresearchops.thesis-case/v20", "finresearchops.thesis-case/v21", "finresearchops.thesis-case/v22", "finresearchops.thesis-case/v23"):
+            if record["schema_version"] in ("finresearchops.thesis-case/v17", "finresearchops.thesis-case/v18", "finresearchops.thesis-case/v19", "finresearchops.thesis-case/v20", "finresearchops.thesis-case/v21", "finresearchops.thesis-case/v22", "finresearchops.thesis-case/v23"):
                 from finauditgate.application.thesis_report_v17 import render_process
             elif record["schema_version"] == "finresearchops.thesis-case/v16":
                 from finauditgate.application.thesis_report_v16 import render_process
@@ -464,5 +502,5 @@ def load(application, case_ref):
                 review["reason"] = "REVIEW_VERSION_UNSUPPORTED" if str(exc) == "THESIS_REVIEW_VERSION_UNSUPPORTED" else "REVIEW_INTEGRITY_FAILED"
         return ThesisCaseView(case_ref, "PARTIAL" if record["status"] == "PARTIAL" else "AWAITING_REVIEW",
                               str(directory / "report.md"), record, review, research_report_path)
-    except (OSError, ValueError, KeyError, TypeError) as exc:
+    except (OSError, ValueError, KeyError, TypeError, IndexError, AttributeError) as exc:
         raise ApplicationError("THESIS_CASE_INTEGRITY_FAILED") from exc

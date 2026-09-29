@@ -20,7 +20,7 @@ EFFORT_V21 = {"AnalystReport": "low", "InitialBrief": "high", "RevisionBrief": "
 def _parse(session, raw, kind):
     candidate = response_candidate([{"content": raw.content, "tool_calls": raw.tool_calls}], kind,
                                    protocol_version=max(16, session.protocol_version))
-    if session.protocol_version >= 19 and kind in SCHEMAS and schema_errors(kind, candidate):
+    if session.protocol_version >= 19 and kind in SCHEMAS and schema_errors(kind, candidate, session.protocol_version):
         # Pydantic accepts some spellings the frozen schema refuses (a date-time for a date, a
         # numeric string for a number). Refuse them here, as the reader would, so content and
         # citation checks only ever run on schema-valid answers.
@@ -28,7 +28,7 @@ def _parse(session, raw, kind):
     value = session.types[kind].model_validate(candidate).model_dump(mode="json")
     if kind == "FinalResearchReport":
         from finauditgate.application.research_delivery import normalize_report
-        value = normalize_report(value, session.bundle)
+        value = normalize_report(value, session.bundle, concluded=session.protocol_version >= 23)
     else:
         from .thesis_protocol import check_refs, source_view
         check_refs(value, {s["id"] for s in source_view(session.bundle)["sources"]})
@@ -43,7 +43,8 @@ def _retry_input(session, kind, prompt, failed, entry):
         return repair_messages(prompt, previous, entry["missing_reason_paths"], tail=tail), previous
     if entry["reason"] == "ENUM_INVALID":
         previous = response_candidate(failed["output"], kind, protocol_version=session.protocol_version)
-        return enum_repair_messages(prompt, kind, previous, entry["enum_paths"], tail=tail), previous
+        return enum_repair_messages(prompt, kind, previous, entry["enum_paths"], tail=tail,
+                                    protocol_version=session.protocol_version), previous
     if entry["reason"] == "CONTENT_CHECK":
         from .thesis_content import content_repair_messages
         return content_repair_messages(prompt, entry["check"]), None
@@ -51,13 +52,13 @@ def _retry_input(session, kind, prompt, failed, entry):
     return deepcopy(prompt), None
 
 
-def _check_repair(entry, previous, candidate, kind):
+def _check_repair(entry, previous, candidate, kind, protocol_version):
     if entry is None:
         return
     if entry["reason"] == "MISSING_REASON":
         check_missing_repair(previous, candidate, entry["missing_reason_paths"], kind)
     elif entry["reason"] == "ENUM_INVALID":
-        check_enum_repair(previous, candidate, entry["enum_paths"], kind)
+        check_enum_repair(previous, candidate, entry["enum_paths"], kind, protocol_version)
 
 
 def _check_content(session, kind, candidate, sent):
@@ -132,7 +133,7 @@ def invoke_stage(session, node, kind, prompt, legacy_prompt, config):
             raw = response["raw"]
             candidate = response_candidate([{"content": raw.content, "tool_calls": raw.tool_calls}], kind,
                                            protocol_version=max(16, session.protocol_version))
-            _check_repair(entry, previous, candidate, kind)
+            _check_repair(entry, previous, candidate, kind, session.protocol_version)
             _, parsed = _parse(session, raw, kind)
             _check_content(session, kind, candidate, actual)
             if entry is not None:
@@ -153,7 +154,7 @@ def invoke_stage(session, node, kind, prompt, legacy_prompt, config):
                 raw = AIMessage(content=value["content"], id=value["id"], tool_calls=[],
                     usage_metadata=usage if isinstance(usage, dict) and {"input_tokens", "output_tokens", "total_tokens"} <= usage.keys() else None)
                 candidate, parsed = _parse(session, raw, kind)
-                _check_repair(entry, previous, candidate, kind)
+                _check_repair(entry, previous, candidate, kind, session.protocol_version)
                 capture.retain_complete_length(call["run_id"], retained)
                 if session.budget is not None:
                     if not session.budget.release_confirmed_truncation(confirmed_length=True):

@@ -47,7 +47,7 @@ def usable(call, kind, protocol_version, allowed_refs):
         return False
     try:
         candidate = response_candidate(outputs, kind, protocol_version=protocol_version)
-        if schema_errors(kind, candidate):
+        if schema_errors(kind, candidate, protocol_version):
             return False
         check_refs(candidate, allowed_refs)
         if kind == "AnalystReport":
@@ -73,7 +73,7 @@ def check_degraded(calls, state, protocol_version, allowed_refs):
     Every saved answer must fail its own checks, the reason must not be a stop,
     and the last failure must have had no retry left under the recorded policy.
     """
-    from .thesis_recovery import RecoveryState, failure_reason
+    from .thesis_recovery import RecoveryState, failure_reason, retained_length_outputs
     index = {c["run_id"]: i for i, c in enumerate(calls)}
     for entry in state["degraded"]:
         rows = proven(calls, entry["node"], entry["kind"], protocol_version, allowed_refs)
@@ -81,7 +81,12 @@ def check_degraded(calls, state, protocol_version, allowed_refs):
             raise ValueError("THESIS_DEGRADED_STAGE_NOT_PROVEN")
         last = rows[-1]
         reason, _ = failure_reason(last, kind=entry["kind"], protocol_version=protocol_version)
-        if reason is not None:
+        try:
+            # A complete answer returned at the output limit is kept or refused, never asked again.
+            final_answer = retained_length_outputs(last) is not None
+        except ValueError:
+            final_answer = True  # the run stopped on it before a retry could be reserved
+        if reason is not None and not final_answer:
             then = RecoveryState(policy=state["policy"])
             then.value["attempts"] = deepcopy([a for a in state["attempts"] if index.get(a["failed_run_id"], len(calls)) < index[last["run_id"]]])
             if then.may_reserve(entry["node"], entry["kind"], last, reason):

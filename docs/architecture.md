@@ -1,9 +1,9 @@
 # Architecture
 
 The main research path crosses `handle(ResearchThesis(...))` and `read_case`.
-The optional `--all-analysts` frozen-source route uses protocol/Case v22 for new
+The optional `--all-analysts` frozen-source route uses protocol/Case v23 for new
 runs (a resumed execution keeps the protocol it started with, so earlier v17 to
-v21 executions resume as such): four actual analyst reports precede the existing
+v22 executions resume as such): four actual analyst reports precede the existing
 thirteen research stages. The
 reports and original sources reach downstream research; the independent
 assessment retains source-only input. It saves fundamental, market, news and
@@ -28,7 +28,7 @@ or numeric failure, still halts the stage. Protocol 19 checks the frozen schema
 before any content check, asks any other schema-invalid answer the validator
 proves once more with the unchanged prompt, and drops blank `*_note` fields; its final instruction no longer asks to spell
 numbers out, since Chinese number words with 百/千/万/亿 are refused as amounts.
-Final-report number contract 2 (v18 to v22) only removes listed time and
+Final-report number contract 2 (v18 to v23) only removes listed time and
 source-identifier labels from contract 1's pending items; every refusal is
 unchanged. Protocol 20 separates critical from non-critical stages. The four
 analysts and the trader feed context, not calculations: when every saved answer
@@ -60,6 +60,18 @@ the reader re-proves the checks, rebuilds the retry and repeats the forward chec
 on the saved draft. Both failures stopped protocol 21. The final task restates
 that citations name evidence blocks; a final report citing source IDs is still
 delivered with findings, as before.
+Protocol 23 makes every report conclude and every stop deliver. The research
+manager and the final report choose one of five ratings (REVIEW is no longer a
+rating) and the final report adds a confidence; beside it the program recomputes
+a fixed rule's reference rating from the scenario calculations (each scenario's
+return annualized over the research horizon, weighted equally, banded at plus or
+minus 5% and 20%), which the final stage sees without numbers. When a run stops
+after its session started (a user interruption or a resumed-input mismatch aside),
+the Application saves a `thesis-halted-case/v1` Case with the stages completed
+before the stop, every saved call and recovery row, the rule's rating and a
+conclusion (the rule's rating when the scenarios allow it, otherwise the research
+manager's). The reader proves it exchange by exchange like a complete Case; the
+stopped stage's own answer stays in the calls but is not delivered.
 Its instance-local protocol keeps native graph routing while isolating initial
 drafts, limiting round-two discussion to sealed first drafts, and obtaining
 source-only independent underwriting before the portfolio manager sees peer

@@ -68,6 +68,45 @@ result is claimed; that narrow repair did not change the source, prompt or retry
 still reads no quant signal directly.
 
 
+### Protocol 23: every report concludes, every stop delivers — 2026-09-29
+
+Implementation and tests are COMPLETED. New four-analyst executions write
+`finresearchops.thesis-case/v23`; resumed v16 to v22 executions keep their recorded protocol, prompts and
+readers, apart from the degradation proof corrected below. Protocol 23 keeps the protocol 22 layout, efforts
+and recovery policy.
+
+- The research manager and the final report choose one of Buy, Overweight, Hold, Underweight and Sell;
+  REVIEW is no longer a rating. The final report adds a confidence (high, medium or low): a rating is a
+  research conclusion under the report's stated scenarios and assumptions, not a certified fair value, and
+  missing consensus, comparables or valuation history lower the confidence instead of withholding the
+  rating. The forward draft is asked to state an exit multiple for every scenario as a research assumption.
+- Beside the model's rating, the program records a fixed rule's reference rating: each scenario's return
+  to the valuation date (with dividends when stated), annualized over the research horizon, weighted equally
+  and rounded to 0.01% before banding: Buy from +20%, Overweight from +5%, Hold between, Underweight from
+  -5% to -20%, Sell at -20% or below, and not computable when a scenario has no return.
+  The final stage sees the rule's rating without its numbers and may depart from it with a reason; the
+  formal report shows both with the confidence, and the reader recomputes the rule from the saved scenarios.
+- A run that stops after its session started still returns a Case, including a stop in the final
+  report's sentence repair; an interruption by the user and a mismatch of resumed inputs are not
+  delivered. The Application saves a
+  `finresearchops.thesis-halted-case/v1` with the stages completed before the stop, every saved call and
+  recovery row, the stop, the rule's rating and a conclusion: the rule's rating when the scenarios allow
+  it, otherwise the research manager's, and none before the research manager. The stopped stage's own
+  answer stays in the saved calls but is not delivered. The reader proves a halted Case exchange by
+  exchange like a complete Case and rebuilds `halted-report.md` byte for byte; building it calls no model.
+- A degraded non-critical stage whose last answer arrived complete at the output limit is now proved the
+  way the run decided it (such an answer is kept or refused, never asked again), so those runs save; this
+  corrects the reader for protocols 20 to 23. The optional aftercare of a protocol 23 Case also keeps one of
+  the five ratings, and its report recomputes the rule from the revised scenarios.
+
+Core 558, integration 300 and Quant 186 checks pass. They include the rule's bands, annualization and
+display-precision edges, the concluded schemas frozen against the live models, prompts and payloads, a
+forged rule or confidence refused, halted deliveries at the final report, its sentence repair, the forward
+draft and the first research draft with their conclusions, a stopped stage's answer withheld, forged halted
+records refused (reordered or moved stops, later degradations, pending rows before the stop, integrity
+reasons), earlier protocols and interruptions not delivered, aftercare keeping the five ratings, and
+standard-library reopening of both Case kinds. The effect on ratings and delivery is measured separately.
+
 ### Protocol 22: bounded re-ask for proven content failures — 2026-09-29
 
 Implementation and tests are COMPLETED. New four-analyst executions write

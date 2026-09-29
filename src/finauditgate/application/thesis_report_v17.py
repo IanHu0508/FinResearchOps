@@ -77,8 +77,20 @@ def _user_context(record):
 
 
 def supplement(record):
-    return (_analysts(record) + _quant(record) + _user_context(record) + _belief_records(record)
+    return (_conclusion(record) + _analysts(record) + _quant(record) + _user_context(record) + _belief_records(record)
             + _manager_binding_notes(record)).encode("utf-8")
+
+
+def _conclusion(record):
+    """Protocol 23: the rating always carries a confidence, shown beside the rule's reference rating."""
+    if "rule_rating" not in record:
+        return ""
+    from .research_conclusion import RULE_NOTE, rating_text, rule_text
+    report = record["final_report"]
+    confidence = report.get("confidence")  # absent only when an aftercare revision changed the rating
+    return "\n".join(["", "## 结论与规则参考评级", "", "模型评级：" + rating_text(report["rating"], confidence)
+                      + ("" if confidence else "（校订改变了评级，原置信度不适用）"), "",
+                      "规则参考评级：" + rule_text(record["rule_rating"]), "", RULE_NOTE, ""])
 
 
 def _manager_binding_notes(record):

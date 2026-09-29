@@ -18,6 +18,11 @@ from .research_narrative import change_view
 SCHEMA = "finresearchops.thesis-review/v3"
 IMPACTS = {"wording", "financial", "conclusion", "optional"}
 RATINGS = {"Buy", "Hold", "Sell", "REVIEW"}
+CONCLUDED_RATINGS = {"Buy", "Overweight", "Hold", "Underweight", "Sell"}  # protocol 23: the revision still concludes
+
+
+def _concluded(record):
+    return int(record["schema_version"].rsplit("/v", 1)[1]) >= 23
 MEANINGS = {
     "price_only_break_even_pe": "起点价格/情景年度EPS；给定盈利时维持起点价格所需期末PE，单位倍；不是盈利金额或公允倍数。",
     "dividend_adjusted_break_even_pe": "(起点价格-假设期间股息)/情景年度EPS；未计税费的含息打平期末PE，单位倍。",
@@ -288,7 +293,7 @@ def apply_revision(record, assessment, revision):
         _keys(revision["rating"], {"value", "reason"})
         _text(revision["rating"]["reason"])
         rating = revision["rating"]["value"]
-        _require(rating in RATINGS, "RATING_INVALID")
+        _require(rating in (CONCLUDED_RATINGS if _concluded(record) else RATINGS), "RATING_INVALID")
         material = any(i in substantive and i in touched and
                        (f["impact"] in {"financial", "conclusion"} or _path(f["path"]) in targets)
                        and outcomes[i] != "not_supported" for i, f in findings.items())
@@ -301,7 +306,7 @@ def apply_revision(record, assessment, revision):
             sid = item["scenario_id"]
             _require(material and sid in scenarios and sid not in seen and item["disposition"] in {"use", "conditional", "reject"}, "SCENARIO_DECISION_INVALID")
             scenarios[sid]["disposition"] = item["disposition"]; seen.add(sid)
-        result["final_report"] = normalize_report(report, record["source_bundle"])
+        result["final_report"] = normalize_report(report, record["source_bundle"], concluded=_concluded(record))
         unresolved = [i for i in findings if i in substantive and outcomes[i] == "unresolved"]
     # All financial quantities still pass the same numeric/source contracts.
     context = report_context(result["final_report"], result["effective_forward_draft"], result["effective_forward_calculations"],
@@ -396,6 +401,12 @@ def render_report(record, review):
         return None
     display = deepcopy(record)
     display.update({k: deepcopy(effective[k]) for k in ("final_report", "effective_forward_draft", "effective_forward_calculations", "evidence_check")})
+    if "rule_rating" in record:
+        # Protocol 23: the rule follows the revised scenarios; a confidence given for another rating is not shown.
+        from finauditgate.core.rating_rule import rule_rating
+        display["rule_rating"] = rule_rating(display["effective_forward_calculations"], record["request"]["horizon_months"])
+        if display["final_report"]["rating"] != record["final_report"]["rating"]:
+            display["final_report"].pop("confidence")
     context = report_context(display["final_report"], display["effective_forward_draft"], display["effective_forward_calculations"],
         display["source_bundle"], display["request"], changes=change_view(record["applied_changes"]), beliefs=record["forward_revision"]["belief_updates"],
         contract=contract_for(record))
@@ -442,14 +453,14 @@ def render_report(record, review):
     meanings = ["", "## 参数性质与计算含义（程序提供）", "", *_table(("情景", "参数", "取值", "依据性质"), rows), "",
                 *["- " + value for value in MEANINGS.values()]]
     rendered = (header + body + "\n".join(meanings) + "\n\n## 引用原文\n\n" + "\n\n".join(footnotes)).encode()
-    if record["schema_version"] in ("finresearchops.thesis-case/v17", "finresearchops.thesis-case/v18", "finresearchops.thesis-case/v19", "finresearchops.thesis-case/v20", "finresearchops.thesis-case/v21", "finresearchops.thesis-case/v22"):
+    if record["schema_version"] in ("finresearchops.thesis-case/v17", "finresearchops.thesis-case/v18", "finresearchops.thesis-case/v19", "finresearchops.thesis-case/v20", "finresearchops.thesis-case/v21", "finresearchops.thesis-case/v22", "finresearchops.thesis-case/v23"):
         from .thesis_report_v17 import supplement
         rendered += supplement(display)
     return rendered
 
 
 def render_process(record, review):
-    if record["schema_version"] in ("finresearchops.thesis-case/v17", "finresearchops.thesis-case/v18", "finresearchops.thesis-case/v19", "finresearchops.thesis-case/v20", "finresearchops.thesis-case/v21", "finresearchops.thesis-case/v22"):
+    if record["schema_version"] in ("finresearchops.thesis-case/v17", "finresearchops.thesis-case/v18", "finresearchops.thesis-case/v19", "finresearchops.thesis-case/v20", "finresearchops.thesis-case/v21", "finresearchops.thesis-case/v22", "finresearchops.thesis-case/v23"):
         from .thesis_report_v17 import render_process as original_process
     else:
         from .thesis_report_v16 import render_process as original_process

@@ -5,7 +5,8 @@ only when the saved first answer demonstrably cannot be used: it cannot be
 parsed, it lacks a required reason, a basis label lies outside its vocabulary,
 or (protocol 19) it violates the frozen stage schema in any other way.
 Content, citation, coverage and numeric-contract failures are never format
-failures. The stage schemas are identical in protocols 18 and 19.
+failures. The stage schemas are identical in protocols 18 to 22; protocol 23 changes the
+research manager's and the final report's (thesis_schemas_v23.py).
 """
 
 from copy import deepcopy
@@ -16,6 +17,7 @@ import re
 
 from finauditgate.core.artifacts import canonical_json_bytes
 from .thesis_schemas_v18 import SCHEMAS
+from .thesis_schemas_v23 import SCHEMAS_V23
 
 
 # No single object can be read. A recognized Markdown layout with an invalid
@@ -25,9 +27,9 @@ UNPARSEABLE_CODES = frozenset({"THESIS_RESEARCH_MARKDOWN_LAYOUT_UNSUPPORTED", "T
 REPAIRABLE_ENUMS = frozenset({"basis_type", "correction_basis", "update_basis"})
 
 
-def schema_errors(kind, value):
-    """(type, path, allowed values) where value violates the frozen v18 schema."""
-    schema = SCHEMAS[kind]
+def schema_errors(kind, value, protocol_version=18):
+    """(type, path, allowed values) where value violates the frozen schema of its protocol."""
+    schema = SCHEMAS_V23[kind] if protocol_version >= 23 and kind in SCHEMAS_V23 else SCHEMAS[kind]
     return _errors(value, schema, schema.get("$defs", {}), ())
 
 
@@ -139,13 +141,13 @@ def format_failure(call, kind, protocol_version=18):
         return ("UNPARSEABLE", []) if str(exc) in UNPARSEABLE_CODES else (None, [])
     except (TypeError, KeyError, AttributeError):
         return None, []
-    errors = schema_errors(kind, candidate)
+    errors = schema_errors(kind, candidate, protocol_version)
     if not errors:
         return None, []
     paths = missing_reason_paths(candidate, kind)
     if paths and all(error == "missing" for error, _, _ in errors) and {p for _, p, _ in errors} == {tuple(p) for p in paths}:
         return "MISSING_REASON", paths
-    paths = format_paths(candidate, kind)
+    paths = format_paths(candidate, kind, protocol_version)
     if paths:
         return "ENUM_INVALID", paths
     # Protocol 19: any other proven schema error is asked again with the unchanged prompt; the
@@ -155,8 +157,8 @@ def format_failure(call, kind, protocol_version=18):
     return None, []
 
 
-def enum_repair_messages(base, kind, candidate, paths, *, tail=False):
-    allowed = {path: list(values) for error, path, values in schema_errors(kind, candidate) if error == "enum"}
+def enum_repair_messages(base, kind, candidate, paths, *, tail=False, protocol_version=18):
+    allowed = {path: list(values) for error, path, values in schema_errors(kind, candidate, protocol_version) if error == "enum"}
     items = [{"path": path, "value": _at(candidate, path), "allowed": allowed[tuple(path)]} for path in paths]
     prompt = deepcopy(base)
     prompt[-1 if tail else 0]["content"] += ("\n本次仅修正上一响应中不在候选值内的依据类型标签。返回同一完整JSON对象；"
@@ -166,9 +168,9 @@ def enum_repair_messages(base, kind, candidate, paths, *, tail=False):
     return prompt
 
 
-def check_enum_repair(before, after, paths, kind):
+def check_enum_repair(before, after, paths, kind, protocol_version=18):
     """Only the listed labels may change, and each must now be a listed value."""
-    if not paths or format_paths(before, kind) != paths:
+    if not paths or format_paths(before, kind, protocol_version) != paths:
         raise ValueError("THESIS_REPAIR_PATHS_INVALID")
     restored = deepcopy(after)
     try:
@@ -182,13 +184,13 @@ def check_enum_repair(before, after, paths, kind):
     if canonical_json_bytes(restored) != canonical_json_bytes(before):
         raise ValueError("THESIS_REPAIR_CHANGED_EXISTING_CONTENT")
     targets = {tuple(path) for path in paths}
-    if any(path in targets for _, path, _ in schema_errors(kind, after)):
+    if any(path in targets for _, path, _ in schema_errors(kind, after, protocol_version)):
         raise ValueError("THESIS_REPAIR_ENUM_INVALID")
 
 
-def format_paths(candidate, kind):
+def format_paths(candidate, kind, protocol_version=18):
     """Repairable label paths of a parsed candidate, in validator order."""
-    errors = schema_errors(kind, candidate)
+    errors = schema_errors(kind, candidate, protocol_version)
     enums = [list(path) for error, path, _ in errors if error == "enum"]
     if not errors or len(enums) != len(errors) or not all(
             p[-1] in REPAIRABLE_ENUMS and isinstance(_at(candidate, p), str) for p in enums):

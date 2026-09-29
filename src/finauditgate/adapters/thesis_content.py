@@ -98,7 +98,7 @@ def content_failure(call, kind, protocol_version):
         return None, []
     try:
         candidate = response_candidate(call["output"], kind, protocol_version=protocol_version)
-        if schema_errors(kind, candidate):
+        if schema_errors(kind, candidate, protocol_version):
             return None, []
         found = check(kind, candidate, payload_of(call_messages(call)[1]["content"], protocol_version))
     except (ValueError, TypeError, KeyError, IndexError, AttributeError):

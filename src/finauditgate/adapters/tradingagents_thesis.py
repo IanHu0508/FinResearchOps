@@ -27,14 +27,14 @@ def resume_protocol(resume_from, default):
     if data.get("schema_version") != "finresearchops.thesis-runtime/v3":
         return default
     version = data.get("protocol_version")
-    if version not in (16, 17, 18, 19, 20, 21, 22) or (version == 16) != (default == 16):
+    if version not in (16, 17, 18, 19, 20, 21, 22, 23) or (version == 16) != (default == 16):
         raise ValueError("THESIS_RESUME_PROTOCOL_MISMATCH")
     return version
 
 
 def select_protocol(resume_from, four_analysts):
-    """New four-analyst executions use protocol 22, others 16; a resumed runtime keeps its own."""
-    return resume_protocol(resume_from, 22 if four_analysts else 16)
+    """New four-analyst executions use protocol 23, others 16; a resumed runtime keeps its own."""
+    return resume_protocol(resume_from, 23 if four_analysts else 16)
 
 
 class ThesisResearcher:
@@ -46,15 +46,15 @@ class ThesisResearcher:
         self.resume_from = resume_from
         self.reassess_final = reassess_final
         self.replay_presentation_failure = replay_presentation_failure
-        if type(fetch_news_social) is not bool or (fetch_news_social and protocol_version not in (17, 18, 19, 20, 21, 22)):
+        if type(fetch_news_social) is not bool or (fetch_news_social and protocol_version not in (17, 18, 19, 20, 21, 22, 23)):
             raise ValueError("THESIS_FETCH_REQUIRES_FOUR_ANALYSTS")
         self.fetch_news_social, self.source_collector = fetch_news_social, source_collector
         self.last_acquisition_path = None
-        if protocol_version not in (10, 11, 13, 16, 17, 18, 19, 20, 21, 22):
+        if protocol_version not in (10, 11, 13, 16, 17, 18, 19, 20, 21, 22, 23):
             raise ValueError("THESIS_PROTOCOL_VERSION_INVALID")
         self.protocol_version = protocol_version
 
-    def run_thesis(self, command, output_root, *, save_main):
+    def run_thesis(self, command, output_root, *, save_main, save_halted=None):
         from langsmith import tracing_context
         from tradingagents.default_config import DEFAULT_CONFIG
         from tradingagents.graph.trading_graph import TradingAgentsGraph
@@ -183,6 +183,8 @@ class ThesisResearcher:
                     from .thesis_degrade import case_status
                     record["number_repair"] = deepcopy(session.number_repair)
                     record["status"] = case_status(record["recovery"]["degraded"], session.evidence_check["status"])
+                if self.protocol_version >= 23:
+                    record["rule_rating"] = deepcopy(session.rule_rating)
                 # Break every reference to the mutable session/callback lists
                 # before the optional review makes another model request.
                 record = json.loads(canonical_json_bytes(record))
@@ -212,6 +214,16 @@ class ThesisResearcher:
         except BaseException as exc:
             if session is not None:
                 session.seal_failure(exc)
+                from .thesis_halted import deliverable, halted_record
+                if save_halted is not None and deliverable(session, exc):
+                    record = halted_record(session, capture, request=request, model=self.model,
+                        runtime_kind="REAL_MODEL" if live else "OFFLINE_SYNTHETIC", topology=before,
+                        upstream_commit=UPSTREAM_COMMIT, budget=self.budget.receipt() if live else None,
+                        reused={**completed.receipt, "used_calls": completed.used} if completed.receipt else None)
+                    try:
+                        save_halted(record)
+                    except Exception:  # the Application recorded why; the stop is reported as before
+                        pass
             raise
         finally:
             if http is not None:

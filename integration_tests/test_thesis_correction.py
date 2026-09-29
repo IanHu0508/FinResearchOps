@@ -38,6 +38,8 @@ def correction_sources():
 
 class CorrectionLLM(ThesisLLM):
     rating: str = "REVIEW"
+    concluded_rating: str = "Hold"  # protocol 23 finals always conclude
+    confidence: str = "low"
     correct_nci: bool = True
     malformed: str | None = None
     truncations: int = 0
@@ -108,7 +110,9 @@ class CorrectionLLM(ThesisLLM):
             return {"text": text, "evidence_refs": ["S01"],
                 "metrics": [{"scenario_id": "F1", "metric": metric} for metric in metrics]}
 
-        value = {"rating": self.rating,
+        concluded = "confidence" in schema.model_fields
+        value = {"rating": self.concluded_rating if concluded and self.rating == "REVIEW" else self.rating,
+            **({"confidence": self.confidence} if concluded else {}),
             "summary": block("有效归母口径需要扣减少数股东盈利；经营现金流仍从合并净利起算。",
                              "parent_net_income", "eps_per_traded_unit", "operating_cash_flow"),
             "financial_analysis": {

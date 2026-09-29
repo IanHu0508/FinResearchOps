@@ -213,6 +213,6 @@ def repaired_report(base_outputs, refused, replacements, protocol_version, bundl
     from .thesis_responses import response_candidate
     base = response_candidate(base_outputs, "FinalResearchReport", protocol_version=protocol_version)
     candidate = apply_replacements(base, refused, replacements)
-    if schema_errors("FinalResearchReport", candidate):
+    if schema_errors("FinalResearchReport", candidate, protocol_version):
         raise ValueError("THESIS_NUMBER_REPAIR_SCHEMA_INVALID")
-    return candidate, normalize_report(candidate, bundle)
+    return candidate, normalize_report(candidate, bundle, concluded=protocol_version >= 23)

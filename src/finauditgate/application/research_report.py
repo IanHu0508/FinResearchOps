@@ -28,7 +28,7 @@ VERSIONS = (V1, V2)
 VERSION = V2  # written for newly saved Cases; saved files keep their recorded version
 NUMBER_PENDING = "UNBOUND_RESEARCH_NUMBER_PENDING"
 SUPPORTED = ("finresearchops.thesis-case/v16", "finresearchops.thesis-case/v17", "finresearchops.thesis-case/v18",
-             "finresearchops.thesis-case/v19", "finresearchops.thesis-case/v20", "finresearchops.thesis-case/v21", "finresearchops.thesis-case/v22")
+             "finresearchops.thesis-case/v19", "finresearchops.thesis-case/v20", "finresearchops.thesis-case/v21", "finresearchops.thesis-case/v22", "finresearchops.thesis-case/v23")
 FILES = ("research-report.md", "research-report.html")
 
 _RATINGS = {"Buy": "买入", "Overweight": "增持", "Hold": "中性", "Underweight": "减持", "Sell": "卖出",
@@ -280,6 +280,9 @@ class _Report:
                                      "省略不代表资料中没有相关信息，其余研究阶段照常完成，详见附录一。"))
         blocks.append(("lead", self.facts(), self.paragraphs(final["summary"]["text"], field="summary")))
         blocks += self.forecast_table()
+        if "rule_rating" in record:
+            from .research_conclusion import RULE_NOTE
+            blocks.append(("note", RULE_NOTE))
         for key, heading in _SECTIONS:
             blocks.append(("h2", heading))
             blocks += [("p", runs) for runs in self.paragraphs(final["financial_analysis"][key]["text"],
@@ -337,6 +340,10 @@ class _Report:
                 ("研究资料", f"{mode}，{research}项" + (f"（另有{scenario_notes}项情景附录）" if scenario_notes else "")),
                 *self.binding_rows(check),
                 ("人工复核", "待复核，未签署")]
+        if "rule_rating" in record:  # protocol 23: the conclusion's confidence and the rule beside it
+            from .research_conclusion import CONFIDENCE, rule_text
+            rows[:0] = [("置信度", CONFIDENCE[record["final_report"]["confidence"]]),
+                        ("规则参考评级", rule_text(record["rule_rating"]))]
         return {"rating": rating, "rating_label": _RATINGS.get(rating, rating), "rows": rows}
 
     def forecast_table(self):
@@ -755,7 +762,7 @@ def _html(title, blocks, version):
 
 
 def render(record, version=VERSION):
-    """Return (Markdown bytes, HTML bytes) for a v16-v22 thesis Case in one format version."""
+    """Return (Markdown bytes, HTML bytes) for a v16-v23 thesis Case in one format version."""
     report = _Report(record, version)
     title, blocks = report.build()
     return _markdown(title, blocks, version), _html(title, blocks, version)

@@ -9,7 +9,8 @@ from finauditgate.core.artifacts import canonical_json_bytes, sha256_hex
 from .thesis_responses import response_candidate
 
 
-def schemas(base):
+def schemas(base, *, concluded=False):
+    """Aftercare stage types; from protocol 23 (concluded) the revision keeps one of the five ratings."""
     from typing import Literal
     from pydantic import BaseModel, ConfigDict, Field
     change_type = get_args(base["ForwardRevision"].model_fields["changes"].annotation)[0]
@@ -48,7 +49,8 @@ def schemas(base):
         evidence_refs: list[str] = Field(max_length=48)
 
     class Rating(Strict):
-        value: Literal["Buy", "Hold", "Sell", "REVIEW"]
+        value: (Literal["Buy", "Overweight", "Hold", "Underweight", "Sell"] if concluded
+                else Literal["Buy", "Hold", "Sell", "REVIEW"])
         reason: str = Field(min_length=1)
 
     class ScenarioDecision(Strict):
@@ -181,7 +183,7 @@ def run_quality(session, record, config):
     session.last_stage = None
     session.quality_retries = 0
     try:
-        types = schemas(session.types)
+        types = schemas(session.types, concluded=session.protocol_version >= 23)
         assessment = _invoke(session, types, "QualityReview", REVIEW_INSTRUCTION, quality.review_payload(record), config, exchanges)
         result.update(assessment=assessment, findings=assessment["findings"], coverage_and_limits=assessment["coverage_and_limits"])
         payload = quality.revision_payload(record, assessment)

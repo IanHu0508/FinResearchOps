@@ -94,7 +94,20 @@ reason a list of every proven problem in fixed order, `FORWARD_INCONSISTENT` wit
 then `UNKNOWN_SOURCE_REFERENCE` with the unknown IDs (an empty string included); otherwise null.
 The reader re-proves the list from the saved answer and its prompt. `reused_calls.budget_origin` is `SAME_V22_FLOW`.
 
-`finresearchops.research-report/v1` and `/v2` are the formal reading layouts of a v16-v22 Case
+Case v23 (`thesis-case.v23.schema.json`) keeps the v22 layout and recovery policy. Its research-manager
+recommendation and final rating are one of Buy, Overweight, Hold, Underweight and Sell (no REVIEW), the final
+report adds `confidence` (high, medium or low), and `rule_rating` records the fixed rule's reference rating
+(`equal-weight-annualized-scenario-return/v1`: returns annualized over the research horizon, weighted equally,
+rounded to 0.01% before banding), which the reader recomputes from `effective_forward_calculations`.
+`reused_calls.budget_origin` is `SAME_V23_FLOW`.
+
+`thesis-halted-case.v1.schema.json` is what a stopped protocol 23 run delivers: the stages completed before
+the stop (the stopped stage's own answer stays only in `exchanges` and `model_calls`), every saved call and
+recovery row, `halted`, `rule_rating` (null without scenario calculations) and `conclusion` (the rule's rating,
+otherwise the research manager's, otherwise none). The reader applies the exchange, recovery and degradation
+proofs of a complete Case to it; its report is `halted-report.md`.
+
+`finresearchops.research-report/v1` and `/v2` are the formal reading layouts of a v16-v23 Case
 (new Cases write v2, which lists citation findings and unbound-number findings apart on the
 cover, notice and appendix; v1 files stay as saved):
 `research-report.md` plus `research-report.html`, written at save or later by the offline

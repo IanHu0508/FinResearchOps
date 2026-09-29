@@ -55,7 +55,7 @@ def final_instruction(protocol_version):
 def contract_for(record):
     """Number contract of a saved Case: 2 from thesis-case/v18 on, otherwise the original 1."""
     return 2 if record.get("schema_version") in ("finresearchops.thesis-case/v18", "finresearchops.thesis-case/v19",
-                                                 "finresearchops.thesis-case/v20", "finresearchops.thesis-case/v21", "finresearchops.thesis-case/v22") else 1
+                                                 "finresearchops.thesis-case/v20", "finresearchops.thesis-case/v21", "finresearchops.thesis-case/v22", "finresearchops.thesis-case/v23") else 1
 
 
 def evidence_catalog(sources):
@@ -110,19 +110,21 @@ def _inline_metrics(text):
         for m in re.finditer(r"\{\{metric:([^:{}]+):([^:{}]+)\}\}", text)]
 
 
-def normalize_report(candidate, sources, *, legacy=False):
+def normalize_report(candidate, sources, *, legacy=False, concluded=False):
     """Derive redundant selectors; preserve all prose and every explicit metric.
 
     legacy=True is for explicit offline saved-output inspection, never the model
     protocol or historical Case reader. It keeps original quotations for review.
+    concluded=True (protocol 23) requires one of the five ratings and a confidence.
     """
     report = deepcopy(candidate)
     if not isinstance(report, dict) or ("source_quotes" in report and not legacy):
         raise ValueError("THESIS_FINAL_SELECTION_FORMAT_INVALID")
     expected = {"rating", "summary", "financial_analysis", "strongest_counterevidence", "scenario_assessments",
-                "limitations", "change_explanations", "belief_explanations"}
+                "limitations", "change_explanations", "belief_explanations", *(("confidence",) if concluded else ())}
     if (set(report) != expected | ({"source_quotes"} if legacy else set())
-            or report["rating"] not in ("Buy", "Overweight", "Hold", "Underweight", "Sell", "REVIEW")
+            or report["rating"] not in ("Buy", "Overweight", "Hold", "Underweight", "Sell", *(() if concluded else ("REVIEW",)))
+            or (concluded and report["confidence"] not in ("high", "medium", "low"))
             or set(report["financial_analysis"]) != {"operating_performance", "earnings_quality",
                 "cash_and_capital_allocation", "valuation_and_price_requirements"}):
         raise ValueError("THESIS_FINAL_SELECTION_FORMAT_INVALID")

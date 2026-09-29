@@ -131,7 +131,7 @@ class CompletedCalls:
 
     def __init__(self, root, request, sources, model, *, reassess_final=False, protocol_version=10,
                  replay_presentation_failure=False):
-        if protocol_version not in (10, 11, 13, 16, 17, 18, 19, 20, 21, 22):
+        if protocol_version not in (10, 11, 13, 16, 17, 18, 19, 20, 21, 22, 23):
             raise ValueError("THESIS_PROTOCOL_VERSION_INVALID")
         self.rows = []
         self.used = 0
@@ -156,7 +156,7 @@ class CompletedCalls:
         current = data.get("schema_version") == "finresearchops.thesis-runtime/v3"
         self.current_runtime = current
         if (data.get("schema_version") not in ("finresearchops.thesis-runtime/v1", "finresearchops.thesis-runtime/v3")
-                or (current and (protocol_version not in (16, 17, 18, 19, 20, 21, 22) or data.get("protocol_version") != protocol_version))
+                or (current and (protocol_version not in (16, 17, 18, 19, 20, 21, 22, 23) or data.get("protocol_version") != protocol_version))
                 or original != {"request": request, "sources": sources}):
             raise ValueError("THESIS_RESUME_INPUT_MISMATCH")
         excluded = set()
@@ -193,6 +193,9 @@ class CompletedCalls:
         if protocol_version >= 11:
             from finauditgate.adapters.thesis_correction import correction_schemas
             types.update(correction_schemas(types, bound=protocol_version >= 13, selected=protocol_version >= 14))
+        if protocol_version >= 23:
+            from finauditgate.adapters.thesis_correction import concluded_schemas
+            types.update(concluded_schemas(types))
         from .thesis_analysts import main_stages
         stages = main_stages(protocol_version)
         if protocol_version >= 20 and current:
@@ -225,7 +228,7 @@ class CompletedCalls:
                     selected = protocol_version >= 14 and kind == "FinalResearchReport"
                     if selected:
                         from finauditgate.application.research_delivery import normalize_report, final_source_view
-                        parsed = normalize_report(parsed, sources)
+                        parsed = normalize_report(parsed, sources, concluded=protocol_version >= 23)
                     else:
                         check_refs(parsed, {s["id"] for s in source_view(sources)["sources"]})
                     from .thesis_protocol import payload_of

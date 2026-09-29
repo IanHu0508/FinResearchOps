@@ -594,7 +594,8 @@ def _validate_v3(calls, state, complete, protocol_version):
             expected = repair_messages(expected, previous, paths, tail=protocol_version >= 21)
         elif row["reason"] == "ENUM_INVALID":
             previous = response_candidate(failed["output"], row["kind"], protocol_version=protocol_version)
-            expected = enum_repair_messages(expected, row["kind"], previous, paths, tail=protocol_version >= 21)
+            expected = enum_repair_messages(expected, row["kind"], previous, paths, tail=protocol_version >= 21,
+                                            protocol_version=protocol_version)
         elif row["reason"] == "CONTENT_CHECK":
             from .thesis_content import content_repair_messages
             expected = content_repair_messages(expected, row["check"])
@@ -619,7 +620,7 @@ def _validate_v3(calls, state, complete, protocol_version):
                 if row["reason"] == "MISSING_REASON":
                     check_missing_repair(previous, after, paths, row["kind"])
                 else:
-                    check_enum_repair(previous, after, paths, row["kind"])
+                    check_enum_repair(previous, after, paths, row["kind"], protocol_version)
             except (ValueError, TypeError, KeyError):
                 if complete:
                     raise
@@ -654,7 +655,7 @@ def validate_budget_reservations(checkpoint, calls, state, prior_reuse=None):
         return (Decimal(size + 8192) * rate_in + Decimal(maximum) * rate_out) / Decimal(1000000)
     lower = sum((reserve(c) for c in known), Decimal(0)) + (receipt["calls"] - len(known)) * base
     if prior_reuse and prior_reuse.get("budget_origin") in ("SAME_V16_FLOW", "SAME_V17_FLOW", "SAME_V18_FLOW", "SAME_V19_FLOW",
-                                                             "SAME_V20_FLOW", "SAME_V21_FLOW", "SAME_V22_FLOW"):
+                                                             "SAME_V20_FLOW", "SAME_V21_FLOW", "SAME_V22_FLOW", "SAME_V23_FLOW"):
         prior = prior_reuse["prior_budget"]
         previous_ids = set(prior_reuse["prior_model_run_ids"])
         new = [c for c in known if c["run_id"] not in previous_ids]
