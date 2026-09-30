@@ -1,84 +1,50 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "",
-  "title": "FinResearchOps halted thesis delivery v1: what a stopped protocol 23 or 24 run completed",
+  "title": "FinResearchOps thesis case v24: refused final-report numbers hidden instead of discarding the report",
   "type": "object",
-  "additionalProperties": false,
   "required": [
-    "schema_version",
-    "protocol_version",
-    "status",
-    "review_status",
-    "financial_gate",
-    "automatic_trading",
-    "sensitivity_policy",
-    "upstream_commit",
-    "runtime_kind",
-    "model",
     "request",
-    "source_bundle",
     "topology",
-    "halted",
-    "analyst_reports",
+    "reports",
     "initial",
     "revisions",
-    "updated_claims",
     "research_evaluation",
     "execution_review",
     "risk_briefs",
+    "updated_claims",
+    "exchanges",
+    "model_calls",
+    "tool_calls",
+    "schema_version",
+    "status",
+    "review_status",
+    "upstream_commit",
+    "runtime_kind",
+    "model",
+    "source_bundle",
+    "signal",
+    "budget",
+    "financial_gate",
+    "automatic_trading",
     "independent_assessment",
+    "sensitivity_policy",
+    "rating_comparison",
     "forward_draft",
     "forward_calculations",
     "forward_revision",
     "effective_forward_draft",
     "effective_forward_calculations",
     "applied_changes",
-    "exchanges",
-    "model_calls",
-    "tool_calls",
+    "final_report",
+    "final_generation",
+    "evidence_check",
     "recovery",
-    "budget",
-    "rule_rating",
-    "conclusion",
-    "signal"
+    "analyst_reports",
+    "number_repair",
+    "number_masking",
+    "rule_rating"
   ],
   "properties": {
-    "schema_version": {
-      "const": "finresearchops.thesis-halted-case/v1"
-    },
-    "protocol_version": {
-      "enum": [
-        23,
-        24
-      ]
-    },
-    "status": {
-      "const": "HALTED"
-    },
-    "review_status": {
-      "const": "AWAITING_REVIEW"
-    },
-    "financial_gate": {
-      "const": "NOT_REQUIRED"
-    },
-    "automatic_trading": {
-      "const": false
-    },
-    "sensitivity_policy": {
-      "const": "DECLARED_SCENARIOS_REPORT_ONLY"
-    },
-    "upstream_commit": {
-      "type": "string"
-    },
-    "runtime_kind": {
-      "enum": [
-        "REAL_MODEL",
-        "OFFLINE_SYNTHETIC"
-      ]
-    },
-    "model": {
-      "type": "string"
-    },
     "request": {
       "type": "object",
       "additionalProperties": false,
@@ -147,6 +113,106 @@
           ]
         }
       }
+    },
+    "topology": {
+      "type": "object"
+    },
+    "reports": {
+      "type": "object",
+      "required": [
+        "fundamentals_report",
+        "market_report",
+        "news_report",
+        "sentiment_report",
+        "investment_plan",
+        "trader_investment_plan",
+        "final_trade_decision"
+      ],
+      "properties": {
+        "fundamentals_report": {
+          "type": "string"
+        },
+        "market_report": {
+          "type": "string"
+        },
+        "news_report": {
+          "type": "string"
+        },
+        "sentiment_report": {
+          "type": "string"
+        },
+        "investment_plan": {
+          "type": "string"
+        },
+        "trader_investment_plan": {
+          "type": "string"
+        },
+        "final_trade_decision": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "initial": {
+      "type": "object"
+    },
+    "revisions": {
+      "type": "object"
+    },
+    "research_evaluation": {
+      "$ref": "#/$defs/ResearchEvaluation"
+    },
+    "execution_review": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/ExecutionReview"
+        },
+        {
+          "$ref": "#/$defs/DegradedPlaceholder"
+        }
+      ]
+    },
+    "risk_briefs": {
+      "type": "object"
+    },
+    "updated_claims": {
+      "type": "array"
+    },
+    "exchanges": {
+      "type": "array",
+      "minItems": 12,
+      "maxItems": 17
+    },
+    "model_calls": {
+      "type": "array"
+    },
+    "tool_calls": {
+      "type": "array"
+    },
+    "schema_version": {
+      "const": "finresearchops.thesis-case/v24"
+    },
+    "status": {
+      "enum": [
+        "COMPLETED",
+        "PARTIAL"
+      ]
+    },
+    "review_status": {
+      "const": "AWAITING_REVIEW"
+    },
+    "upstream_commit": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "runtime_kind": {
+      "enum": [
+        "REAL_MODEL",
+        "OFFLINE_SYNTHETIC"
+      ]
+    },
+    "model": {
+      "type": "string"
     },
     "source_bundle": {
       "anyOf": [
@@ -287,191 +353,250 @@
         }
       ]
     },
-    "topology": {
+    "signal": {
+      "enum": [
+        "Buy",
+        "Overweight",
+        "Hold",
+        "Underweight",
+        "Sell"
+      ]
+    },
+    "budget": {
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "financial_gate": {
+      "const": "NOT_REQUIRED"
+    },
+    "automatic_trading": {
+      "const": false
+    },
+    "reused_calls": {
+      "type": "object",
+      "required": [
+        "runtime_sha256",
+        "available_calls",
+        "used_calls",
+        "prior_budget"
+      ],
+      "properties": {
+        "runtime_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "available_calls": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 24
+        },
+        "used_calls": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 24
+        },
+        "prior_budget": {
+          "type": [
+            "object",
+            "null"
+          ]
+        },
+        "prior_reuse": {
+          "type": [
+            "object",
+            "null"
+          ]
+        },
+        "prior_final_generation": {
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "prefix_stop": {
+          "type": [
+            "object",
+            "null"
+          ]
+        },
+        "budget_origin": {
+          "const": "SAME_V24_FLOW"
+        },
+        "prior_model_run_ids": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "uniqueItems": true
+        }
+      },
+      "additionalProperties": false
+    },
+    "independent_assessment": {
+      "$ref": "#/$defs/IndependentAssessment"
+    },
+    "sensitivity_policy": {
+      "const": "DECLARED_SCENARIOS_REPORT_ONLY"
+    },
+    "rating_comparison": {
+      "type": "object",
+      "required": [
+        "before",
+        "after",
+        "changed"
+      ],
+      "properties": {
+        "before": {
+          "type": "string"
+        },
+        "after": {
+          "type": "string"
+        },
+        "changed": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false
+    },
+    "forward_draft": {
+      "$ref": "#/$defs/UnderwritingDraft"
+    },
+    "forward_calculations": {
+      "type": "object",
+      "required": [
+        "method",
+        "scenario_results",
+        "limitations"
+      ],
+      "properties": {
+        "method": {
+          "const": "ordinary_company_annual_earnings_bridge"
+        },
+        "scenario_results": {
+          "type": "array"
+        },
+        "limitations": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "description": "Deterministic results from the exact forward_draft; reopened and compared by the same calculator. No economic or source certification."
+    },
+    "forward_revision": {
+      "$ref": "#/$defs/ForwardRevision"
+    },
+    "effective_forward_draft": {
+      "$ref": "#/$defs/UnderwritingDraft"
+    },
+    "effective_forward_calculations": {
       "type": "object"
     },
-    "halted": {
+    "applied_changes": {
+      "type": "array"
+    },
+    "final_report": {
+      "$ref": "#/$defs/FinalResearchReport"
+    },
+    "final_generation": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 3
+    },
+    "evidence_check": {
       "type": "object",
       "additionalProperties": false,
       "required": [
-        "node",
-        "kind",
-        "reason"
+        "status",
+        "scope",
+        "findings",
+        "bindings"
       ],
-      "description": "The stage the run stopped at; its own answer, if any, stays in exchanges and model_calls but is not delivered.",
       "properties": {
-        "node": {
-          "type": "string"
-        },
-        "kind": {
-          "type": "string"
-        },
-        "reason": {
-          "type": "string"
-        }
-      }
-    },
-    "analyst_reports": {
-      "type": "object",
-      "additionalProperties": {
-        "oneOf": [
-          {
-            "$ref": "#/$defs/AnalystReport"
-          },
-          {
-            "$ref": "#/$defs/DegradedPlaceholder"
-          }
-        ]
-      }
-    },
-    "initial": {
-      "type": "object",
-      "description": "Delivered initial brief outputs keyed by node; only completed stages appear."
-    },
-    "revisions": {
-      "type": "object",
-      "description": "Delivered revision outputs keyed by node; only completed stages appear."
-    },
-    "risk_briefs": {
-      "type": "object",
-      "description": "Delivered risk brief outputs keyed by node; only completed stages appear."
-    },
-    "updated_claims": {
-      "oneOf": [
-        {
-          "type": "null"
-        },
-        {
-          "type": "array"
-        }
-      ]
-    },
-    "research_evaluation": {
-      "oneOf": [
-        {
-          "type": "null"
-        },
-        {
-          "$ref": "#/$defs/ResearchEvaluation"
-        }
-      ]
-    },
-    "execution_review": {
-      "oneOf": [
-        {
-          "type": "null"
-        },
-        {
-          "oneOf": [
-            {
-              "$ref": "#/$defs/ExecutionReview"
-            },
-            {
-              "$ref": "#/$defs/DegradedPlaceholder"
-            }
+        "status": {
+          "enum": [
+            "COMPLETED",
+            "PARTIAL"
           ]
-        }
-      ]
-    },
-    "independent_assessment": {
-      "oneOf": [
-        {
-          "type": "null"
         },
-        {
-          "$ref": "#/$defs/IndependentAssessment"
-        }
-      ]
-    },
-    "forward_draft": {
-      "oneOf": [
-        {
-          "type": "null"
+        "scope": {
+          "const": "SOURCE_BINDING_ONLY_NOT_SEMANTIC_APPROVAL"
         },
-        {
-          "$ref": "#/$defs/UnderwritingDraft"
-        }
-      ]
-    },
-    "forward_calculations": {
-      "oneOf": [
-        {
-          "type": "null"
-        },
-        {
-          "type": "object",
-          "required": [
-            "method",
-            "scenario_results",
-            "limitations"
-          ],
-          "properties": {
-            "method": {
-              "const": "ordinary_company_annual_earnings_bridge"
-            },
-            "scenario_results": {
-              "type": "array"
-            },
-            "limitations": {
-              "type": "array",
-              "items": {
+        "findings": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "field",
+              "reference",
+              "source_id",
+              "reason"
+            ],
+            "properties": {
+              "field": {
+                "type": "string"
+              },
+              "reference": {
+                "type": "string"
+              },
+              "source_id": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "reason": {
                 "type": "string"
               }
             }
-          },
-          "description": "Deterministic results from the exact forward_draft; reopened and compared by the same calculator. No economic or source certification."
-        }
-      ]
-    },
-    "forward_revision": {
-      "oneOf": [
-        {
-          "type": "null"
+          }
         },
-        {
-          "$ref": "#/$defs/ForwardRevision"
+        "bindings": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "reference",
+              "source_id",
+              "start",
+              "end",
+              "source_sha256",
+              "fields"
+            ],
+            "properties": {
+              "reference": {
+                "type": "string"
+              },
+              "source_id": {
+                "type": "string"
+              },
+              "start": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "end": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "source_sha256": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$"
+              },
+              "fields": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            }
+          }
         }
-      ]
-    },
-    "effective_forward_draft": {
-      "oneOf": [
-        {
-          "type": "null"
-        },
-        {
-          "$ref": "#/$defs/UnderwritingDraft"
-        }
-      ]
-    },
-    "effective_forward_calculations": {
-      "oneOf": [
-        {
-          "type": "null"
-        },
-        {
-          "type": "object"
-        }
-      ]
-    },
-    "applied_changes": {
-      "oneOf": [
-        {
-          "type": "null"
-        },
-        {
-          "type": "array"
-        }
-      ]
-    },
-    "exchanges": {
-      "type": "array",
-      "maxItems": 17
-    },
-    "model_calls": {
-      "type": "array"
-    },
-    "tool_calls": {
-      "type": "array"
+      }
     },
     "recovery": {
       "type": "object",
@@ -496,25 +621,7 @@
           "const": 2
         },
         "halted": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": [
-            "node",
-            "kind",
-            "reason"
-          ],
-          "description": "The stage the run stopped at; its own answer, if any, stays in exchanges and model_calls but is not delivered.",
-          "properties": {
-            "node": {
-              "type": "string"
-            },
-            "kind": {
-              "type": "string"
-            },
-            "reason": {
-              "type": "string"
-            }
-          }
+          "type": "null"
         },
         "attempts": {
           "type": "array",
@@ -585,7 +692,11 @@
                 "minLength": 1
               },
               "retry_run_id": {
-                "type": "string",
+                "description": "The retry call's run id; null only for a NUMBER_REPAIR row whose call was never sent (protocol 24: number_masking then records the masking).",
+                "type": [
+                  "string",
+                  "null"
+                ],
                 "minLength": 1
               },
               "retry_effort": {
@@ -672,7 +783,27 @@
                   }
                 ]
               }
-            }
+            },
+            "allOf": [
+              {
+                "if": {
+                  "properties": {
+                    "reason": {
+                      "not": {
+                        "const": "NUMBER_REPAIR"
+                      }
+                    }
+                  }
+                },
+                "then": {
+                  "properties": {
+                    "retry_run_id": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            ]
           }
         },
         "retired_final_calls": {
@@ -727,124 +858,163 @@
         }
       }
     },
-    "budget": {
-      "type": [
-        "object",
-        "null"
-      ]
-    },
-    "reused_calls": {
+    "analyst_reports": {
       "type": "object",
       "required": [
-        "runtime_sha256",
-        "available_calls",
-        "used_calls",
-        "prior_budget"
+        "Fundamentals Analyst",
+        "Market Analyst",
+        "News Analyst",
+        "Sentiment Analyst"
       ],
       "properties": {
-        "runtime_sha256": {
-          "type": "string",
-          "pattern": "^[0-9a-f]{64}$"
-        },
-        "available_calls": {
-          "type": "integer",
-          "minimum": 1,
-          "maximum": 24
-        },
-        "used_calls": {
-          "type": "integer",
-          "minimum": 0,
-          "maximum": 24
-        },
-        "prior_budget": {
-          "type": [
-            "object",
-            "null"
+        "Fundamentals Analyst": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/AnalystReport"
+            },
+            {
+              "$ref": "#/$defs/DegradedPlaceholder"
+            }
           ]
         },
-        "prior_reuse": {
-          "type": [
-            "object",
-            "null"
+        "Market Analyst": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/AnalystReport"
+            },
+            {
+              "$ref": "#/$defs/DegradedPlaceholder"
+            }
           ]
         },
-        "prior_final_generation": {
-          "type": [
-            "array",
-            "null"
+        "News Analyst": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/AnalystReport"
+            },
+            {
+              "$ref": "#/$defs/DegradedPlaceholder"
+            }
           ]
         },
-        "prefix_stop": {
-          "type": [
-            "object",
-            "null"
+        "Sentiment Analyst": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/AnalystReport"
+            },
+            {
+              "$ref": "#/$defs/DegradedPlaceholder"
+            }
           ]
-        },
-        "budget_origin": {
-          "enum": [
-            "SAME_V23_FLOW",
-            "SAME_V24_FLOW"
-          ]
-        },
-        "prior_model_run_ids": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          },
-          "uniqueItems": true
         }
       },
       "additionalProperties": false
     },
-    "rule_rating": {
+    "number_repair": {
       "oneOf": [
         {
           "type": "null"
         },
         {
-          "$ref": "#/$defs/RuleRating"
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "repair_run_id",
+            "replacements"
+          ],
+          "properties": {
+            "repair_run_id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "replacements": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 5,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "field",
+                  "original",
+                  "replacement"
+                ],
+                "properties": {
+                  "field": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "original": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "replacement": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                }
+              }
+            }
+          }
         }
       ]
     },
-    "conclusion": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "rating",
-        "source"
-      ],
-      "description": "The rule's rating when the scenarios allow it, otherwise the research manager's; none before the research manager.",
-      "properties": {
-        "rating": {
-          "enum": [
-            "Buy",
-            "Overweight",
-            "Hold",
-            "Underweight",
-            "Sell",
-            null
-          ]
+    "number_masking": {
+      "description": "Protocol 24: when the final report is refused only for unbound numbers and the sentence repair is unavailable or does not pass, each refused sentence keeps its words and citations and only the numerals the contract refuses become the mark 〔数值待核〕 (mode numbers); when hiding every numeral is still refused, the whole sentence becomes one mark followed by its citations (mode sentence). The reader derives the same masking from the saved answer. A masked Case is PARTIAL.",
+      "oneOf": [
+        {
+          "type": "null"
         },
-        "source": {
-          "enum": [
-            "RULE",
-            "RESEARCH_MANAGER",
-            null
-          ]
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "sentences"
+          ],
+          "properties": {
+            "sentences": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "field",
+                  "original",
+                  "masked",
+                  "mode"
+                ],
+                "properties": {
+                  "field": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "original": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "masked": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "mode": {
+                    "enum": [
+                      "numbers",
+                      "sentence"
+                    ]
+                  }
+                }
+              }
+            }
+          }
         }
-      }
-    },
-    "signal": {
-      "enum": [
-        "Buy",
-        "Overweight",
-        "Hold",
-        "Underweight",
-        "Sell",
-        null
       ]
+    },
+    "rule_rating": {
+      "$ref": "#/$defs/RuleRating"
     }
   },
+  "additionalProperties": false,
   "$defs": {
     "Assessment": {
       "additionalProperties": false,
@@ -1752,8 +1922,7 @@
       "additionalProperties": false,
       "properties": {
         "text": {
-          "description": "Concise economic explanation. Refer to forward quantities through metrics; do not retype forecast amounts/ratios, create a new target, or repeat the table. Historical claims still need source support.",
-          "maxLength": 2400,
+          "description": "Concise economic explanation. Refer to forward quantities through metrics; do not retype forecast amounts/ratios, create a new target, or repeat the table. Historical claims still need source support. The model's answer keeps the frozen stage schema's limit (2400 characters); a protocol 24 masked report may exceed it by its pending marks.",
           "minLength": 1,
           "title": "Text",
           "type": "string"
@@ -1874,16 +2043,16 @@
           "type": "string"
         },
         "reason": {
-          "maxLength": 1600,
           "minLength": 1,
           "title": "Reason",
-          "type": "string"
+          "type": "string",
+          "description": "The model's answer keeps the frozen stage schema's limit; a protocol 24 masked report may exceed it by its pending marks."
         },
         "what_changes_the_view": {
-          "maxLength": 1200,
           "minLength": 1,
           "title": "What Changes The View",
-          "type": "string"
+          "type": "string",
+          "description": "The model's answer keeps the frozen stage schema's limit; a protocol 24 masked report may exceed it by its pending marks."
         },
         "metrics": {
           "description": "Optional extra metric selections; inline selections are derived automatically.",
@@ -2257,5 +2426,97 @@
         }
       }
     }
-  }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "evidence_check": {
+            "properties": {
+              "status": {
+                "const": "PARTIAL"
+              }
+            }
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "status": {
+            "const": "PARTIAL"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "recovery": {
+            "properties": {
+              "degraded": {
+                "minItems": 1
+              }
+            }
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "status": {
+            "const": "PARTIAL"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "evidence_check": {
+            "properties": {
+              "status": {
+                "const": "COMPLETED"
+              }
+            }
+          },
+          "recovery": {
+            "properties": {
+              "degraded": {
+                "maxItems": 0
+              }
+            }
+          },
+          "number_masking": {
+            "type": "null"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "status": {
+            "const": "COMPLETED"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "number_masking": {
+            "type": "object"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "status": {
+            "const": "PARTIAL"
+          },
+          "number_repair": {
+            "type": "null"
+          }
+        }
+      }
+    }
+  ],
+  "$id": ""
 }

@@ -27,14 +27,14 @@ def resume_protocol(resume_from, default):
     if data.get("schema_version") != "finresearchops.thesis-runtime/v3":
         return default
     version = data.get("protocol_version")
-    if version not in (16, 17, 18, 19, 20, 21, 22, 23) or (version == 16) != (default == 16):
+    if version not in (16, 17, 18, 19, 20, 21, 22, 23, 24) or (version == 16) != (default == 16):
         raise ValueError("THESIS_RESUME_PROTOCOL_MISMATCH")
     return version
 
 
 def select_protocol(resume_from, four_analysts):
-    """New four-analyst executions use protocol 23, others 16; a resumed runtime keeps its own."""
-    return resume_protocol(resume_from, 23 if four_analysts else 16)
+    """New four-analyst executions use protocol 24, others 16; a resumed runtime keeps its own."""
+    return resume_protocol(resume_from, 24 if four_analysts else 16)
 
 
 class ThesisResearcher:
@@ -46,11 +46,11 @@ class ThesisResearcher:
         self.resume_from = resume_from
         self.reassess_final = reassess_final
         self.replay_presentation_failure = replay_presentation_failure
-        if type(fetch_news_social) is not bool or (fetch_news_social and protocol_version not in (17, 18, 19, 20, 21, 22, 23)):
+        if type(fetch_news_social) is not bool or (fetch_news_social and protocol_version not in (17, 18, 19, 20, 21, 22, 23, 24)):
             raise ValueError("THESIS_FETCH_REQUIRES_FOUR_ANALYSTS")
         self.fetch_news_social, self.source_collector = fetch_news_social, source_collector
         self.last_acquisition_path = None
-        if protocol_version not in (10, 11, 13, 16, 17, 18, 19, 20, 21, 22, 23):
+        if protocol_version not in (10, 11, 13, 16, 17, 18, 19, 20, 21, 22, 23, 24):
             raise ValueError("THESIS_PROTOCOL_VERSION_INVALID")
         self.protocol_version = protocol_version
 
@@ -182,9 +182,12 @@ class ThesisResearcher:
                 if self.protocol_version >= 20:
                     from .thesis_degrade import case_status
                     record["number_repair"] = deepcopy(session.number_repair)
-                    record["status"] = case_status(record["recovery"]["degraded"], session.evidence_check["status"])
+                    record["status"] = case_status(record["recovery"]["degraded"], session.evidence_check["status"],
+                                                   masked=bool(session.number_masking))
                 if self.protocol_version >= 23:
                     record["rule_rating"] = deepcopy(session.rule_rating)
+                if self.protocol_version >= 24:
+                    record["number_masking"] = deepcopy(session.number_masking)
                 # Break every reference to the mutable session/callback lists
                 # before the optional review makes another model request.
                 record = json.loads(canonical_json_bytes(record))

@@ -463,8 +463,11 @@ def _validate_number_repair(row, by_id, retired, excluded, complete, protocol_ve
             or not successful_call(failed) or not failed.get("output")):
         raise ValueError("THESIS_RECOVERY_CALL_BINDING_INVALID")
     retry_id = row["retry_run_id"]
+    # Protocol 24: a repair that was not sent or failed may end in a complete Case whose numbers are masked;
+    # the Case reader then requires and proves that masking.
+    finished = complete and protocol_version < 24
     if retry_id is None:
-        if complete:
+        if finished:
             raise ValueError("THESIS_RECOVERY_INCOMPLETE")
         return
     if retry_id not in by_id:
@@ -476,7 +479,7 @@ def _validate_number_repair(row, by_id, retired, excluded, complete, protocol_ve
         raise ValueError("THESIS_RECOVERY_EFFORT_INVALID")
     if call_messages(retry) != repair_messages(call_messages(failed), row["number_sentences"], tail=protocol_version >= 21):
         raise ValueError("THESIS_RECOVERY_INPUT_CHANGED")
-    if complete and (not successful_call(retry) or not retry.get("output")):
+    if finished and (not successful_call(retry) or not retry.get("output")):
         raise ValueError("THESIS_RECOVERY_INCOMPLETE")
     excluded.add(retry_id)
 
@@ -655,7 +658,7 @@ def validate_budget_reservations(checkpoint, calls, state, prior_reuse=None):
         return (Decimal(size + 8192) * rate_in + Decimal(maximum) * rate_out) / Decimal(1000000)
     lower = sum((reserve(c) for c in known), Decimal(0)) + (receipt["calls"] - len(known)) * base
     if prior_reuse and prior_reuse.get("budget_origin") in ("SAME_V16_FLOW", "SAME_V17_FLOW", "SAME_V18_FLOW", "SAME_V19_FLOW",
-                                                             "SAME_V20_FLOW", "SAME_V21_FLOW", "SAME_V22_FLOW", "SAME_V23_FLOW"):
+                                                             "SAME_V20_FLOW", "SAME_V21_FLOW", "SAME_V22_FLOW", "SAME_V23_FLOW", "SAME_V24_FLOW"):
         prior = prior_reuse["prior_budget"]
         previous_ids = set(prior_reuse["prior_model_run_ids"])
         new = [c for c in known if c["run_id"] not in previous_ids]

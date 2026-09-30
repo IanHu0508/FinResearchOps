@@ -1,9 +1,9 @@
 # Architecture
 
 The main research path crosses `handle(ResearchThesis(...))` and `read_case`.
-The optional `--all-analysts` frozen-source route uses protocol/Case v23 for new
+The optional `--all-analysts` frozen-source route uses protocol/Case v24 for new
 runs (a resumed execution keeps the protocol it started with, so earlier v17 to
-v22 executions resume as such): four actual analyst reports precede the existing
+v23 executions resume as such): four actual analyst reports precede the existing
 thirteen research stages. The
 reports and original sources reach downstream research; the independent
 assessment retains source-only input. It saves fundamental, market, news and
@@ -28,7 +28,7 @@ or numeric failure, still halts the stage. Protocol 19 checks the frozen schema
 before any content check, asks any other schema-invalid answer the validator
 proves once more with the unchanged prompt, and drops blank `*_note` fields; its final instruction no longer asks to spell
 numbers out, since Chinese number words with 百/千/万/亿 are refused as amounts.
-Final-report number contract 2 (v18 to v23) only removes listed time and
+Final-report number contract 2 (v18 to v24) only removes listed time and
 source-identifier labels from contract 1's pending items; every refusal is
 unchanged. Protocol 20 separates critical from non-critical stages. The four
 analysts and the trader feed context, not calculations: when every saved answer
@@ -72,6 +72,17 @@ before the stop, every saved call and recovery row, the rule's rating and a
 conclusion (the rule's rating when the scenarios allow it, otherwise the research
 manager's). The reader proves it exchange by exchange like a complete Case; the
 stopped stage's own answer stays in the calls but is not delivered.
+Protocol 24 delivers a final report refused only for unbound numbers when its
+sentence repair cannot be asked or does not pass. The contract reads each stretch
+of prose between two citations on its own; in a refused stretch every numeral-like
+span is first hidden as 〔数值待核〕 and spans are shown again, sentence by sentence and
+left to right, when the stretch still passes with them; text that fails with every
+span hidden becomes one mark that keeps its citations. No model is called. The
+Case is PARTIAL and records every changed sentence; the reader derives the same
+masking from the saved answer and checks that the repair could not be asked or did
+not pass. A final report that masking cannot make pass still stops the run as in
+protocol 23. The number contract derives its source facts (retrieval dates,
+storage-standard versions, technical indicators) once per report.
 Its instance-local protocol keeps native graph routing while isolating initial
 drafts, limiting round-two discussion to sealed first drafts, and obtaining
 source-only independent underwriting before the portfolio manager sees peer

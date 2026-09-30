@@ -100,7 +100,7 @@ def _parser() -> argparse.ArgumentParser:
     _add_optional_trace_root(inspect)
 
     formal = subparsers.add_parser("render-research-report",
-        help="Write the formal readable research report of one saved v16-v23 thesis Case; no model or network call.")
+        help="Write the formal readable research report of one saved v16-v24 thesis Case; no model or network call.")
     formal.add_argument("--case-ref", required=True)
     _add_optional_trace_root(formal)
 

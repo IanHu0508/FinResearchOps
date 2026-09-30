@@ -219,11 +219,30 @@ def _repair_numbers(session, node, final, request, changes, beliefs, config):
         session.number_repair = {"repair_run_id": entry["retry_run_id"], "replacements": json.loads(json.dumps(replacements))}
         return repaired
     except Exception as exc:
-        if session.protocol_version >= 23:
+        if session.protocol_version == 23:
             # A stopped repair stops the final report: record it, so the run still delivers what it completed.
             code = str(exc) if re.fullmatch(r"[A-Z0-9_]{1,120}", str(exc)) else type(exc).__name__
             policy.halt(node, "FinalResearchReport", code)
         raise
+
+
+def _mask_numbers(session, node, original, payload, resolution, failure):
+    """Protocol 24: hide the refused numbers of the saved final report; stop as before when that cannot pass.
+
+    A repair stopped by a resume that cannot be trusted is never masked; it stops the run."""
+    from .thesis_halted import deliverable_reason
+    from .thesis_masking import mask_numbers
+    code = str(failure) if re.fullmatch(r"[A-Z0-9_]{1,120}", str(failure)) else type(failure).__name__
+    result = mask_numbers(original, session.effective_forward_draft, session.effective_forward_calculations,
+                          session.bundle, payload["request"], changes=payload["change_context"],
+                          beliefs=resolution["belief_updates"]) if deliverable_reason(code) else None
+    if result is None:
+        session.recovery.halt(node, "FinalResearchReport", code)
+        raise failure
+    masked, rows = result
+    session.number_repair = None  # a repair that did not pass leaves no repaired text
+    session.number_masking = {"sentences": rows}
+    return masked
 
 
 def complete_corrected_report(session, node, config):
@@ -315,9 +334,16 @@ def complete_corrected_report(session, node, config):
     except ValueError as exc:
         if session.protocol_version < 20 or str(exc) != "UNBOUND_RESEARCH_NUMBER":
             raise
-        final = _repair_numbers(session, node, final, final_payload["request"], final_payload["change_context"],
-                                resolution["belief_updates"], config)
-        context = check(final)
+        original = final
+        try:
+            final = _repair_numbers(session, node, final, final_payload["request"], final_payload["change_context"],
+                                    resolution["belief_updates"], config)
+            context = check(final)
+        except Exception as failure:
+            if session.protocol_version < 24:
+                raise
+            final = _mask_numbers(session, node, original, final_payload, resolution, failure)
+            context = check(final)
     session.final = final
     if selected:
         session.evidence_check = context.evidence_check()

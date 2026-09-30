@@ -17,7 +17,7 @@ finresearchops --artifact-root <private root> <action> [options]
 | `create-case` | `handle(CreateCase)` | `--question`, `--cutoff`, `--document`, `--source-id`, `--published-at`, `--mode` (`SYNTHETIC_DEV` / `PRIVATE_DEV`), `--risk-class`, optional `--document-name` |
 | `run-analysis` | `handle(RunAnalysis)` | `--case-ref`, `--model-trace-root`, optional `--validation-profile` |
 | `inspect-case` | `read_case(case_ref)` | `--case-ref`, optional `--model-trace-root` |
-| `render-research-report` | `handle(RenderResearchReport)` | `--case-ref` of a saved v16-v23 thesis Case, optional `--model-trace-root`; writes the formal report offline |
+| `render-research-report` | `handle(RenderResearchReport)` | `--case-ref` of a saved v16-v24 thesis Case, optional `--model-trace-root`; writes the formal report offline |
 | `review` | `handle(SubmitReview)` | `--case-ref`, `--run-id`, `--action` (`APPROVE` / `RETURN` / `REJECT`), `--reason`, optional `--model-trace-root` |
 | `export` | `handle(ExportChangePacket)` | `--case-ref`, `--run-id`, optional `--model-trace-root` |
 | `replay` | `handle(ReplayRun)` | `--run-id`, optional `--model-trace-root` |
@@ -34,17 +34,20 @@ derives those from the core artifacts and its append-only Review history.
 
 ## Runtime boundary
 
-- `research-thesis --all-analysts` (or `--fetch-news-social`) starts protocol 23 for a
+- `research-thesis --all-analysts` (or `--fetch-news-social`) starts protocol 24 for a
   new execution. `--resume-execution` keeps the protocol recorded in that execution's
-  runtime receipt (16 to 23) and refuses one that does not match the analyst options.
-  Protocols 21 to 23 fix the reasoning effort of each stage, so `--reasoning-effort` no longer
-  changes such an execution. A protocol 20 to 23 execution whose final report already used its sentence-level number
+  runtime receipt (16 to 24) and refuses one that does not match the analyst options.
+  Protocols 21 to 24 fix the reasoning effort of each stage, so `--reasoning-effort` no longer
+  changes such an execution. A protocol 20 to 24 execution whose final report already used its sentence-level number
   repair is not resumed; start a new execution instead.
-- A protocol 23 execution that stops after its session started (other than a user interruption
+- A protocol 23 or 24 execution that stops after its session started (other than a user interruption
   or a mismatch of resumed inputs) still returns a Case with status `HALTED`: `halted-report.md`
   holds the completed stages and the conclusion, and the execution directory keeps `failure.json`.
   The stopped stage is not retried in that execution, so resuming it stops at the same stage; start
   a new execution for a complete report.
+- In protocol 24 a final report refused only for unbound numbers, whose sentence repair cannot be
+  asked or does not pass, no longer stops the execution: the numbers the contract refuses are hidden
+  as 〔数值待核〕 (text no mark can fix is hidden whole) and the Case is saved with status `PARTIAL`.
 - `research-thesis --fetch-news-social --sources <base.json>` automatically adds
   bounded dated A-share news/events and public investor discussions to the supplied
   financial, market and Quant foundation before running all four analysts.

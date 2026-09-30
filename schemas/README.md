@@ -101,13 +101,24 @@ report adds `confidence` (high, medium or low), and `rule_rating` records the fi
 rounded to 0.01% before banding), which the reader recomputes from `effective_forward_calculations`.
 `reused_calls.budget_origin` is `SAME_V23_FLOW`.
 
-`thesis-halted-case.v1.schema.json` is what a stopped protocol 23 run delivers: the stages completed before
+Case v24 (`thesis-case.v24.schema.json`) keeps the v23 layout, ratings and recovery policy and adds
+`number_masking`: null, or the final-report sentences whose refused numerals were hidden after the final report
+was refused only for unbound numbers and its sentence repair could not be asked or did not pass. Each row keeps
+the field, the original sentence, the masked sentence and its mode (`numbers`: numeral-like spans of the sentence
+became 〔数值待核〕; `sentence`: text of the sentence in a refused stretch became one mark, citations kept). The reader
+derives the same masking from the saved answer; a masked Case is `PARTIAL`, and `number_repair` is then null.
+A `NUMBER_REPAIR` attempt whose call was never sent keeps `retry_run_id` null. Masked text may exceed the model
+answer's length limits by its marks, so v24 drops those limits from the delivered `ResearchBlock.text`,
+`ScenarioUse.reason` and `ScenarioUse.what_changes_the_view`; the saved answers keep the frozen stage schema.
+`reused_calls.budget_origin` is `SAME_V24_FLOW`.
+
+`thesis-halted-case.v1.schema.json` is what a stopped protocol 23 or 24 run delivers (`protocol_version` 23 or 24): the stages completed before
 the stop (the stopped stage's own answer stays only in `exchanges` and `model_calls`), every saved call and
 recovery row, `halted`, `rule_rating` (null without scenario calculations) and `conclusion` (the rule's rating,
 otherwise the research manager's, otherwise none). The reader applies the exchange, recovery and degradation
 proofs of a complete Case to it; its report is `halted-report.md`.
 
-`finresearchops.research-report/v1` and `/v2` are the formal reading layouts of a v16-v23 Case
+`finresearchops.research-report/v1` and `/v2` are the formal reading layouts of a v16-v24 Case
 (new Cases write v2, which lists citation findings and unbound-number findings apart on the
 cover, notice and appendix; v1 files stay as saved):
 `research-report.md` plus `research-report.html`, written at save or later by the offline

@@ -47,8 +47,10 @@ def _number_repair(record, base, base_call, protocol, request):
     """Protocol 20: the delivered final report is the saved answer with only its refused sentences replaced."""
     from finauditgate.adapters.thesis_repair import parse_replacements, refused_sentences, repaired_report
     rows = [r for r in record["recovery"]["attempts"] if r["reason"] == "NUMBER_REPAIR"]
-    if "number_repair" not in record:
+    if "number_repair" not in record or ("number_masking" in record) != (protocol >= 24):
         raise ValueError("THESIS_NUMBER_REPAIR_INVALID")
+    if protocol >= 24 and record["number_masking"] is not None:
+        return _number_masking(record, base, base_call, rows, protocol, request)
     if not rows:
         if record["number_repair"] is not None:
             raise ValueError("THESIS_NUMBER_REPAIR_INVALID")
@@ -61,11 +63,59 @@ def _number_repair(record, base, base_call, protocol, request):
     repair = [c for c in record["model_calls"] if c["run_id"] == row["retry_run_id"]]
     if row["failed_run_id"] != base_call["run_id"] or refused is None or refused != row["number_sentences"] or len(repair) != 1:
         raise ValueError("THESIS_NUMBER_REPAIR_INVALID")
+    if protocol >= 24:
+        # The recovery proof leaves a failed repair call to the masking proof; a kept repair needs an answered call.
+        from finauditgate.adapters.thesis_recovery import successful_call
+        if not successful_call(repair[0]) or not repair[0].get("output"):
+            raise ValueError("THESIS_NUMBER_REPAIR_INVALID")
     replacements = parse_replacements(repair[0]["output"])
     _, repaired = repaired_report(base_call["output"], refused, replacements, protocol, record["source_bundle"])
     if (_without_nulls(repaired) != _without_nulls(record["final_report"])
             or record["number_repair"] != {"repair_run_id": row["retry_run_id"], "replacements": replacements}):
         raise ValueError("THESIS_NUMBER_REPAIR_INVALID")
+    return record["final_report"]
+
+
+def _number_masking(record, base, base_call, rows, protocol, request):
+    """Protocol 24: the delivered final report is the saved answer with its refused numbers hidden.
+
+    Masking is proved only when the saved answer is refused for unbound numbers and the sentence
+    repair could not be asked or did not pass; the masked text is derived again and compared.
+    """
+    from finauditgate.adapters.thesis_masking import mask_numbers
+    from finauditgate.adapters.thesis_recovery import extra_call_limit, successful_call
+    from finauditgate.adapters.thesis_repair import parse_replacements, refused_sentences, repaired_report
+    from finauditgate.application.research_delivery import report_context
+    from finauditgate.application.research_narrative import change_view
+    changes, beliefs = change_view(record["applied_changes"]), record["forward_revision"]["belief_updates"]
+    args = (record["effective_forward_draft"], record["effective_forward_calculations"], record["source_bundle"], request)
+    result = mask_numbers(base, *args, changes=changes, beliefs=beliefs)
+    if result is None or record["number_repair"] is not None:
+        raise ValueError("THESIS_NUMBER_MASKING_INVALID")
+    masked, sentences = result
+    if masked != record["final_report"] or record["number_masking"] != {"sentences": sentences}:
+        raise ValueError("THESIS_NUMBER_MASKING_INVALID")
+    refused = refused_sentences(base, *args, changes=changes, beliefs=beliefs)
+    if not rows:
+        # Without a repair row the run could not ask for one: nothing repairable, or no extra call left.
+        if refused is not None and len(record["recovery"]["attempts"]) < extra_call_limit(record["recovery"]["policy"]):
+            raise ValueError("THESIS_NUMBER_MASKING_INVALID")
+        return record["final_report"]
+    row = rows[0]
+    if row["failed_run_id"] != base_call["run_id"] or refused is None or refused != row["number_sentences"]:
+        raise ValueError("THESIS_NUMBER_MASKING_INVALID")
+    repair = [c for c in record["model_calls"] if c["run_id"] == row["retry_run_id"]]
+    if repair and successful_call(repair[0]) and repair[0].get("output"):
+        # An answered repair is masked only when its spliced report fails the checks the run applied to it.
+        try:
+            _, repaired = repaired_report(base_call["output"], refused, parse_replacements(repair[0]["output"]),
+                                          protocol, record["source_bundle"])
+            for block in (repaired["summary"], *repaired["financial_analysis"].values(), repaired["strongest_counterevidence"]):
+                render_research_block(block, record["effective_forward_draft"], record["effective_forward_calculations"])
+            report_context(repaired, *args, changes=changes, beliefs=beliefs, contract=2)
+        except Exception:  # the run masks after any failure of the repaired report
+            return record["final_report"]
+        raise ValueError("THESIS_NUMBER_MASKING_INVALID")
     return record["final_report"]
 
 
@@ -191,12 +241,12 @@ def bind_exchanges(record, exchanges, *, protocol, selected, full_analysts, boun
 
 def validate(record):
     current = record.get("schema_version") in ("finresearchops.thesis-case/v18", "finresearchops.thesis-case/v19",
-                                               "finresearchops.thesis-case/v20", "finresearchops.thesis-case/v21", "finresearchops.thesis-case/v22", "finresearchops.thesis-case/v23")
+                                               "finresearchops.thesis-case/v20", "finresearchops.thesis-case/v21", "finresearchops.thesis-case/v22", "finresearchops.thesis-case/v23", "finresearchops.thesis-case/v24")
     full_analysts = current or record.get("schema_version") == "finresearchops.thesis-case/v17"
     selected = full_analysts or record.get("schema_version") == "finresearchops.thesis-case/v16"
     protocol = int(record["schema_version"].rsplit("/v", 1)[1]) if current else 16
     bound = selected or record.get("schema_version") == "finresearchops.thesis-case/v13"
-    if (record.get("schema_version") not in ("finresearchops.thesis-case/v11", "finresearchops.thesis-case/v13", "finresearchops.thesis-case/v16", "finresearchops.thesis-case/v17", "finresearchops.thesis-case/v18", "finresearchops.thesis-case/v19", "finresearchops.thesis-case/v20", "finresearchops.thesis-case/v21", "finresearchops.thesis-case/v22", "finresearchops.thesis-case/v23")
+    if (record.get("schema_version") not in ("finresearchops.thesis-case/v11", "finresearchops.thesis-case/v13", "finresearchops.thesis-case/v16", "finresearchops.thesis-case/v17", "finresearchops.thesis-case/v18", "finresearchops.thesis-case/v19", "finresearchops.thesis-case/v20", "finresearchops.thesis-case/v21", "finresearchops.thesis-case/v22", "finresearchops.thesis-case/v23", "finresearchops.thesis-case/v24")
             or record.get("status") not in (("COMPLETED", "PARTIAL") if selected else ("COMPLETED",)) or record.get("review_status") != "AWAITING_REVIEW"
             or record.get("financial_gate") != "NOT_REQUIRED" or record.get("automatic_trading") is not False
             or record.get("sensitivity_policy") != "DECLARED_SCENARIOS_REPORT_ONLY"):
@@ -312,7 +362,8 @@ def validate(record):
                                  **({"contract": 2 if current else 1} if selected else {}))
         from finauditgate.adapters.thesis_degrade import case_status
         if selected and (record.get("evidence_check") != context.evidence_check()
-                         or record["status"] != case_status(list(degraded), context.evidence_check()["status"])):
+                         or record["status"] != case_status(list(degraded), context.evidence_check()["status"],
+                                                           masked=bool(record.get("number_masking")))):
             raise ValueError("THESIS_EVIDENCE_CHECK_CHANGED")
     before, after = record["independent_assessment"]["decision"]["rating"], report["rating"]
     if record["rating_comparison"] != {"before": before, "after": after, "changed": before != after}:

@@ -93,6 +93,6 @@ def check_degraded(calls, state, protocol_version, allowed_refs):
                 raise ValueError("THESIS_DEGRADED_STAGE_NOT_PROVEN")
 
 
-def case_status(degraded, evidence_status):
-    """A Case with any degraded stage is PARTIAL whatever its evidence check says."""
-    return "PARTIAL" if degraded else evidence_status
+def case_status(degraded, evidence_status, masked=False):
+    """A Case with any degraded stage, or with hidden final-report numbers (protocol 24), is PARTIAL."""
+    return "PARTIAL" if degraded or masked else evidence_status

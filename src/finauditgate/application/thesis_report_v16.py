@@ -35,9 +35,10 @@ def render(record):
         changes=change_view(record["applied_changes"]), beliefs=record["forward_revision"]["belief_updates"],
         contract=contract_for(record))
     check = context.evidence_check()
-    if record["evidence_check"] != check or record["status"] != case_status(degraded(record), check["status"]):
+    if record["evidence_check"] != check or record["status"] != case_status(degraded(record), check["status"], masked=bool(record.get("number_masking"))):
         raise ValueError("THESIS_EVIDENCE_CHECK_CHANGED")
-    return render_with_context(record, context, evidence_check=check, mechanical_changes=True)
+    return render_with_context(record, context, evidence_check=check, mechanical_changes=True,
+                               masking=record.get("number_masking"))
 
 
 def degraded(record):
@@ -61,6 +62,14 @@ def _v20_records(record):
         for row in record["number_repair"]["replacements"]:
             parts += ["字段：" + row["field"], "", "原句：", "", *previous._json(row["original"]),
                       "改写：", "", *previous._json(row["replacement"])]
+    if record.get("number_masking"):
+        parts += ["## 终稿数字遮盖", "",
+                  "终稿的下列句子被数字规则拒收，句子级修复无法进行或未能通过。程序没有再调用模型，只把这些句子中被拒收的数字"
+                  "替换为“〔数值待核〕”（无法逐个替换的文字整体隐去，引用保留）；其余文字、评级和情景采纳未变，处理后整份终稿已按同一规则重新检查。"
+                  "原句中的数字未经程序核对，不作为已核数值。", ""]
+        for row in record["number_masking"]["sentences"]:
+            parts += ["字段：" + row["field"] + "（" + {"numbers": "隐去被拒数字", "sentence": "文字整体隐去"}[row["mode"]] + "）", "",
+                      "原句：", "", *previous._json(row["original"]), "处理后：", "", *previous._json(row["masked"])]
     return parts
 
 

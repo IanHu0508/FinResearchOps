@@ -1,4 +1,4 @@
-"""Protocol 23: prove and render a halted delivery (finresearchops.thesis-halted-case/v1).
+"""Protocols 23-24: prove and render a halted delivery (finresearchops.thesis-halted-case/v1).
 
 A halted Case holds the stages a stopped run completed. It is proved the way a
 complete Case is: every exchange binds to its one saved call, prompt and answer;
@@ -12,7 +12,7 @@ from finauditgate.adapters.thesis_halted import (
 )
 
 
-PROTOCOL = 23
+PROTOCOLS = (23, 24)
 KEYS = {"schema_version", "protocol_version", "status", "review_status", "financial_gate", "automatic_trading",
         "sensitivity_policy", "upstream_commit", "runtime_kind", "model", "request", "source_bundle", "topology",
         "halted", "analyst_reports", "initial", "revisions", "updated_claims", "research_evaluation",
@@ -58,37 +58,38 @@ def validate(record):
     from .thesis_case_v11 import _check_v21_calls, _coverage, bind_exchanges, check_revision, rebuilt_claims
 
     if (not isinstance(record, dict) or set(record) - {"reused_calls"} != KEYS or record["schema_version"] != SCHEMA
-            or type(record["protocol_version"]) is not int or record["protocol_version"] != PROTOCOL
+            or type(record["protocol_version"]) is not int or record["protocol_version"] not in PROTOCOLS
             or record["status"] != "HALTED" or record["review_status"] != "AWAITING_REVIEW"
             or record["financial_gate"] != "NOT_REQUIRED" or record["automatic_trading"] is not False
             or record["sensitivity_policy"] != "DECLARED_SCENARIOS_REPORT_ONLY"
             or record["runtime_kind"] not in ("REAL_MODEL", "OFFLINE_SYNTHETIC")
             or not isinstance(record["model"], str) or not isinstance(record["upstream_commit"], str)):
         raise ValueError("THESIS_HALTED_RECORD_INVALID")
+    protocol = record["protocol_version"]
     validate_sources(record["source_bundle"], record["request"])
     sources, request = source_view(record["source_bundle"]), research_request_view(record["request"])
     if request["data_mode"] != "FROZEN_SOURCES" or record["topology"] != expected_topology():
         raise ValueError("THESIS_HALTED_RECORD_INVALID")
     allowed_refs = {r["id"] for r in sources["sources"]}
     calls, recovery = record["model_calls"], record["recovery"]
-    excluded, dependencies = validate_recoveries(calls, recovery, complete=False, protocol_version=PROTOCOL)
+    excluded, dependencies = validate_recoveries(calls, recovery, complete=False, protocol_version=protocol)
     halted = recovery["halted"]
     if halted is None or record["halted"] != halted or not deliverable_reason(halted["reason"]):
         raise ValueError("THESIS_HALTED_STAGE_INVALID")
     _check_v21_calls(calls)
-    check_degraded(calls, recovery, PROTOCOL, allowed_refs)
+    check_degraded(calls, recovery, protocol, allowed_refs)
 
     # The exchanges are the protocol's stages in order up to the stop; the stop is the next stage,
     # or the last exchanged one when its answer failed a check after it was parsed.
     exchanges = record["exchanges"]
     parsed, degraded = _delivered(record)
-    stages = [stage for stage in main_stages(PROTOCOL) if stage not in degraded]
+    stages = [stage for stage in main_stages(protocol) if stage not in degraded]
     reached = [(e["node"], e["kind"]) for e in exchanges]
     stopped = (halted["node"], halted["kind"])
     if reached != stages[:len(reached)] or stopped not in stages[max(len(reached) - 1, 0):len(reached) + 1]:
         raise ValueError("THESIS_PROTOCOL_ORDER_INVALID")
     # Degradations and recoveries happened at the stopped stage or before it; only the stop may be pending.
-    position = {stage: i for i, stage in enumerate(main_stages(PROTOCOL))}
+    position = {stage: i for i, stage in enumerate(main_stages(protocol))}
     if any(position[stage] >= position[stopped] for stage in degraded):
         raise ValueError("THESIS_HALTED_STAGE_INVALID")
     for row in recovery["attempts"]:
@@ -99,7 +100,7 @@ def validate(record):
     if reached and reached[-1] == stopped and stopped[1] == "AnalystReport":
         # A stopped analyst's own answer is withheld, but its exchange still binds to its saved call.
         binding = {**record, "analyst_reports": {**record["analyst_reports"], stopped[0]: exchanges[-1]["parsed"]}}
-    order = bind_exchanges(binding, exchanges, protocol=PROTOCOL, selected=True, full_analysts=True, bound=True,
+    order = bind_exchanges(binding, exchanges, protocol=protocol, selected=True, full_analysts=True, bound=True,
                            sources=sources, request=request, allowed_refs=allowed_refs, dependencies=dependencies)
     if order != sorted(set(order)):
         raise ValueError("THESIS_MODEL_CALL_ORDER_INVALID")
@@ -186,8 +187,8 @@ def render(record):
     name = identity.get("company_short_name")
     title = (f"{name}（{request['symbol']}）" if name else request["symbol"]) + " 研究报告（中止交付）"
     parsed, degraded = _delivered(record)
-    done = [s for s in main_stages(PROTOCOL) if s in parsed or s in degraded]
-    missing = [s for s in main_stages(PROTOCOL) if s not in parsed and s not in degraded]
+    done = [s for s in main_stages(record["protocol_version"]) if s in parsed or s in degraded]
+    missing = [s for s in main_stages(record["protocol_version"]) if s not in parsed and s not in degraded]
     verdict = record["conclusion"]
     parts = ["# " + title, "", f"研究截止日 {request['as_of']} ｜ 研究期限 {request['horizon_months']}个月", "",
              f"> **本次运行在“{stage_label(halted['node'], halted['kind'])}”中止（原因代码：{halted['reason']}），没有可交付的终稿。"

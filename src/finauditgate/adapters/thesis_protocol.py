@@ -415,6 +415,7 @@ class ThesisSession:
         self.forward_draft = None
         self.forward_calculations = None
         self.rule_rating = None
+        self.number_masking = None
         self.exchanges = []
         self.completed, self.capture = completed, capture
         if protocol_version >= 16:

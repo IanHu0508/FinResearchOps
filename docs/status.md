@@ -1,6 +1,6 @@
 # Project Status
 
-> Updated 2026-09-29. This file is the only public status source; other
+> Updated 2026-09-30. This file is the only public status source; other
 > documents describe mechanisms and link here.
 
 ## Current slice: Quant Evidence Integration V1 — 2026-09-23
@@ -67,6 +67,46 @@ changed by that narrow repair. The original paid round remains stopped. No seman
 result is claimed; that narrow repair did not change the source, prompt or retry contracts. The Agent flow
 still reads no quant signal directly.
 
+
+### Protocol 24: refused final-report numbers hidden instead of stopping — 2026-09-30
+
+Implementation and tests are COMPLETED. New four-analyst executions write
+`finresearchops.thesis-case/v24`; resumed v16 to v23 executions keep their recorded protocol, prompts and
+readers. Protocol 24 keeps the protocol 23 prompts, efforts, ratings and recovery policy.
+
+- A final report refused only for unbound numbers, whose sentence repair cannot be asked (more than five
+  refused sentences, a refusal no single sentence shows, no extra call left) or does not pass (a failed
+  call, a replacement still refused or misquoted), no longer stops the run for that reason. The contract
+  reads each stretch of prose between two citations on its own, and masking works on the same stretches:
+  in a refused stretch every numeral-like span (a standalone numeral, a numeral attached to letters such
+  as 5G or Q3 or another numeric character, Chinese numerals and amounts, English number words) is first
+  hidden as 〔数值待核〕, then spans are shown again, sentence by sentence and left to right, whenever the
+  stretch still passes with them, so the dates, periods and labels the contract accepts stay visible.
+  Text that still fails with every span hidden, judged sentence by sentence, is replaced by one mark and
+  keeps its citations. The rest of the text, the citations, the rating and the scenario dispositions are
+  unchanged and no model is called. The masked report must pass the unchanged contract; otherwise the run
+  stops and delivers what it completed as in protocol 23. A repair stopped by an untrusted resume is
+  never masked.
+- The Case is PARTIAL and `number_masking` records each changed sentence beside its original. The reader
+  derives the same masking from the saved answer and refuses masking after a passing repair, masking
+  where a repair could still be asked, changed masked text or rows, and a kept repair whose call did not
+  answer. `thesis-halted-case/v1` also accepts protocol 24 records; as in protocol 23 the reader does not
+  re-derive a recorded stop reason. The formal report, the workpaper and the aftercare report state how
+  many sentences were masked and, when any, how many had text hidden whole; the process record lists each
+  original beside its masked form.
+- The number contract now reads the retrieval dates, storage-standard versions and technical indicators
+  of the sources once per report instead of once per checked passage. Its results are unchanged on random
+  text and on every passage of the saved final reports, and reading a Case takes a fraction of the time.
+
+Core 573, integration 312 and Quant 186 checks pass. They include the hiding rule (dates, periods,
+identifiers, numerals attached to letters, Chinese amounts and number words, a numeral refused because of
+the text after it, citations containing sentence punctuation, the whole-text fallback), masking after an
+unsent, failed, still-refused or misquoted repair, a passing repair left unmasked, forged masking and
+repair records refused, an untrusted resume not masked, a final report that masking cannot make pass
+stopping and delivering as before, a stop after the final report still delivered, every written record
+kind checked against its published schema, the source facts read once with unchanged labels, and
+standard-library reopening. Every saved Case reopens with the same outcome as under the protocol 23 code
+and no saved file changed. The effect on delivery is measured separately.
 
 ### Protocol 23: every report concludes, every stop delivers — 2026-09-29
 

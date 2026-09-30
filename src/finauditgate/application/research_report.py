@@ -28,7 +28,7 @@ VERSIONS = (V1, V2)
 VERSION = V2  # written for newly saved Cases; saved files keep their recorded version
 NUMBER_PENDING = "UNBOUND_RESEARCH_NUMBER_PENDING"
 SUPPORTED = ("finresearchops.thesis-case/v16", "finresearchops.thesis-case/v17", "finresearchops.thesis-case/v18",
-             "finresearchops.thesis-case/v19", "finresearchops.thesis-case/v20", "finresearchops.thesis-case/v21", "finresearchops.thesis-case/v22", "finresearchops.thesis-case/v23")
+             "finresearchops.thesis-case/v19", "finresearchops.thesis-case/v20", "finresearchops.thesis-case/v21", "finresearchops.thesis-case/v22", "finresearchops.thesis-case/v23", "finresearchops.thesis-case/v24")
 FILES = ("research-report.md", "research-report.html")
 
 _RATINGS = {"Buy": "买入", "Overweight": "增持", "Hold": "中性", "Underweight": "减持", "Sell": "卖出",
@@ -119,7 +119,7 @@ class _Report:
             beliefs=record["forward_revision"]["belief_updates"], contract=contract_for(record))
         check = self.context.evidence_check()
         self.degraded = record.get("recovery", {}).get("degraded", [])
-        if record["evidence_check"] != check or record["status"] != case_status(self.degraded, check["status"]):
+        if record["evidence_check"] != check or record["status"] != case_status(self.degraded, check["status"], masked=bool(record.get("number_masking"))):
             raise ValueError("THESIS_EVIDENCE_CHECK_CHANGED")
         self.number_findings = [f for f in check["findings"] if f["reason"] == NUMBER_PENDING]
         self.citation_findings = [f for f in check["findings"] if f["reason"] != NUMBER_PENDING]
@@ -278,6 +278,11 @@ class _Report:
             names = "、".join(dict(_ANALYSTS).get(row["node"], "交易员") for row in self.degraded)
             blocks.append(("notice", f"本次{names}的输出未通过程序校验，已按降级规则省略，报告状态为部分完成；"
                                      "省略不代表资料中没有相关信息，其余研究阶段照常完成，详见附录一。"))
+        if record.get("number_masking"):
+            count, whole = masking_counts(record)
+            blocks.append(("notice", f"终稿有{count}个句子含未能由程序核对的数字，这些数字已替换为“〔数值待核〕”"
+                                     + (f"（其中{whole}句有文字无法逐个隐去数字，已整体隐去）" if whole else "") + "，报告状态为部分完成；"
+                                     "评级、情景复算和其余文字未变，原句保留在过程记录中待人工核对。"))
         blocks.append(("lead", self.facts(), self.paragraphs(final["summary"]["text"], field="summary")))
         blocks += self.forecast_table()
         if "rule_rating" in record:
@@ -340,6 +345,9 @@ class _Report:
                 ("研究资料", f"{mode}，{research}项" + (f"（另有{scenario_notes}项情景附录）" if scenario_notes else "")),
                 *self.binding_rows(check),
                 ("人工复核", "待复核，未签署")]
+        if record.get("number_masking"):  # protocol 24: sentences whose refused numbers were hidden
+            count, whole = masking_counts(record)
+            rows.insert(-1, ("隐去数值", f"{count}个句子" + (f"（{whole}句有文字整体隐去）" if whole else "") + "，原句见过程记录"))
         if "rule_rating" in record:  # protocol 23: the conclusion's confidence and the rule beside it
             from .research_conclusion import CONFIDENCE, rule_text
             rows[:0] = [("置信度", CONFIDENCE[record["final_report"]["confidence"]]),
@@ -466,6 +474,12 @@ class _Report:
             count = len(record["number_repair"]["replacements"])
             blocks.append(("note", f"终稿有{count}个句子因含未绑定数字被拒收，已只改写这些句子；其余文字、评级和情景采纳未变，"
                                    "改写后整份终稿按同一数字规则重新检查。原句与改写句见过程记录。"))
+        if record.get("number_masking"):
+            count, whole = masking_counts(record)
+            blocks.append(("note", f"终稿有{count}个句子因含未绑定数字被拒收，句子级修复无法进行或未能通过；"
+                                   "程序把这些句子中数字规则不接受的数字替换为待核标记"
+                                   + (f"（其中{whole}句有文字无法逐个替换，已整体隐去，引用保留）" if whole else "")
+                                   + "，没有再调用模型，其余文字、评级和情景采纳未变。原句与处理后句子见过程记录。"))
         blocks += self.quant_note()
         blocks += self.user_inputs()
         return blocks
@@ -543,6 +557,12 @@ class _Report:
                 "各资料的时间可得性与限制见资料目录；完整核对稿（report.md）保留逐处原文摘录与全部说明，过程记录（process-record.md）"
                 "保留各阶段原始输出，结构化记录见 case.json。",
                 "报告格式 " + self.version + "，由已保存的 Case 确定性生成。"]
+
+
+def masking_counts(record):
+    """(masked sentences, sentences hidden whole) of a protocol 24 Case."""
+    rows = record["number_masking"]["sentences"]
+    return len(rows), sum(r["mode"] == "sentence" for r in rows)
 
 
 def _value(field, assumption):
@@ -762,7 +782,7 @@ def _html(title, blocks, version):
 
 
 def render(record, version=VERSION):
-    """Return (Markdown bytes, HTML bytes) for a v16-v23 thesis Case in one format version."""
+    """Return (Markdown bytes, HTML bytes) for a v16-v24 thesis Case in one format version."""
     report = _Report(record, version)
     title, blocks = report.build()
     return _markdown(title, blocks, version), _html(title, blocks, version)

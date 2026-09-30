@@ -449,18 +449,23 @@ def render_report(record, review):
     degraded = record.get("recovery", {}).get("degraded", [])
     if degraded:
         warning += "本次有" + str(len(degraded)) + "个非关键角色按降级规则省略，原Case状态为PARTIAL。"
+    masked = (record.get("number_masking") or {}).get("sentences", [])
+    if masked:
+        whole = sum(r["mode"] == "sentence" for r in masked)
+        warning += ("原终稿有" + str(len(masked)) + "个句子的未核数字已替换为待核标记"
+                    + ("（其中" + str(whole) + "句有文字整体隐去）" if whole else "") + "，原Case状态为PARTIAL。")
     header = "> 自动校订稿；" + warning + "原稿完整保留为[原始报告](report.md)。\n\n"
     meanings = ["", "## 参数性质与计算含义（程序提供）", "", *_table(("情景", "参数", "取值", "依据性质"), rows), "",
                 *["- " + value for value in MEANINGS.values()]]
     rendered = (header + body + "\n".join(meanings) + "\n\n## 引用原文\n\n" + "\n\n".join(footnotes)).encode()
-    if record["schema_version"] in ("finresearchops.thesis-case/v17", "finresearchops.thesis-case/v18", "finresearchops.thesis-case/v19", "finresearchops.thesis-case/v20", "finresearchops.thesis-case/v21", "finresearchops.thesis-case/v22", "finresearchops.thesis-case/v23"):
+    if record["schema_version"] in ("finresearchops.thesis-case/v17", "finresearchops.thesis-case/v18", "finresearchops.thesis-case/v19", "finresearchops.thesis-case/v20", "finresearchops.thesis-case/v21", "finresearchops.thesis-case/v22", "finresearchops.thesis-case/v23", "finresearchops.thesis-case/v24"):
         from .thesis_report_v17 import supplement
         rendered += supplement(display)
     return rendered
 
 
 def render_process(record, review):
-    if record["schema_version"] in ("finresearchops.thesis-case/v17", "finresearchops.thesis-case/v18", "finresearchops.thesis-case/v19", "finresearchops.thesis-case/v20", "finresearchops.thesis-case/v21", "finresearchops.thesis-case/v22", "finresearchops.thesis-case/v23"):
+    if record["schema_version"] in ("finresearchops.thesis-case/v17", "finresearchops.thesis-case/v18", "finresearchops.thesis-case/v19", "finresearchops.thesis-case/v20", "finresearchops.thesis-case/v21", "finresearchops.thesis-case/v22", "finresearchops.thesis-case/v23", "finresearchops.thesis-case/v24"):
         from .thesis_report_v17 import render_process as original_process
     else:
         from .thesis_report_v16 import render_process as original_process

@@ -92,8 +92,10 @@ def render(record):
     return render_with_context(record, context)
 
 
-def render_with_context(record, context, *, evidence_check=None, mechanical_changes=False):
-    """Shared report body; a selected-evidence report supplies its own context."""
+def render_with_context(record, context, *, evidence_check=None, mechanical_changes=False, masking=None):
+    """Shared report body; a selected-evidence report supplies its own context.
+
+    masking (protocol 24) is the Case's number_masking record, shown in the opening notice."""
     draft, calc, sources, request = (record[k] for k in ("effective_forward_draft", "effective_forward_calculations", "source_bundle", "request"))
     final = record["final_report"]
     # Upstream scenario names are unconstrained old prose. Stable scenario IDs
@@ -114,6 +116,11 @@ def render_with_context(record, context, *, evidence_check=None, mechanical_chan
         partial = evidence_check["status"] == "PARTIAL"
         notice = ("**证据待核：完整研究已保存，尚不构成证据绑定完整的交付。模型评级保留供复核，不能视为获准结论。**"
                   if partial else "**来源绑定检查完成；经济含义与关键事实仍待人工复核，不是审计通过或投资判断认证。**")
+        if masking:
+            whole = sum(r["mode"] == "sentence" for r in masking["sentences"])
+            notice += (f"\n\n**终稿有{len(masking['sentences'])}个句子含未能由程序核对的数字，这些数字已替换为“〔数值待核〕”"
+                       + (f"（其中{whole}句有文字无法逐个隐去数字，已整体隐去）" if whole else "")
+                       + "，Case状态为部分完成；原句保留在过程记录中，待人工核对。**")
         parts[4] = notice
         parts[6] = f"**模型提出的评级：{final['rating']}**"
 

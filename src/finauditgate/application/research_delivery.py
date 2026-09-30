@@ -55,7 +55,7 @@ def final_instruction(protocol_version):
 def contract_for(record):
     """Number contract of a saved Case: 2 from thesis-case/v18 on, otherwise the original 1."""
     return 2 if record.get("schema_version") in ("finresearchops.thesis-case/v18", "finresearchops.thesis-case/v19",
-                                                 "finresearchops.thesis-case/v20", "finresearchops.thesis-case/v21", "finresearchops.thesis-case/v22", "finresearchops.thesis-case/v23") else 1
+                                                 "finresearchops.thesis-case/v20", "finresearchops.thesis-case/v21", "finresearchops.thesis-case/v22", "finresearchops.thesis-case/v23", "finresearchops.thesis-case/v24") else 1
 
 
 def evidence_catalog(sources):
@@ -193,6 +193,8 @@ _SHORTHAND = re.compile(r"(?<![A-Za-z0-9_])(?P<base>[A-Z][A-Z_]*?)(?P<first>[0-9
                         r"(?![A-Za-z0-9_.%‰元美港币万亿倍页行段条节章版期号])")
 _QUANT_DAYS = re.compile(r"(?<![A-Za-z0-9_])QUANT(?:[ \t]*(?:仅|为|是|的|:))?[ \t]*([1-9][0-9]{0,2})(?:个交易日|交易日|日)"
                          r"(?![A-Za-z0-9_.%‰元美港币万亿倍均线移平])")
+# A storage-standard version written in the sources is an identifier, not an amount.
+_VERSIONS = re.compile(r"(?<![A-Za-z0-9_])UFS[ \t\r\n]*[0-9]+(?:\.[0-9]+){1,2}(?![A-Za-z0-9_]|\.[0-9])")
 _INDICATOR = re.compile(r"(?<![A-Za-z0-9_.])([1-9][0-9]{0,2})[ \t]*(EMA|SMA)(?![A-Za-z0-9_])", re.I)
 _SOURCE_INDICATOR = re.compile(r"(?<![0-9])([1-9][0-9]{0,2})[ _-]?(ema|sma)(?![A-Za-z])", re.I)
 
@@ -262,6 +264,25 @@ class DeliveryContext(narrative.NarrativeContext):
             return pending
         return [token for token in pending if token in kept]
 
+    def _source_facts(self):
+        """What the contract reads from the sources, computed once per context: the sources never change."""
+        if "_facts" not in self.__dict__:
+            normalized = [unicodedata.normalize("NFKC", source["content"]) for source in self.sources.values()]
+            retrieved_dates = set()
+            for source in self.sources.values():
+                metadata = source["content"] + "\n" + source.get("availability_note", "")
+                for value in re.findall(r"(?:抓取时间[：:]|抓取于)([12][0-9]{3}-[0-9]{2}-[0-9]{2})(?![0-9])", metadata):
+                    try:
+                        date.fromisoformat(value)
+                    except ValueError:
+                        continue
+                    retrieved_dates.add(value)
+            self._facts = {
+                "retrieved_dates": retrieved_dates,
+                "versions": {re.sub(r"\s+", "", m[0]) for content in normalized for m in _VERSIONS.finditer(content)},
+                "indicators": {(n, kind.upper()) for content in normalized for n, kind in _SOURCE_INDICATOR.findall(content)}}
+        return self._facts
+
     def _checked(self, text, labels=False):
         checked = unicodedata.normalize("NFKC", text)
         # Classify complete time labels, not their digits in isolation. The
@@ -306,23 +327,14 @@ class DeliveryContext(narrative.NarrativeContext):
         trading_days = re.compile(r"(?<![A-Za-z0-9_.])([1-9][0-9]{0,2})个交易日(?![A-Za-z0-9_.%％元美港币万亿倍])")
         checked = trading_days.sub(lambda m: "Quant已注明的交易日期限" if m[1] in quant_days
             and not value_position(m) else m[0], checked)
-        retrieved_dates = set()
-        for source in self.sources.values():
-            metadata = source["content"] + "\n" + source.get("availability_note", "")
-            for value in re.findall(r"(?:抓取时间[：:]|抓取于)([12][0-9]{3}-[0-9]{2}-[0-9]{2})(?![0-9])", metadata):
-                try:
-                    date.fromisoformat(value)
-                except ValueError:
-                    continue
-                retrieved_dates.add(value)
+        retrieved_dates = self._source_facts()["retrieved_dates"]
         retrieval = re.compile(r"抓取于([12][0-9]{3}-[0-9]{2}-[0-9]{2})(?![A-Za-z0-9_.%％元美港币万亿倍])")
         checked = retrieval.sub(lambda m: "抓取于来源已记录日期" if m[1] in retrieved_dates
             and not value_position(m) else m[0], checked)
         # A source-proven storage-standard version is an identifier, not an
         # amount. Unknown versions and monetary uses remain numeric failures.
-        versions = re.compile(r"(?<![A-Za-z0-9_])UFS[ \t\r\n]*[0-9]+(?:\.[0-9]+){1,2}(?![A-Za-z0-9_]|\.[0-9])")
-        source_versions = {re.sub(r"\s+", "", m[0]) for source in self.sources.values()
-            for m in versions.finditer(unicodedata.normalize("NFKC", source["content"]))}
+        versions = _VERSIONS
+        source_versions = self._source_facts()["versions"]
         checked = versions.sub(lambda m: "资料中的技术版本" if not value_position(m)
             and re.sub(r"\s+", "", m[0]) in source_versions else m[0], checked)
         # Bind a common input explicitly, rather than treating the digit one
@@ -382,8 +394,7 @@ class DeliveryContext(narrative.NarrativeContext):
         checked = _SHORTHAND.sub(shorthand, checked)
         checked = _QUANT_DAYS.sub(lambda m: "QUANT的已注明预测期限" if "QUANT" in self.sources
             and m[1] in quant_days and not guarded(m, checked) else m[0], checked)
-        proven = {(n, kind.upper()) for source in self.sources.values()
-                  for n, kind in _SOURCE_INDICATOR.findall(unicodedata.normalize("NFKC", source["content"]))}
+        proven = self._source_facts()["indicators"]
         return _INDICATOR.sub(lambda m: "资料中的技术指标" if (m[1], m[2].upper()) in proven
             and not guarded(m, checked) else m[0], checked)
 

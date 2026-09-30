@@ -331,6 +331,7 @@ class PublicContractTest(unittest.TestCase):
                 "thesis-case.v21.schema.json",
                 "thesis-case.v22.schema.json",
                 "thesis-case.v23.schema.json",
+                "thesis-case.v24.schema.json",
                 "thesis-halted-case.v1.schema.json",
                 "thesis-review.v1.schema.json",
                 "thesis-review.v3.schema.json",
