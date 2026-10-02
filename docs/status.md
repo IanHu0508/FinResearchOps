@@ -7,8 +7,12 @@
 
 The standalone [project showcase](https://ianhu0508.github.io/FinResearchOps/)
 retains the existing project-page design and describes the v24 delivery contract.
-Source preparation and desktop/mobile checks are `COMPLETED`; hosted deployment
-and anonymous access checks are `PARTIAL` until the corresponding run completes.
+Source preparation, hosted deployment and desktop/mobile checks are `COMPLETED`.
+The [Pages deployment](https://github.com/IanHu0508/FinResearchOps/actions/runs/36986853251)
+completed successfully. An HTTPS request with no Cookie or Authorization header
+returned the page with bytes matching the published source. Production browser
+checks at desktop and 390-pixel mobile width found no horizontal overflow or
+console errors; section navigation and command copying work without a provider login.
 The Pages workflow publishes only `site/`. The showcase contains public project
 descriptions, the synthetic correction example and already published research
 aggregates; issuer inputs, raw calls, personal application notes and private
