@@ -1,0 +1,800 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>FinResearchOps 作品集</title>
+<meta name="description" content="金融投研多智能体工作流的个人作品集：方法、流程、合成演示与工程证据。">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Noto+Sans+SC:wght@400;500;700&family=Noto+Serif+SC:wght@600;900&display=swap">
+<style>
+:root {
+  --paper: #f1f4f2;
+  --surface: #ffffff;
+  --ink: #14202a;
+  --ink-soft: #4a5965;
+  --ink-faint: #74838d;
+  --rule: #d2dad6;
+  --accent: #1b5a70;
+  --accent-soft: #e0ebee;
+  --accent-ink: #ffffff;
+  --ok: #13735c;
+  --ok-soft: #dcefe8;
+  --warn: #93600f;
+  --warn-soft: #f5ead6;
+  --stop: #a3372c;
+  --stop-soft: #f6e1dd;
+  --code-bg: #e8eeeb;
+  --shadow: 0 1px 2px rgba(20, 32, 42, .06), 0 8px 24px rgba(20, 32, 42, .06);
+  --serif: "Noto Serif SC", "Songti SC", "STSong", "SimSun", serif;
+  --sans: "Noto Sans SC", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", "SFMono-Regular", Menlo, Consolas, monospace;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #0e1418;
+    --surface: #141c21;
+    --ink: #e3eae7;
+    --ink-soft: #a0adb4;
+    --ink-faint: #7c8a92;
+    --rule: #26323a;
+    --accent: #78b8cc;
+    --accent-soft: #15303a;
+    --accent-ink: #0e1418;
+    --ok: #5cc5a6;
+    --ok-soft: #133029;
+    --warn: #e2ab58;
+    --warn-soft: #33270f;
+    --stop: #e8867a;
+    --stop-soft: #3a1c18;
+    --code-bg: #10181c;
+    --shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 8px 24px rgba(0, 0, 0, .25);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #0e1418;
+  --surface: #141c21;
+  --ink: #e3eae7;
+  --ink-soft: #a0adb4;
+  --ink-faint: #7c8a92;
+  --rule: #26323a;
+  --accent: #78b8cc;
+  --accent-soft: #15303a;
+  --accent-ink: #0e1418;
+  --ok: #5cc5a6;
+  --ok-soft: #133029;
+  --warn: #e2ab58;
+  --warn-soft: #33270f;
+  --stop: #e8867a;
+  --stop-soft: #3a1c18;
+  --code-bg: #10181c;
+  --shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 8px 24px rgba(0, 0, 0, .25);
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; scroll-padding-top: 72px; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: 16px;
+  line-height: 1.75;
+  -webkit-font-smoothing: antialiased;
+}
+a { color: var(--accent); text-underline-offset: 3px; }
+a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 4px; }
+code, .mono { font-family: var(--mono); font-size: .88em; }
+h1, h2, h3, .thesis { text-wrap: balance; margin: 0; word-break: keep-all; overflow-wrap: anywhere; }
+p { margin: 0; }
+
+.wrap { width: 100%; max-width: 1120px; margin-inline: auto; padding-inline: clamp(16px, 4vw, 40px); }
+
+/* Navigation ------------------------------------------------------------ */
+.nav {
+  position: sticky;
+  top: env(safe-area-inset-top, 0px);
+  z-index: 10;
+  background: var(--paper);
+  background: color-mix(in srgb, var(--paper) 90%, transparent);
+  backdrop-filter: saturate(1.2) blur(10px);
+  -webkit-backdrop-filter: saturate(1.2) blur(10px);
+  border-bottom: 1px solid var(--rule);
+}
+.nav .wrap { display: flex; align-items: center; gap: 24px; min-height: 56px; }
+.brand { font-family: var(--mono); font-weight: 500; font-size: 14px; color: var(--ink); text-decoration: none; letter-spacing: .02em; white-space: nowrap; }
+.nav ul { list-style: none; display: flex; gap: 4px; margin: 0; padding: 0; overflow-x: auto; scrollbar-width: none; }
+.nav ul::-webkit-scrollbar { display: none; }
+.nav li a { display: block; padding: 6px 10px; font-size: 14px; color: var(--ink-soft); text-decoration: none; border-radius: 6px; white-space: nowrap; }
+.nav li a:hover { color: var(--ink); background: var(--accent-soft); }
+.nav .gh { margin-left: auto; font-size: 14px; white-space: nowrap; }
+@media (max-width: 720px) { .nav .gh { display: none; } }
+
+/* Hero ------------------------------------------------------------------ */
+.hero { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: clamp(28px, 5vw, 64px); align-items: start; padding-block: clamp(40px, 7vw, 88px) clamp(32px, 5vw, 56px); }
+@media (max-width: 880px) { .hero { grid-template-columns: minmax(0, 1fr); } }
+.eyebrow { font-family: var(--mono); font-size: 12.5px; letter-spacing: .08em; color: var(--ink-faint); text-transform: uppercase; }
+.hero h1 { font-family: var(--mono); font-weight: 500; font-size: clamp(34px, 6vw, 60px); line-height: 1.05; letter-spacing: -.02em; margin-top: 14px; }
+.thesis { font-family: var(--serif); font-weight: 900; font-size: clamp(24px, 3.4vw, 36px); line-height: 1.4; margin-top: 18px; max-width: 22em; }
+.thesis mark { background: none; color: var(--accent); }
+.lede { color: var(--ink-soft); margin-top: 18px; max-width: 36em; }
+.cta { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 28px; }
+.btn { display: inline-flex; align-items: center; gap: 8px; padding: 10px 18px; border-radius: 8px; border: 1px solid var(--rule); color: var(--ink); background: var(--surface); text-decoration: none; font-weight: 500; font-size: 15px; }
+.btn:hover { border-color: var(--accent); }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.btn.primary:hover { filter: brightness(1.08); }
+
+/* Rating card (mirrors the formal report's cover table) ------------------ */
+.rating { background: var(--surface); border: 1px solid var(--rule); border-radius: 12px; box-shadow: var(--shadow); padding: 22px 22px 18px; }
+.rating-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding-bottom: 12px; border-bottom: 2px solid var(--ink); }
+.rating-head strong { font-family: var(--serif); font-size: 19px; }
+.rating-head span { font-family: var(--mono); font-size: 12px; color: var(--ink-faint); }
+.rating table { width: 100%; border-collapse: collapse; font-size: 14.5px; }
+.rating th, .rating td { text-align: left; vertical-align: top; padding: 10px 0; border-bottom: 1px solid var(--rule); }
+.rating th { width: 6.2em; color: var(--ink-soft); font-weight: 500; padding-right: 12px; white-space: nowrap; }
+.rating td { font-variant-numeric: tabular-nums; }
+.rating tr:last-child th, .rating tr:last-child td { border-bottom: 0; }
+.rating .foot { font-size: 12.5px; color: var(--ink-faint); margin-top: 10px; }
+
+.chip { display: inline-block; font-family: var(--mono); font-size: 12px; line-height: 1; padding: 5px 8px; border-radius: 999px; margin-right: 6px; vertical-align: 1px; white-space: nowrap; }
+.chip.ok { color: var(--ok); background: var(--ok-soft); }
+.chip.warn { color: var(--warn); background: var(--warn-soft); }
+.chip.stop { color: var(--stop); background: var(--stop-soft); }
+.chip.acc { color: var(--accent); background: var(--accent-soft); }
+
+/* Principle band -------------------------------------------------------- */
+.band { border-block: 1px solid var(--rule); background: var(--surface); }
+.band ol { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.band li { padding: 22px 24px; display: grid; gap: 4px; }
+.band li + li { border-left: 1px solid var(--rule); }
+.band b { font-family: var(--serif); font-size: 20px; }
+.band span { color: var(--ink-soft); font-size: 14.5px; }
+.band small { font-family: var(--mono); color: var(--accent); font-size: 12px; letter-spacing: .06em; }
+@media (max-width: 720px) {
+  .band ol { grid-template-columns: minmax(0, 1fr); }
+  .band li + li { border-left: 0; border-top: 1px solid var(--rule); }
+}
+
+/* Sections -------------------------------------------------------------- */
+section { padding-block: clamp(48px, 7vw, 88px); }
+section + section { border-top: 1px solid var(--rule); }
+.sec-head { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; margin-bottom: clamp(24px, 4vw, 40px); max-width: 46em; }
+.sec-head .eyebrow { color: var(--accent); }
+.sec-head h2 { font-family: var(--serif); font-weight: 900; font-size: clamp(24px, 3.2vw, 34px); line-height: 1.35; }
+.sec-head p { color: var(--ink-soft); }
+
+/* Problems -------------------------------------------------------------- */
+.problems { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: clamp(20px, 3vw, 36px); }
+.problems article { border-top: 2px solid var(--ink); padding-top: 16px; display: grid; gap: 8px; align-content: start; }
+.problems h3 { font-family: var(--serif); font-size: 20px; }
+.problems p { color: var(--ink-soft); font-size: 15px; }
+@media (max-width: 820px) { .problems { grid-template-columns: minmax(0, 1fr); } }
+
+/* Methods --------------------------------------------------------------- */
+.methods { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.method { background: var(--surface); border: 1px solid var(--rule); border-radius: 12px; padding: 22px 24px; display: grid; gap: 10px; align-content: start; }
+.method.wide { grid-column: 1 / -1; }
+.method header { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.method .tag { font-family: var(--mono); font-size: 12px; color: var(--accent); letter-spacing: .06em; }
+.method h3 { font-family: var(--serif); font-size: 21px; }
+.method p { color: var(--ink-soft); font-size: 15px; }
+.method ul { margin: 0; padding-left: 1.2em; color: var(--ink-soft); font-size: 15px; display: grid; gap: 4px; }
+.token { display: inline-block; font-family: var(--mono); font-size: 13px; background: var(--code-bg); border: 1px solid var(--rule); border-radius: 6px; padding: 1px 6px; color: var(--ink); white-space: nowrap; }
+@media (max-width: 820px) { .methods { grid-template-columns: minmax(0, 1fr); } }
+
+/* Pipeline diagram ------------------------------------------------------ */
+.legend { display: flex; flex-wrap: wrap; gap: 10px 22px; margin-bottom: 18px; font-size: 13.5px; color: var(--ink-soft); }
+.legend span { display: inline-flex; align-items: center; gap: 8px; }
+.swatch { width: 22px; height: 14px; border-radius: 4px; border: 1px solid var(--rule); background: var(--surface); display: inline-block; }
+.swatch.prog { background: var(--accent-soft); border-color: var(--accent); }
+.swatch.soft { border: 1.5px dashed var(--ink-faint); }
+.swatch.gate { background: var(--ink); border-color: var(--ink); }
+.pipeline { display: grid; gap: 10px; }
+.lane { display: grid; grid-template-columns: 9.5em minmax(0, 1fr); gap: 16px; align-items: center; background: var(--surface); border: 1px solid var(--rule); border-radius: 12px; padding: 14px 16px; }
+.lane-label { display: grid; gap: 2px; }
+.lane-label b { font-family: var(--serif); font-size: 16px; }
+.lane-label small { font-family: var(--mono); font-size: 11.5px; color: var(--ink-faint); }
+.nodes { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.node { font-size: 14px; line-height: 1.35; padding: 8px 12px; border-radius: 8px; border: 1px solid var(--rule); background: var(--paper); }
+.node.soft { border: 1.5px dashed var(--ink-faint); }
+.node.prog { background: var(--accent-soft); border-color: var(--accent); color: var(--ink); font-weight: 500; }
+.node.prog::before { content: "程序"; font-family: var(--mono); font-size: 11px; color: var(--accent); margin-right: 6px; font-weight: 500; }
+.node.gate { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+.arrow { color: var(--ink-faint); font-family: var(--mono); font-size: 14px; }
+.sep { color: var(--ink-faint); font-size: 13px; }
+.lane-note { grid-column: 2; font-size: 13px; color: var(--ink-faint); margin-top: -4px; }
+.down { text-align: center; color: var(--ink-faint); font-family: var(--mono); font-size: 13px; line-height: 1; }
+@media (max-width: 720px) {
+  .lane { grid-template-columns: minmax(0, 1fr); gap: 10px; }
+  .lane-note { grid-column: 1; }
+}
+
+/* Demo ------------------------------------------------------------------ */
+.demo-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; }
+@media (max-width: 880px) { .demo-grid { grid-template-columns: minmax(0, 1fr); } }
+.panel { background: var(--surface); border: 1px solid var(--rule); border-radius: 12px; padding: 20px 22px; display: grid; gap: 14px; align-content: start; min-width: 0; }
+.panel h3 { font-family: var(--serif); font-size: 19px; }
+.panel .kicker { font-family: var(--mono); font-size: 12px; color: var(--ink-faint); letter-spacing: .06em; }
+.panel p { color: var(--ink-soft); font-size: 15px; }
+.panel.span { grid-column: 1 / -1; }
+.compare { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+.compare th, .compare td { padding: 10px 8px; border-bottom: 1px solid var(--rule); text-align: right; }
+.compare th:first-child, .compare td:first-child { text-align: left; padding-left: 0; }
+.compare thead th { font-size: 13px; color: var(--ink-faint); font-weight: 500; border-bottom: 2px solid var(--ink); }
+.compare td { font-family: var(--mono); font-size: 15px; }
+.compare td:first-child { font-family: var(--sans); }
+.compare .changed { color: var(--accent); font-weight: 500; }
+.flow { display: grid; gap: 10px; }
+.flow-step { display: grid; gap: 6px; }
+.flow-step .label { font-size: 12.5px; color: var(--ink-faint); font-family: var(--mono); letter-spacing: .04em; }
+.flow-step .body { background: var(--code-bg); border: 1px solid var(--rule); border-radius: 8px; padding: 12px 14px; font-size: 14.5px; line-height: 1.8; overflow-wrap: anywhere; }
+.flow-step .body.rendered { background: var(--paper); font-family: var(--serif); }
+.flow-step .body code { font-size: 13px; color: var(--accent); }
+.flow-step .body .val { background: var(--ok-soft); color: var(--ok); border-radius: 4px; padding: 0 4px; font-family: var(--sans); font-weight: 500; }
+.flow-arrow { font-family: var(--mono); color: var(--ink-faint); font-size: 13px; }
+.reject { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.mini { width: 100%; border-collapse: collapse; font-size: 14px; font-variant-numeric: tabular-nums; }
+.mini th, .mini td { border: 1px solid var(--rule); padding: 7px 10px; text-align: left; vertical-align: top; }
+.mini th { width: 8.5em; font-weight: 500; color: var(--ink-soft); background: var(--paper); }
+.scroll { overflow-x: auto; }
+pre { margin: 0; background: var(--code-bg); border: 1px solid var(--rule); border-radius: 8px; padding: 14px 16px; overflow-x: auto; font-family: var(--mono); font-size: 13px; line-height: 1.7; color: var(--ink); }
+.copy-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.copy { font: inherit; font-size: 13px; padding: 6px 12px; border-radius: 6px; border: 1px solid var(--rule); background: var(--surface); color: var(--ink); cursor: pointer; }
+.copy:hover { border-color: var(--accent); }
+
+/* Engineering ----------------------------------------------------------- */
+.facts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0; border: 1px solid var(--rule); border-radius: 12px; overflow: hidden; background: var(--surface); }
+.fact { padding: 22px 22px 20px; display: grid; gap: 8px; align-content: start; border-right: 1px solid var(--rule); border-bottom: 1px solid var(--rule); }
+.fact:nth-child(3n) { border-right: 0; }
+.fact:nth-last-child(-n+3) { border-bottom: 0; }
+.fact h3 { font-family: var(--serif); font-size: 18px; }
+.fact p { color: var(--ink-soft); font-size: 14.5px; }
+.fact code { white-space: nowrap; }
+.fact .num { font-family: var(--mono); font-size: 28px; font-weight: 500; color: var(--ink); line-height: 1.1; font-variant-numeric: tabular-nums; }
+@media (max-width: 880px) {
+  .facts { grid-template-columns: minmax(0, 1fr); }
+  .fact { border-right: 0; }
+  .fact:nth-last-child(-n+3) { border-bottom: 1px solid var(--rule); }
+  .fact:last-child { border-bottom: 0; }
+}
+.stack { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; }
+.stack span { font-family: var(--mono); font-size: 13px; padding: 6px 10px; border: 1px solid var(--rule); border-radius: 6px; background: var(--surface); color: var(--ink-soft); }
+
+/* Timeline -------------------------------------------------------------- */
+.timeline { list-style: none; margin: 0; padding: 0; display: grid; gap: 0; border-left: 2px solid var(--rule); margin-left: 6px; }
+.timeline li { position: relative; display: grid; grid-template-columns: 7.5em minmax(0, 1fr); gap: 16px; padding: 12px 0 12px 22px; }
+.timeline li::before { content: ""; position: absolute; left: -7px; top: 20px; width: 12px; height: 12px; border-radius: 50%; background: var(--paper); border: 2px solid var(--accent); }
+.timeline li.now::before { background: var(--accent); }
+.timeline time { font-family: var(--mono); font-size: 13.5px; color: var(--ink-faint); padding-top: 2px; font-variant-numeric: tabular-nums; }
+.timeline b { font-weight: 700; }
+.timeline p { color: var(--ink-soft); font-size: 15px; }
+@media (max-width: 560px) { .timeline li { grid-template-columns: minmax(0, 1fr); gap: 2px; } }
+
+/* Status ---------------------------------------------------------------- */
+.status { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: clamp(20px, 4vw, 48px); align-items: start; }
+@media (max-width: 880px) { .status { grid-template-columns: minmax(0, 1fr); } }
+.status .statement { font-family: var(--serif); font-size: clamp(20px, 2.4vw, 25px); line-height: 1.6; }
+.status .statement + p { color: var(--ink-soft); margin-top: 16px; }
+.next { background: var(--surface); border: 1px solid var(--rule); border-radius: 12px; padding: 20px 22px; display: grid; gap: 12px; }
+.next h3 { font-family: var(--serif); font-size: 18px; }
+.next ol { margin: 0; padding-left: 1.3em; color: var(--ink-soft); font-size: 15px; display: grid; gap: 8px; }
+
+/* Hero metrics ------------------------------------------------------------ */
+.metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0; margin-top: 32px; border-top: 1px solid var(--rule); }
+.metric { padding: 16px 16px 4px 0; display: grid; gap: 4px; align-content: start; }
+.metric + .metric { padding-left: 16px; border-left: 1px solid var(--rule); }
+.metric b { font-family: var(--mono); font-weight: 500; font-size: clamp(24px, 3vw, 32px); line-height: 1.1; color: var(--ink); font-variant-numeric: tabular-nums; letter-spacing: -.01em; }
+.metric span { font-size: 13.5px; color: var(--ink-soft); line-height: 1.5; }
+@media (max-width: 560px) {
+  .metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .metric:nth-child(3) { padding-left: 0; border-left: 0; }
+  .metric:nth-child(n+3) { border-top: 1px solid var(--rule); }
+}
+
+/* Quant ------------------------------------------------------------------ */
+.qsteps { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; }
+.qsteps li { background: var(--surface); border: 1px solid var(--rule); border-radius: 12px; padding: 16px 16px 14px; display: grid; gap: 6px; align-content: start; }
+.qsteps small { font-family: var(--mono); font-size: 11.5px; color: var(--accent); letter-spacing: .06em; }
+.qsteps b { font-family: var(--serif); font-size: 17px; }
+.qsteps span { font-size: 14px; color: var(--ink-soft); line-height: 1.65; }
+@media (max-width: 980px) { .qsteps { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 560px) { .qsteps { grid-template-columns: minmax(0, 1fr); } }
+.study { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0; margin-top: 28px; border: 1px solid var(--rule); border-radius: 12px; overflow: hidden; background: var(--surface); }
+.study article { padding: 18px 18px 16px; display: grid; gap: 6px; align-content: start; }
+.study article + article { border-left: 1px solid var(--rule); }
+.study .stage { font-family: var(--mono); font-size: 12px; color: var(--ink-faint); letter-spacing: .06em; }
+.study h3 { font-family: var(--serif); font-size: 17px; }
+.study p { font-size: 14px; color: var(--ink-soft); line-height: 1.65; }
+.study .big { font-family: var(--mono); font-size: 22px; color: var(--ink); font-weight: 500; font-variant-numeric: tabular-nums; }
+@media (max-width: 880px) {
+  .study { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .study article:nth-child(3) { border-left: 0; }
+  .study article:nth-child(n+3) { border-top: 1px solid var(--rule); }
+}
+@media (max-width: 520px) {
+  .study { grid-template-columns: minmax(0, 1fr); }
+  .study article + article { border-left: 0; border-top: 1px solid var(--rule); }
+}
+.results { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); gap: 16px; margin-top: 16px; }
+@media (max-width: 880px) { .results { grid-template-columns: minmax(0, 1fr); } }
+.chart { margin: 0; background: var(--surface); border: 1px solid var(--rule); border-radius: 12px; padding: 20px 22px 18px; display: grid; gap: 14px; min-width: 0; }
+.chart h3 { font-family: var(--serif); font-size: 19px; }
+.chart .kicker { font-family: var(--mono); font-size: 12px; color: var(--ink-faint); letter-spacing: .06em; }
+.ic-legend { display: flex; flex-wrap: wrap; gap: 8px 18px; font-size: 13px; color: var(--ink-soft); }
+.ic-legend i { display: inline-block; width: 14px; height: 10px; border-radius: 3px; margin-right: 6px; vertical-align: 0; }
+.ic-legend .s i { background: var(--ink-faint); opacity: .55; }
+.ic-legend .c i { background: var(--accent); }
+.ic-group { display: grid; gap: 6px; }
+.ic-group + .ic-group { padding-top: 10px; border-top: 1px dashed var(--rule); }
+.ic-group > b { font-size: 14px; }
+.ic-row { display: grid; grid-template-columns: 5.6em minmax(0, 1fr) 7.6em; align-items: center; gap: 10px; font-size: 13px; color: var(--ink-soft); }
+.ic-track { position: relative; height: 12px; background: var(--paper); border-radius: 3px; }
+.ic-bar { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 3px; }
+.ic-row.s .ic-bar { background: var(--ink-faint); opacity: .55; }
+.ic-row.c .ic-bar { background: var(--accent); }
+.ic-row output { font-family: var(--mono); font-size: 12.5px; color: var(--ink); text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.ic-axis { display: grid; grid-template-columns: 5.6em minmax(0, 1fr) 7.6em; gap: 10px; font-family: var(--mono); font-size: 11.5px; color: var(--ink-faint); }
+.ic-axis div { position: relative; height: 16px; border-top: 1px solid var(--rule); }
+.ic-axis span { position: absolute; top: 3px; transform: translateX(-50%); }
+.ic-axis span:first-child { transform: none; }
+.ic-note { font-size: 12.5px; color: var(--ink-faint); line-height: 1.6; }
+@media (max-width: 520px) {
+  .ic-row, .ic-axis { grid-template-columns: 4.6em minmax(0, 1fr) 6.6em; gap: 8px; }
+}
+.takeaways { background: var(--surface); border: 1px solid var(--rule); border-radius: 12px; padding: 20px 22px; display: grid; gap: 14px; align-content: start; }
+.takeaways h3 { font-family: var(--serif); font-size: 19px; }
+.takeaways ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 12px; }
+.takeaways li { display: grid; grid-template-columns: 20px minmax(0, 1fr); gap: 8px; font-size: 15px; color: var(--ink-soft); }
+.takeaways li::before { content: "✓"; color: var(--ok); font-weight: 700; }
+.bridge { margin-top: 16px; background: var(--accent-soft); border: 1px solid var(--accent); border-radius: 12px; padding: 18px 22px; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 6px 16px; align-items: start; }
+.bridge b { font-family: var(--serif); font-size: 17px; white-space: nowrap; }
+.bridge p { color: var(--ink); font-size: 15px; }
+.nw { white-space: nowrap; }
+@media (max-width: 640px) { .bridge { grid-template-columns: minmax(0, 1fr); } }
+
+footer { border-top: 1px solid var(--rule); padding-block: 32px 48px; color: var(--ink-faint); font-size: 13.5px; }
+footer .wrap { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px 24px; }
+footer nav { display: flex; flex-wrap: wrap; gap: 8px 18px; }
+</style>
+
+</head>
+<body>
+<nav class="nav" aria-label="页面导航">
+  <div class="wrap">
+    <a class="brand" href="#top">FinResearchOps</a>
+    <ul>
+      <li><a href="#problem">挑战</a></li>
+      <li><a href="#method">方法</a></li>
+      <li><a href="#pipeline">流程</a></li>
+      <li><a href="#quant">量化</a></li>
+      <li><a href="#demo">演示</a></li>
+      <li><a href="#engineering">工程</a></li>
+      <li><a href="#timeline">历程</a></li>
+      <li><a href="#roadmap">路线图</a></li>
+    </ul>
+    <a class="gh" href="https://github.com/IanHu0508/FinResearchOps">GitHub ↗</a>
+  </div>
+</nav>
+
+<main id="top">
+  <header class="hero wrap">
+    <div>
+      <p class="eyebrow">个人项目 · 金融 AI 应用 / Agent 工程 / 量化研究 · 2026</p>
+      <h1>FinResearchOps</h1>
+      <p class="thesis">把多智能体投研流程<wbr>改造成<mark>数字可复算、<wbr>每一步可复核</mark>的<wbr>研究工作流。</p>
+      <p class="lede">以开源 TradingAgents 的原生多角色图为底座（分析师、多空研究员、研究经理、交易员、风险讨论、组合经理），重做了信息流、修正流程与金融数字的处理方式；并自建 A 股横截面量化研究，从数据管线、特征与标签到预注册的样本外评估，冻结信号以可引用的研究说明接入 Agent。</p>
+      <div class="cta">
+        <a class="btn primary" href="https://github.com/IanHu0508/FinResearchOps">查看 GitHub 仓库</a>
+        <a class="btn" href="#demo">看合成演示</a>
+        <a class="btn" href="#quant">看量化研究</a>
+      </div>
+      <div class="metrics" role="list" aria-label="关键数字">
+        <div class="metric" role="listitem"><b>17</b><span>个 Agent 阶段，程序关口把关</span></div>
+        <div class="metric" role="listitem"><b>v24</b><span>有界恢复与待核交付</span></div>
+        <div class="metric" role="listitem"><b>242万</b><span>个股票日的样本外最终期评估</span></div>
+        <div class="metric" role="listitem"><b>离线 CI</b><span>源码、安装与原生集成</span></div>
+      </div>
+    </div>
+    <aside class="rating" aria-label="项目概览卡">
+      <div class="rating-head"><strong>项目概览卡</strong><span>仿本项目研报首页评级卡</span></div>
+      <table>
+        <tr><th>定位</th><td>金融投研多智能体工作流 + A 股横截面量化研究</td></tr>
+        <tr><th>交付机制</th><td><span class="chip acc">协议 v24</span>有界修复、待核标记与部分交付</td></tr>
+        <tr><th>Agent 流程</th><td>17 个模型阶段 · 程序复算与校验关口 · 标准库可重放</td></tr>
+        <tr><th>量化研究</th><td>预注册 A→D 四阶段 · 六个模型样本外评估 · Rank IC 最高组超过 0.13</td></tr>
+        <tr><th>工程验证</th><td><span class="chip ok">离线 CI</span>源码、隔离安装、原生集成与量化契约</td></tr>
+        <tr><th>人在回路</th><td>研究结论与人工批准分开，调用预算与用量留痕</td></tr>
+      </table>
+      <p class="foot">测试离线运行、结果可复现；量化数字来自仓库公开的研究记录。</p>
+    </aside>
+  </header>
+
+  <div class="band" role="region" aria-label="设计原则">
+    <div class="wrap">
+      <ol>
+        <li><small>第一步</small><b>模型提议</b><span>各角色给出观点、参数和终稿文字，全部原样留档。</span></li>
+        <li><small>第二步</small><b>校验器决定</b><span>程序复算数字、绑定来源、证明失败原因，决定接受、重试或停止。</span></li>
+        <li><small>第三步</small><b>人来批准</b><span>模型给出研究结论，人工复核与批准状态单独记录。</span></li>
+      </ol>
+    </div>
+  </div>
+
+  <section id="problem">
+    <div class="wrap">
+      <div class="sec-head">
+        <p class="eyebrow">挑战</p>
+        <h2>让多智能体写研报，难点不在“写出来”，<wbr>而在“能不能信、<wbr>能不能查”</h2>
+        <p>我从三个具体缺口入手，每个都对应一类可以用程序检查的约束。</p>
+      </div>
+      <div class="problems">
+        <article>
+          <h3>数字没有出处</h3>
+          <p>模型在长文里自由书写金额、比率和目标价。读者分不清哪些来自资料，哪些是计算，哪些只是顺手写出的。</p>
+        </article>
+        <article>
+          <h3>角色互相锚定</h3>
+          <p>辩论式流程里，后发言的角色能看到前面的评级和结论，独立判断与顺着既有观点走很难区分。</p>
+        </article>
+        <article>
+          <h3>失败悄悄被吞掉</h3>
+          <p>上游在结构化输出失败时会退回自由文本继续运行。出错的回答、重试和花费默认不会留下可供复核的记录。</p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section id="method">
+    <div class="wrap">
+      <div class="sec-head">
+        <p class="eyebrow">方法</p>
+        <h2>四项改造，各自落在可测试的契约上</h2>
+        <p>保留上游的角色拓扑和路由，只改模型实际看到的输入、讨论方式和数字的来去。</p>
+      </div>
+      <div class="methods">
+        <article class="method">
+          <header><span class="tag">信息流</span><h3>先独立，再反证</h3></header>
+          <p>多空研究员基于同一份资料各自写初稿，初稿封存后才看到对方并逐条回应。组合经理先在只看资料的条件下做独立初判，终判不继承前面的评级或交易员自设的门槛。</p>
+        </article>
+        <article class="method">
+          <header><span class="tag">数字契约</span><h3>前瞻数字由程序算</h3></header>
+          <p>前瞻假设以结构化参数保存，由 Python 复算利润归属、每股盈利、现金桥和条件估值。终稿里的前瞻数量只能写成引用，例如 <span class="token">{{metric:F1:eps_per_traded_unit}}</span>；历史数量引用证据块 <span class="token">{{source:E0001}}</span>。终稿未绑定的数值先按契约定位，必要时定向修复或遮盖为待核标记，保留原句。</p>
+        </article>
+        <article class="method">
+          <header><span class="tag">可重放证据</span><h3>保存的 Case 可核对重放</h3></header>
+          <p>Case 按内容寻址，保存请求、原始模型调用、失败回答和预算收据。读取时只用 Python 标准库核对输入输出绑定与计算一致，保留原始过程供复核，不需要模型、网络或第三方库。</p>
+        </article>
+        <article class="method">
+          <header><span class="tag">失败处理</span><h3>有界恢复，按证据决定</h3></header>
+          <p>传输失败、长度截断、无法解析、结构不合规各有独立的证明规则和一次性额度，运行时与读回时由同一个函数判定。恢复按阶段和证据限定，v24保留非关键角色降级并增加待核交付：</p>
+          <ul>
+            <li>四类分析与交易员的全部回答被证明不可用、且重试额度已用尽时，以明示占位继续，Case 标为部分完成（PARTIAL）；预算或调用上限导致的停止仍然停止。</li>
+            <li>终稿只因不超过 5 句含未绑定数字被拒时，可定向改写并整份复检；修复不可用或未通过时，v24将被拒数值遮盖为待核标记，保留原句和PARTIAL状态。</li>
+          </ul>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section id="pipeline">
+    <div class="wrap">
+      <div class="sec-head">
+        <p class="eyebrow">流程</p>
+        <h2>一次研究运行：17 个模型阶段，穿插程序关口</h2>
+        <p>角色和路由沿用上游原生图。蓝色步骤由程序执行，模型无法绕过；深色是存档、读回与人工复核；虚线框是允许有界降级的非关键角色。</p>
+      </div>
+      <div class="legend" aria-hidden="true">
+        <span><i class="swatch"></i>模型阶段</span>
+        <span><i class="swatch prog"></i>程序步骤</span>
+        <span><i class="swatch soft"></i>可降级的非关键角色</span>
+        <span><i class="swatch gate"></i>存档、读回与人工复核</span>
+      </div>
+      <div class="pipeline">
+        <div class="lane">
+          <div class="lane-label"><b>四类分析</b><small>4 个阶段 · 互不可见</small></div>
+          <div class="nodes">
+            <span class="node soft">基本面</span><span class="node soft">市场与量价</span><span class="node soft">新闻与事件</span><span class="node soft">社媒与情绪</span>
+          </div>
+        </div>
+        <div class="down" aria-hidden="true">↓</div>
+        <div class="lane">
+          <div class="lane-label"><b>多空研究</b><small>4 个阶段</small></div>
+          <div class="nodes">
+            <span class="node">多头初稿</span><span class="sep">与</span><span class="node">空头初稿</span><span class="arrow" aria-hidden="true">→</span><span class="node prog">封存初稿</span><span class="arrow" aria-hidden="true">→</span><span class="node">多头逐条反证</span><span class="sep">与</span><span class="node">空头逐条反证</span>
+          </div>
+        </div>
+        <div class="down" aria-hidden="true">↓</div>
+        <div class="lane">
+          <div class="lane-label"><b>经理与交易</b><small>2 个阶段</small></div>
+          <div class="nodes">
+            <span class="node">研究经理：逐条评估论点</span><span class="arrow" aria-hidden="true">→</span><span class="node soft">交易员：执行条件检查</span>
+          </div>
+        </div>
+        <div class="down" aria-hidden="true">↓</div>
+        <div class="lane">
+          <div class="lane-label"><b>风险讨论</b><small>3 个阶段 · 互不可见</small></div>
+          <div class="nodes">
+            <span class="node">激进视角</span><span class="node">保守视角</span><span class="node">中性视角</span>
+          </div>
+        </div>
+        <div class="down" aria-hidden="true">↓</div>
+        <div class="lane">
+          <div class="lane-label"><b>组合经理</b><small>4 个阶段</small></div>
+          <div class="nodes">
+            <span class="node">独立初判（只看资料）</span><span class="arrow" aria-hidden="true">→</span><span class="node">前瞻参数提案</span><span class="arrow" aria-hidden="true">→</span><span class="node prog">复算盈利、现金与条件估值</span><span class="arrow" aria-hidden="true">→</span><span class="node">参数修正</span><span class="arrow" aria-hidden="true">→</span><span class="node prog">修正后复算</span><span class="arrow" aria-hidden="true">→</span><span class="node">终稿</span>
+          </div>
+        </div>
+        <div class="down" aria-hidden="true">↓</div>
+        <div class="lane">
+          <div class="lane-label"><b>交付关口</b><small>程序把关</small></div>
+          <div class="nodes">
+            <span class="node prog">数字契约与来源绑定</span><span class="arrow" aria-hidden="true">→</span><span class="node">被拒句改写（按需，至多一次）</span><span class="arrow" aria-hidden="true">→</span><span class="node prog">拼接后整份复检</span><span class="arrow" aria-hidden="true">→</span><span class="node gate">保存 Case（内容寻址）</span><span class="arrow" aria-hidden="true">→</span><span class="node gate">标准库读回</span><span class="arrow" aria-hidden="true">→</span><span class="node gate">人工复核</span>
+          </div>
+          <p class="lane-note">句子级修复始于v20；v24在修复不可用或未通过时可遮盖未绑定数值，保留原句，按PARTIAL交付。数字遮盖本身不调用模型。</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="quant">
+    <div class="wrap">
+      <div class="sec-head">
+        <p class="eyebrow">量化研究</p>
+        <h2>A 股横截面量化：从数据管线到预注册的样本外评估</h2>
+        <p>独立于 Agent 的研究模块。研究问题是：不同市场状态下，哪些量价路径更可能延续或反转；深度序列模型能否在人工特征和树模型之外，带来样本外增量。</p>
+      </div>
+      <ol class="qsteps">
+        <li><small>数据</small><b>按当时的世界构建</b><span>日频原始采集后规范化存储；证券身份按日期解析，历史股票池按当时状态构建，不用今天的存续名单回填。</span></li>
+        <li><small>特征</small><b>量价路径 + 市场状态</b><span>个股 60 个交易日的价量路径，趋势、风险、成交活跃度与流动性代理，叠加当时的市场状态与相对强弱。</span></li>
+        <li><small>标签</small><b>20 日持有收益排名</b><span>下一交易日开盘到第 20 个交易日收盘的持有收益，在当日完整股票池内排名；结果未知的股票用区间表达，不静默丢弃。</span></li>
+        <li><small>切分</small><b>无泄漏的时间切分</b><span>日期级切分，按标签结束与可得时间清洗（purge），日期等权；预处理只在训练集上拟合。</span></li>
+        <li><small>评估</small><b>保守、可复算</b><span>全池 Rank IC 的保守识别区间、HAC 区间与固定市场状态分解，全部从落盘的日度指标重算。</span></li>
+      </ol>
+      <div class="study" aria-label="预注册研究四阶段">
+        <article><p class="stage">A · 准入</p><h3>冻结数据与资格规则</h3><p class="big">3,886</p><p>个交易日通过准入校验，未知结果全部显式分类。</p></article>
+        <article><p class="stage">B · 窗口</p><h3>18 组窗口比较</h3><p class="big">expanding</p><p>按预先写定的 IC 下界规则选出扩展训练窗口。</p></article>
+        <article><p class="stage">C · 开发</p><h3>60 个年度候选</h3><p class="big">14,370</p><p>个候选日预测零差异重放，指标重算一致。</p></article>
+        <article><p class="stage">D · 最终期</p><h3>2024–2025 样本外</h3><p class="big">2,424,608</p><p>个股票日、12 个逐年从头重训的模型；全部预测落盘并精确重放后，才一次性揭示表现。</p></article>
+      </div>
+      <div class="results">
+        <figure class="chart" aria-label="最终期日均 Rank IC 识别区间">
+          <p class="kicker">最终期 2024–2025 · 日均 Rank IC 识别区间</p>
+          <h3>加入市场背景，三类模型全部提升</h3>
+          <div class="ic-legend" aria-hidden="true"><span class="s"><i></i>仅个股特征</span><span class="c"><i></i>含市场背景</span></div>
+          <div class="ic-group"><b>Ridge</b>
+            <div class="ic-row s"><span>仅个股</span><div class="ic-track"><div class="ic-bar" style="width:77.4%"></div></div><output>0.1147–0.1162</output></div>
+            <div class="ic-row c"><span>含背景</span><div class="ic-track"><div class="ic-bar" style="width:83.3%"></div></div><output>0.1234–0.1249</output></div>
+          </div>
+          <div class="ic-group"><b>XGBoost</b>
+            <div class="ic-row s"><span>仅个股</span><div class="ic-track"><div class="ic-bar" style="width:83.8%"></div></div><output>0.1241–0.1256</output></div>
+            <div class="ic-row c"><span>含背景</span><div class="ic-track"><div class="ic-bar" style="width:89.6%"></div></div><output>0.1329–0.1344</output></div>
+          </div>
+          <div class="ic-group"><b>GRU</b>
+            <div class="ic-row s"><span>仅个股</span><div class="ic-track"><div class="ic-bar" style="width:73.7%"></div></div><output>0.1091–0.1106</output></div>
+            <div class="ic-row c"><span>含背景</span><div class="ic-track"><div class="ic-bar" style="width:91.1%"></div></div><output>0.1353–0.1366</output></div>
+          </div>
+          <div class="ic-axis" aria-hidden="true"><i></i><div><span style="left:0">0</span><span style="left:33.3%">0.05</span><span style="left:66.7%">0.10</span><span style="left:100%">0.15</span></div><i></i></div>
+          <p class="ic-note">条长按识别区间上界、从 0 起画。区间来自对未知结果的部分识别，不是置信区间；Rank IC 衡量横截面排序能力，不等同于组合收益。 GRU背景组与XGBoost背景组的HAC差异仍跨0，不能据均值排序判断前者稳定胜出。</p>
+        </figure>
+        <aside class="takeaways">
+          <h3>结果要点</h3>
+          <ul>
+            <li>六个模型的年度平均 IC 下界全部为正。</li>
+            <li>加入市场状态与相对强弱后，Ridge、XGBoost、GRU 都高于各自的仅个股版本。</li>
+            <li>XGBoost 与 GRU（含市场背景）最高，识别区间均在 0.13 以上。</li>
+            <li>方法在揭示前冻结：没有在看到表现后更换候选、样本或方向。</li>
+          </ul>
+        </aside>
+      </div>
+      <div class="bridge">
+        <b>接入 Agent</b>
+        <p>按日期评分只读取当日及以前的数据：在 <span class="nw">2025-01-02</span> 的全部 4,998 只股票、468 列特征上，与揭示前落盘的预测逐项一致。信号以推理输入指纹绑定，再由程序渲染成一条确定性的研究说明，作为 QUANT 来源交给分析角色引用。</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="demo">
+    <div class="wrap">
+      <div class="sec-head">
+        <p class="eyebrow">合成演示</p>
+        <h2>一次少数股东归属修正：每股盈利变了，合并现金没变</h2>
+        <p>仓库自带的最小离线演示使用合成模型响应，断开网络、不需要 API key。它走v16研究路径，覆盖前瞻提案、程序复算、归属修正、终稿引用和保存读回。以下数字展示这条计算链；完整四分析师执行使用v24。</p>
+      </div>
+      <div class="demo-grid">
+        <div class="panel">
+          <p class="kicker">程序复算的结果</p>
+          <h3>修正前后对账</h3>
+          <div class="scroll">
+            <table class="compare">
+              <thead><tr><th>指标（F1 情景）</th><th>修正前</th><th>修正后</th></tr></thead>
+              <tbody>
+                <tr><td>每股盈利（EPS，美元）</td><td>1.70</td><td class="changed">1.30</td></tr>
+                <tr><td>合并经营现金流（百万美元）</td><td>16.00</td><td>16.00</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p>少数股东盈利要从合并利润中扣减，所以归母盈利和每股盈利下降；经营现金从合并净利润起算，归属修正不改变它。这个区分由程序复算保证，不依赖模型记得。</p>
+        </div>
+        <div class="panel">
+          <p class="kicker">模型只写引用，数值由程序填入</p>
+          <h3>从终稿原文到正式研报</h3>
+          <div class="flow">
+            <div class="flow-step">
+              <span class="label">模型写的终稿原文</span>
+              <div class="body">修正后每股盈利为 <code>{{metric:F1:eps_per_traded_unit}}</code>；经营现金仍从合并净利润起算，为 <code>{{metric:F1:operating_cash_flow}}</code>。</div>
+            </div>
+            <div class="flow-arrow" aria-hidden="true">↓ 程序按有效参数与复算结果渲染</div>
+            <div class="flow-step">
+              <span class="label">正式研报里显示的</span>
+              <div class="body rendered">修正后每股盈利为 <span class="val">1.30美元（F1）</span>；经营现金仍从合并净利润起算，为 <span class="val">16.00百万美元（F1 经营现金流）</span>。</div>
+            </div>
+          </div>
+        </div>
+        <div class="panel">
+          <p class="kicker">反例对照</p>
+          <h3>裸写的预测数字会被拒收</h3>
+          <div class="flow-step">
+            <span class="label">故意写入的终稿句子</span>
+            <div class="body">F1 的预测 EPS 为 999 USD。</div>
+          </div>
+          <div class="reject"><span class="chip stop">拒收</span><code>UNBOUND_RESEARCH_NUMBER</code><span class="chip acc">不保存 Case</span></div>
+          <p>在这个v16最小演示中，该数值没有对应的计算或来源绑定，因此被拒收。v24四分析师路径还支持有界修复与待核数值遮盖。</p>
+        </div>
+        <div class="panel">
+          <p class="kicker">合成数据 · 摘自演示生成的正式研报首页</p>
+          <h3>研报评级卡（节选）</h3>
+          <div class="scroll">
+            <table class="mini">
+              <tr><th>模型评级</th><td>REVIEW（暂不评级）</td></tr>
+              <tr><th>独立初判→终稿</th><td>Hold → REVIEW</td></tr>
+              <tr><th>未绑定数字</th><td>无</td></tr>
+              <tr><th>人工复核</th><td>待复核，未签署</td></tr>
+            </table>
+          </div>
+          <p>这里的REVIEW来自v16合成演示。v23起完成的四分析师终稿给出五类研究评级之一与置信度；它们与人工批准分开。</p>
+        </div>
+        <div class="panel span">
+          <div class="copy-row"><p class="kicker">自己运行（在名为 finaudit-gate 的检出目录中）</p><button class="copy" type="button" id="copy-demo" data-target="demo-cmd">复制命令</button></div>
+          <pre id="demo-cmd">PYTHONPATH=src ../tmp/tradingagents-runtime/bin/python scripts/thesis_offline_demo.py \
+  --artifact-root ../private/thesis-demo</pre>
+          <p>加上 <code>--bad-prose</code> 并换一个输出目录，即可复现上面的拒收反例。集成环境的准备步骤见仓库 README。</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="engineering">
+    <div class="wrap">
+      <div class="sec-head">
+        <p class="eyebrow">工程</p>
+        <h2>证据链上的工程约束</h2>
+        <p>这些约束写在代码与测试里，发布前逐项运行。</p>
+      </div>
+      <div class="facts">
+        <article class="fact">
+          <p class="num">离线 CI</p>
+          <h3>离线测试</h3>
+          <p>覆盖核心规则、原生集成、量化契约与隔离安装；测试步骤禁用外部网络。当前检查记录统一维护在项目状态。</p>
+        </article>
+        <article class="fact">
+          <p class="num">JSON Schema</p>
+          <h3>版本化契约</h3>
+          <p>研究Case的JSON Schema按协议版本保存。已发布读者保留原报告；升级时核对已保存记录，原始文件和失败不覆盖。</p>
+        </article>
+        <article class="fact">
+          <p class="num">0 第三方库</p>
+          <h3>标准库读回</h3>
+          <p>读取 Case 不导入 pydantic、openai、langgraph 或 tradingagents，测试用 <code>python -S</code> 验证。</p>
+        </article>
+        <article class="fact">
+          <h3>追加写入</h3>
+          <p>产物一次写入、不覆盖；原始发行人文件保持不变；失败回答、重试与费用收据全部保留。</p>
+        </article>
+        <article class="fact">
+          <h3>私有边界</h3>
+          <p>发行人文件、抽取文本、原始轨迹与人工质检只留在私有目录。公开仓库发布前扫描私有路径、密钥、长摘录与原始轨迹。</p>
+        </article>
+        <article class="fact">
+          <h3>付费运行纪律</h3>
+          <p>真实模型调用按任务授权并受预算与次数约束。失败先用已保存回答离线重放、归类原因，再决定修正与复测，实际用量保留。</p>
+        </article>
+      </div>
+      <div class="stack" aria-label="技术栈">
+        <span>Python 3.12</span><span>TradingAgents 0.4.0</span><span>LangGraph</span><span>DeepSeek API</span><span>XGBoost</span><span>JSON Schema</span><span>unittest</span><span>GitHub Actions</span>
+      </div>
+    </div>
+  </section>
+
+  <section id="timeline">
+    <div class="wrap">
+      <div class="sec-head">
+        <p class="eyebrow">历程</p>
+        <h2>从可重放骨架到 v24</h2>
+        <p>按实际提交与状态记录整理。每一步都先有可测试的契约，再接入真实模型。</p>
+      </div>
+      <ol class="timeline">
+        <li><time datetime="2026-08-13">08-13</time><div><b>可重放骨架与契约</b><p>任务、运行与回放接口定型：核心只暴露 run(task) 与 replay(run_ref)。</p></div></li>
+        <li><time datetime="2026-08-14">08-14</time><div><b>确定性核心与人工复核闭环</b><p>证据片段、语义与公式先过校验器，结论只能是接受、重试、弃答或人工复核之一。</p></div></li>
+        <li><time datetime="2026-09-08">09-08</time><div><b>转向 TradingAgents 原生链路改造</b><p>保留上游角色拓扑，改为结构化论点与经理逐条裁决。</p></div></li>
+        <li><time datetime="2026-09-11">09-11</time><div><b>独立初判、情景隔离与前瞻复算</b><p>组合经理先独立判断；前瞻参数交给程序计算盈利、现金与条件估值。</p></div></li>
+        <li><time datetime="2026-09-12">09-12</time><div><b>有界参数修正与终稿数字绑定</b><p>修正后复算，终稿数字只能引用有效计算或来源。</p></div></li>
+        <li><time datetime="2026-09-17">09-17 至 09-22</time><div><b>A 股量化模块</b><p>日线数据管线、证券身份修复、XGBoost 研究与固定窗口研究。</p></div></li>
+        <li><time datetime="2026-09-23">09-23</time><div><b>量化信号以研究说明接入</b><p>按日期无前视打分，渲染为确定性、可引用的研究说明。</p></div></li>
+        <li><time datetime="2026-09-26">09-25 至 09-26</time><div><b>恢复策略、四类分析与资料采集</b><p>有界的调用恢复；基本面、市场、新闻、社媒四类分析；新闻与投资者讨论的冻结采集。</p></div></li>
+        <li><time datetime="2026-09-27">09-27</time><div><b>正式研报与数字契约 2</b><p>生成常规研报版式；格式失败按证据重问；时间与来源编号写法不再误标待核。</p></div></li>
+        <li><time datetime="2026-09-28">09-28</time><div><b>协议 19 与 20</b><p>结构错误先于内容检查判定；非关键角色降级与终稿句子级数字修复。</p></div></li>
+        <li class="now"><time datetime="2026-09-30">09-30</time><div><b>协议24：数值遮盖交付</b><p>对修复不可用或未通过的终稿隐藏未绑定数值，保留原句与待核状态；遮盖后复检，不新增模型调用。</p></div></li>
+      </ol>
+    </div>
+  </section>
+
+  <section id="roadmap">
+    <div class="wrap">
+      <div class="sec-head">
+        <p class="eyebrow">路线图</p>
+        <h2>研究工作流的持续检验</h2>
+      </div>
+      <div class="status">
+        <div>
+          <p class="statement">从结构化输出恢复、非关键角色降级，到句子级修复与数值遮盖，按具体失败完善交付链；原始回答、修正记录和待核状态均保留。</p>
+          <p>工程约束可以复核机制，研究价值还需比较与内容验收。Quant评分已经作为来源接入；观点隔离、信号接入和数字契约不自动证明判断质量提高。</p>
+        </div>
+        <aside class="next">
+          <h3>接下来</h3>
+          <ol>
+            <li>按固定资料与模型比较观点更新和报告质量。</li>
+            <li>完成量化信号接入后的固定案例配对评估。</li>
+            <li>在排序信号之上做组合层评估：换手、交易成本与回撤。</li>
+          </ol>
+        </aside>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <p>本页演示数据为合成，量化图来自固定历史研究。验证记录与复现边界见项目状态；研究展示不构成投资建议。</p>
+    <nav aria-label="仓库链接">
+      <a href="https://github.com/IanHu0508/FinResearchOps">GitHub 仓库</a>
+      <a href="https://github.com/IanHu0508/FinResearchOps/blob/main/docs/thesis-research.md">研究流程文档</a>
+      <a href="https://github.com/IanHu0508/FinResearchOps/blob/main/docs/architecture.md">架构说明</a>
+      <a href="https://github.com/IanHu0508/FinResearchOps/blob/main/docs/status.md">项目状态</a>
+    </nav>
+  </div>
+</footer>
+
+<script>
+(function () {
+  var button = document.getElementById("copy-demo");
+  if (!button) return;
+  button.addEventListener("click", function () {
+    var target = document.getElementById(button.getAttribute("data-target"));
+    var text = target ? target.textContent : "";
+    function selectText() {
+      var range = document.createRange();
+      range.selectNodeContents(target);
+      var selection = window.getSelection();
+      selection.removeAllRanges();
+      selection.addRange(range);
+      button.textContent = "已选中，按 ⌘C 复制";
+    }
+    try {
+      navigator.clipboard.writeText(text).then(function () {
+        button.textContent = "已复制";
+        setTimeout(function () { button.textContent = "复制命令"; }, 1600);
+      }, selectText);
+    } catch (e) {
+      selectText();
+    }
+  });
+})();
+</script>
+
+
+</body>
+</html>

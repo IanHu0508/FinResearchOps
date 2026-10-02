@@ -1,5 +1,7 @@
 # FinResearchOps
 
+[Public project showcase](https://ianhu0508.github.io/FinResearchOps/) · [Research and verification status](docs/status.md)
+
 **An auditable multi-agent research workflow on TradingAgents in which forward numbers are recomputed by the program and every model step can be re-proven from saved evidence, together with a preregistered A-share quantitative research study whose frozen signal reaches the agents as citable evidence.**
 
 The upstream TradingAgents graph and role topology are kept. This project changes what each role sees, how opinions are revised and how financial numbers reach the report. Models propose; validators decide; people approve.

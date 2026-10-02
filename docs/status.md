@@ -1,7 +1,18 @@
 # Project Status
 
-> Updated 2026-09-30. This file is the only public status source; other
+> Updated 2026-10-02. This file is the only public status source; other
 > documents describe mechanisms and link here.
+
+## Public project showcase — 2026-10-02
+
+The standalone [project showcase](https://ianhu0508.github.io/FinResearchOps/)
+retains the existing project-page design and describes the v24 delivery contract.
+Source preparation and desktop/mobile checks are `COMPLETED`; hosted deployment
+and anonymous access checks are `PARTIAL` until the corresponding run completes.
+The Pages workflow publishes only `site/`. The showcase contains public project
+descriptions, the synthetic correction example and already published research
+aggregates; issuer inputs, raw calls, personal application notes and private
+research artifacts are excluded. No research model was rerun for publication.
 
 ## Current slice: Quant Evidence Integration V1 — 2026-09-23
 
