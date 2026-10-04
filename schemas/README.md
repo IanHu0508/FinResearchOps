@@ -139,12 +139,12 @@ label or technical version). The finding shape and schema are unchanged; the Cas
 V2 introduced financial analysis covering operations, earnings quality,
 cash/capital allocation and valuation/price requirements, with source references.
 Financial prose and forecast assumptions remain model analyses; the deterministic
-calculator establishes arithmetic, not economic correctness. The Case stores original source text, independent
+calculator supplies the arithmetic results; the research report evaluates their economic assumptions. The Case stores original source text, independent
 initial claims, symmetric revisions, fresh assessments and actual model I/O.
 V15 uses program-addressed source blocks for the
 final request. Redundant source/metric selectors are derived, while valid extra metric
 selections remain visible. `evidence_check` is recomputed on read; unresolved selections
-produce a full `PARTIAL` research record, never an evidence-complete or approved report.
+produce a `PARTIAL` research record that preserves the completed analysis and outstanding findings.
 Financial calculation and effective-value binding failures remain hard errors. Successful
 source binding is explicitly not semantic approval. The original source bundle and
 every model response remain in the Case; v13 artifacts are not rewritten into v16.
@@ -168,11 +168,11 @@ rendered delivery artifacts. Each quality stage permits at most one proven empty
 shares the original global extra-call allowance and preserves fees; complete captured answers are
 retained without redraw. Unreleased v2 artifacts and readers are preserved privately.
 Partial review retains the original report and provides no
-usable delivery rating. Legacy v1 opinions remain readable. This is not financial certification.
+usable delivery rating. Legacy v1 opinions remain readable. The review records targeted financial findings and their disposition.
 Review state does not change the main Case hash. `finresearchops.thesis-runtime/v1`
 captures partial or complete model/tool/node activity and budget, including
 interrupted requests. The artifact validators establish protocol/receipt
-integrity, not financial truth or absence of model bias.
+integrity. Financial interpretation and model-response evaluations have their own recorded criteria.
 `finresearchops.thesis-failure/v1` records bounded failure codes and exception
 type chains without copying provider error bodies. Completed model returns can
 be reused after exact-message checks; nested `prior_reuse` receipts preserve
@@ -288,7 +288,7 @@ a published compatibility format; its reader and rendering are unchanged.
 V13 adds `source_quotes`, `change_explanations` and `belief_explanations` to the
 final report, without changing the published financial-revision response schema.
 All current narrative fields use numerical references, including scenario reasons
-and limitations. Source excerpts are locatable, not certified fact records.
+and limitations. Source excerpts carry unique locations and their original context.
 V11 remains a published compatibility format. The unreleased v12 pilot and its
 reader snapshot remain private development evidence, not a public read branch.
 

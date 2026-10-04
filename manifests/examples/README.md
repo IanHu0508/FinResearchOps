@@ -1,14 +1,9 @@
-# Example Manifests
+# Public source and model manifests
 
-Public examples contain only safe official-source metadata and hashes. They
-must never include private paths, credentials, hidden gold, or source excerpts.
+The example manifests define reproducible source selection and model-route configuration using public metadata and hashes.
 
-`alibaba_fy2026_20f_plan.json` freezes an intended SEC accession and
-acquisition constraints. Its `PLANNED_NOT_ACQUIRED` state means it is not a
-download record, cache manifest, or evaluation artifact.
+`alibaba_fy2026_20f_plan.json` records an intended SEC accession and acquisition constraints. Its `PLANNED_NOT_ACQUIRED` state identifies it as an acquisition plan.
 
-`qwen3_8b_ollama_route.json` records the one frozen local-model route: model
-tag and digests, public license/source links, the prompt/tool/generation-config
-hashes the Adapter and the offline verifier share, byte and token budgets, and
-the daemon version observed when the route was smoke-tested. It contains no
-weights, raw responses, private paths, or results.
+`qwen3_8b_ollama_route.json` describes the frozen local route: model tag and digests, source and license links, prompt/schema/generation hashes, byte and token budgets, and the observed daemon version.
+
+Source bytes, model responses and evaluation keys are stored separately in the private workspace under the [data policy](../../docs/data-policy.md).

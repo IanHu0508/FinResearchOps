@@ -23,11 +23,11 @@
   bytes, so a transfer run's user message is not byte-identical to a development
   run's.
 
-## Truthful naming
+## Evaluation identity
 
-Without independent custody of questions, gold, rubric, and locators, call a
-later transfer run an "issuer-level post-freeze transfer evaluation", never a
-strict blind held-out or a benchmark.
+A later transfer run is reported as an "issuer-level post-freeze transfer evaluation".
+Strict blind evaluation additionally requires independent custody of questions,
+answer keys, rubric and locators.
 
 ## Required artifacts per run
 
@@ -85,6 +85,5 @@ does not get sealed; the pre-seal check enforces the ones a program can.
 
 Report raw counts: `ACCEPT`, each failure class, `unsafe_accept` (an `ACCEPT`
 a reviewer later judged wrong), replay-consistent runs, and paired
-wrong-to-right / right-to-wrong counts. Do not inflate small samples into
-percentages, and never tune the prompt or rules on evaluation items after a
-freeze.
+wrong-to-right / right-to-wrong counts. Use raw counts for small samples. Prompts, rules and evaluation items remain
+fixed after the recorded freeze.

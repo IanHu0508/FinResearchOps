@@ -2,13 +2,41 @@
 
 [Public project showcase](https://ianhu0508.github.io/FinResearchOps/) · [Research and verification status](docs/status.md)
 
-**An auditable multi-agent research workflow on TradingAgents in which forward numbers are recomputed by the program and every model step can be re-proven from saved evidence, together with a preregistered A-share quantitative research study whose frozen signal reaches the agents as citable evidence.**
+**Financial research from independent views to recomputed forecasts, scenario valuation and evidence-linked reports, built on TradingAgents and an A-share quantitative research pipeline.**
 
-The upstream TradingAgents graph and role topology are kept. This project changes what each role sees, how opinions are revised and how financial numbers reach the report. Models propose; validators decide; people approve.
+FinResearchOps connects company evidence, operating assumptions and investment judgments in one recorded workflow. Models develop hypotheses and revise them against counterevidence. Python computes earnings, cash and conditional prices, and the report cites the effective results.
+
+TradingAgents supplies the native role graph. My contributions are the judgment-update protocol, financial recomputation and correction loop, research delivery and recovery contracts, and the quantitative evidence pipeline.
+
+## Project contributions
+
+| Contribution | Design | Practical result |
+| --- | --- | --- |
+| Independent views and counterevidence | Separate user expectations from research inputs, seal bull/bear drafts, then record responses to each claim | The report explains which beliefs changed, why they changed and what evidence would reopen them |
+| Operating assumptions to valuation | Store revenue, margins, tax, attribution, shares and cash adjustments; apply explicit corrections and recompute | Earnings, EPS, cash and price requirements follow one effective parameter set |
+| Evidence-linked delivery | Bind forecast quantities to calculations and historical quantities to source blocks; retain original proposals and responses | Readers can trace a report statement to its input, calculation or source |
+| Recovery and runtime efficiency | Use bounded retries, stage-specific reasoning, shared prompt prefixes, targeted sentence repair and pending-number delivery | Completed work, failed calls, corrections and usage remain available for review and continuation |
+| Quantitative research and integration | Rebuild dated stock universes, compare models under fixed splits and convert frozen scores into research notes | Cross-sectional ranking evidence enters the same source bundle as financial research |
+
+## The financial research chain
+
+```text
+research question + company evidence + substantive hypotheses
+   → fundamental, market, news and sentiment analysis
+   → independent bull/bear drafts and claim-by-claim counterevidence
+   → operating scenarios and forecast parameters
+   → program calculations and explicit parameter corrections
+   → effective earnings, cash, valuation and return scenarios
+   → report, belief updates and evidence that would change the judgment
+```
+
+The workflow distinguishes operating performance, profit attribution and cash generation. This makes a forecast revision financially interpretable: a change in minority attribution affects parent earnings and EPS, while consolidated cash can remain unchanged.
+
+[Financial workflow](docs/thesis-research.md) · [Architecture and interfaces](docs/architecture.md) · [Quant pipeline](quant/README.md)
 
 ### Quant results: final period 2024–2025
 
-Preregistered study with annual refits over 485 trading days and 2,424,608 stock-days; every forecast was persisted and replayed exactly before the one-way performance reveal. Mean Rank IC identification bounds:
+The preregistered study compared annual refits over 485 trading days and 2,424,608 stock-days. Forecasts were persisted and replayed before performance was revealed. Mean Rank IC identification bounds:
 
 | Model | Stock-only | With market context |
 | --- | ---: | ---: |
@@ -16,51 +44,35 @@ Preregistered study with annual refits over 485 trading days and 2,424,608 stock
 | XGBoost | 0.1241–0.1256 | 0.1329–0.1344 |
 | GRU | 0.1091–0.1106 | 0.1353–0.1366 |
 
-All six models had positive annual mean IC bounds, and market context raised every model family. The bounds reflect unknown outcomes; they are not confidence intervals or returns. [Full results](docs/status.md#previous-slice-completed-fixed-research-study--2026-09-22)
+All six models had positive annual mean IC bounds. Market context raised the mean bounds in all three model families in this final period. The study reports missing-outcome identification bounds and HAC uncertainty separately. [Full results and comparisons](docs/status.md#previous-slice-completed-fixed-research-study--2026-09-22)
 
-## Highlights
+## Financial correction example
 
-- **Independent drafts, then rebuttal.** Bull and bear researchers write first drafts from the same sources and then answer each other's sealed draft. The portfolio manager forms a source-only initial view, and the final assessment inherits no earlier rating or trader-defined threshold.
-- **Numbers come from calculations or sources.** Forward assumptions are stored as parameters and recalculated in Python (attribution, EPS, cash bridge, conditional valuation). The final report cites them as `{{metric:F1:eps_per_traded_unit}}` and historical figures as evidence blocks such as `{{source:E0001}}`; a bare number in a value position is refused rather than saved.
-- **Replayable Cases.** Each Case is content-addressed and keeps requests, raw model calls, failed answers and budget receipts. The Case reader re-proves every binding with the Python standard library only.
-- **Bounded, proven recovery.** Transport failures, truncation and unparseable or schema-invalid answers each have a proof rule and a one-time allowance, decided identically at run time and on reopen. Protocol 20 continues past a non-critical analyst or trader failure with an explicit placeholder (the Case is saved PARTIAL) and rewrites at most five refused final-report sentences once; protocol 22 also asks once more when the program proves an inconsistent forward draft or an unknown source cited by a critical stage before the final report.
-- **Explicit conclusions and preserved partial work.** From protocol 23 a completed final report gives one of five ratings with a confidence, shown beside a rating the program recomputes from the scenarios with a fixed rule. A halted delivery preserves completed stages and any available conclusion; a stop before the research manager has formed a view may have no rating. From protocol 24 a final report refused only because some numbers in its prose are bound to no calculation or source is still delivered: those numerals are hidden as pending marks and the Case is marked partial.
-- **Cost-aware prompts.** Every stage before the final report sends the same fixed system message and starts with the same shared sources, so the provider's prefix cache can serve them; the final report shares its own prefix with its retries and repair, which are appended after the unchanged prompt. Reasoning effort is set per stage, and a truncated answer is asked again one level lower.
-- **Preregistered A-share quant research.** Each date's universe is rebuilt from dated security identities rather than today's survivors. Sixty-session price-volume paths and market state predict 20-session forward-return ranks, with unknown outcomes kept as intervals, and purged date splits keep labels from leaking. Ridge, XGBoost and GRU are compared with and without market context in a four-stage preregistered study in which every final-period forecast is persisted and replayed exactly before performance is revealed. The frozen signal reaches the agents as a deterministic, citable research note.
-
-Model ratings stay proposals until a person reviews them.
-
-## Example: a financial correction changes EPS, not consolidated cash flow
-
-The public offline demo applies a minority-interest correction through the current research path:
+The synthetic offline example corrects the direction of minority-profit attribution, applies the change and regenerates the report from the effective calculations.
 
 | Metric | Before | After |
 | --- | ---: | ---: |
-| EPS | 1.7 | 1.3 |
-| Consolidated operating cash flow | 16 | 16 |
+| EPS | 1.70 | 1.30 |
+| Consolidated operating cash flow | 16.00 | 16.00 |
 
-An intentionally unbound forecast number is rejected instead of being saved into the report. The example is synthetic; it shows how the workflow keeps report numbers tied to calculations.
+EPS changes because minority profit is deducted from consolidated earnings. Consolidated cash flow retains its original base. A second control exercises the report's treatment of an unbound forecast quantity.
 
-[Run the offline demo](#try-the-current-research-workflow-offline) ·
-[Research workflow](docs/thesis-research.md) ·
-[Current status](docs/status.md)
+[Run the example](#try-the-current-research-workflow-offline) · [Calculation and report contracts](docs/thesis-research.md)
 
-## A-share quant research
+## A-share quantitative research
 
-The [Quant module](quant/README.md) asks which price-volume paths tend to persist or reverse under different market states, and whether sequence models add out-of-sample information beyond engineered features and tree models.
+The [Quant module](quant/README.md) studies which price-volume paths persist or reverse under different market states, and how sequence models compare with engineered features and trees.
 
-| Stage | What it does |
+| Stage | Technical design |
 | --- | --- |
-| Data | Raw daily acquisition into a normalized private store; security identities are resolved by date and historical universes are built as they were, without survivorship backfill |
-| Features | 60-session price-volume paths; trend, risk, activity and liquidity proxies; contemporaneous market state and relative strength |
-| Labels | Holding return from the next session's open to the 20th session's close, ranked within the complete eligible pool; unknown outcomes stay rank intervals |
-| Splits and models | Date-level splits with label-end and availability purges; preprocessing fitted on training dates only; Ridge, XGBoost and GRU, each stock-only and with market context |
-| Evaluation | Conservative full-pool Rank IC identification bounds, HAC intervals and fixed market-regime breakdowns, recomputed from persisted daily metrics |
-| Agent integration | Date-bounded scoring reads only records up to the scoring date; versioned signals bind the fingerprint of the scoring input; a deterministic research note enters the agents as a citable source |
+| Data | Daily records in a normalized private store; dated security identities and historical stock universes |
+| Features | 60-session price-volume paths, trend, risk, activity, liquidity proxies, market state and relative strength |
+| Labels | Next-session-open to 20th-session-close holding-return ranks; unknown outcomes retained as rank intervals |
+| Splits and models | Date-level label-end and availability purges, train-only preprocessing, Ridge/XGBoost/GRU with two input groups |
+| Evaluation | Full-pool Rank IC identification bounds, HAC20/60, fixed regimes and recomputation from saved daily metrics |
+| Agent integration | Date-bounded scoring, input fingerprints and a deterministic research note added to the source bundle |
 
-The preregistered study runs in four stages: data admission and freeze; a registered comparison of training windows decided by a preset Rank IC lower-bound rule; annual development candidates; and a final period with annual refits, in which every forecast is persisted and replayed exactly before a one-way performance reveal. Candidates, samples and directions are fixed before performance is seen. The complete results and research history are in [project status](docs/status.md#previous-slice-completed-fixed-research-study--2026-09-22).
-
-This repository distributes the data, label, split and evaluation contracts, the XGBoost adapter and synthetic tests; real-data runs and the Ridge/GRU fitters stay in the private research workspace.
+The A–D protocol fixes data admission, training-window selection, development candidates and final-period evaluation before results are read. Public code contains the contracts, data processing, XGBoost adapter and synthetic checks; the private workspace retains the real-data runs and Ridge/GRU fitters.
 
 ## TradingAgents research integration
 
@@ -79,21 +91,20 @@ and public investor discussions before the four-analyst flow. The supplied base
 retains financial, market and Quant inputs. The collector labels media excerpts,
 company events and investor Q&A separately, preserves coverage gaps, and freezes
 the combined sources for replay. See the [workflow guide](docs/thesis-research.md)
-for coverage, limits and resume behavior.
+for source coverage and continuation behavior.
 
-The original `tradingagents-baseline` remains a separate comparison route.
-The [filing-focused component](docs/tradingagents-research.md) and
-[restricted native audit route](docs/native-audit.md) retain their independent
-and historical uses; they are not steps inside `research-thesis`. In particular,
-the old typed route's compatibility Hold must not be treated as an investment
-rating. All model-backed routes use the separate integration environment.
+The repository also retains `tradingagents-baseline` for native comparison,
+a [filing-focused component](docs/tradingagents-research.md), and a
+[typed native audit route](docs/native-audit.md). Each has its own input and report
+contract; the typed route labels Hold as an interface-compatibility value.
+Model-backed routes share a separately installed integration environment.
 
 ## Try the current research workflow offline
 
 This example follows `research-thesis`, including a scripted parameter correction,
 program recomputation, final-report number references, saving and reopening.
-It uses synthetic model responses and blocks external network paths; it is a
-mechanism demonstration, not a model-quality or investment-performance result.
+It uses scripted synthetic responses and blocked external network paths to
+exercise the parameter, calculation and delivery mechanisms.
 
 From a checkout named `finaudit-gate`, prepare the separate integration environment:
 
@@ -107,7 +118,7 @@ PYTHONPATH=src ../tmp/tradingagents-runtime/bin/python scripts/thesis_offline_de
 
 Dependency installation uses the network. Running the example needs no API key,
 model download or issuer filing. It shows a minority-profit attribution correction:
-EPS changes from 1.7 to 1.3 while consolidated operating cash flow remains 16.
+EPS changes from 1.70 to 1.30 while consolidated operating cash flow remains 16.00.
 Add `--bad-prose` and use a new output directory to demonstrate rejection of an
 unbound forecast number. Original inputs and failed responses remain available.
 
@@ -131,7 +142,7 @@ PYTHONPATH=src .venv/bin/python -m finauditgate.cli \
 
 Select `--strategy adaptive` to use the already installed local 8B model.
 The output includes a workpaper path, Case reference and offline-replay run ID.
-No software, filings or model weights are downloaded by the command.
+The command uses the filing and model already available in the local environment.
 
 The supported format, missing-value treatment, source manifest, small module
 map and draft-only review boundary are documented in
@@ -216,13 +227,12 @@ The complete procedure, including how to build the validation profile from
 reviewed facts, is in [`docs/runbook-private-case.md`](docs/runbook-private-case.md).
 The CLI actions are documented in [`docs/cli.md`](docs/cli.md).
 
-## Verification and claims
+## Verification and research evidence
 
-The offline suite covers financial rules, the two task paths, private storage,
-model contracts, Application persistence and replay. Test results are not
-financial evaluation results. See [`docs/status.md`](docs/status.md) for dated
-observations and [`docs/evaluation-protocol.md`](docs/evaluation-protocol.md)
-for the evaluation rules.
+The offline suite exercises financial rules, input contracts, private storage,
+Application persistence and replay. Research evaluations record their own inputs,
+comparators and outcomes in [`docs/status.md`](docs/status.md), using the
+[evaluation protocol](docs/evaluation-protocol.md).
 
 ## Repository layout
 
@@ -239,8 +249,7 @@ for the evaluation rules.
 
 The repository contains only original code, synthetic fixtures, schemas, and
 public-safe metadata. Issuer documents, extracted text, validation profiles,
-raw model traces, and manual QA stay in the sibling `private/` directory and
-never enter Git. See [`docs/data-policy.md`](docs/data-policy.md) and
+raw model traces, and manual QA live in the sibling `private/` directory. See [`docs/data-policy.md`](docs/data-policy.md) and
 [`NOTICE_DATA.md`](NOTICE_DATA.md).
 
 ## License

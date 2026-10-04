@@ -1,8 +1,8 @@
 # Public and Private Data Policy
 
-## Public repository
+## Publication scope
 
-Allowed:
+The public repository contains:
 
 - original source code and documentation;
 - original synthetic filings and negative fixtures;
@@ -10,7 +10,7 @@ Allowed:
 - official source landing URLs or SEC accession metadata;
 - reviewed aggregate metrics and short, necessary attributed facts.
 
-Not allowed:
+The following material is excluded from public publication:
 
 - Tencent PDFs, extracted full text, tables, page images, or embeddings;
 - private paths, acquisition cookies, credentials, or browser sessions;

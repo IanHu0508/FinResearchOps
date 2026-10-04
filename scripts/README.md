@@ -1,4 +1,4 @@
-# Scripts
+# Runnable examples and installation checks
 
 `synthetic_demo.py` runs the public synthetic profile through `run()` with a
 scripted Adapter, then replays it through a fresh gate with no Adapter:
@@ -17,4 +17,8 @@ schema's. It also builds the no-admissible-evidence shape:
 PYTHONPATH=src .venv/bin/python scripts/build_validation_profile.py --help
 ```
 
-Usage in context: `docs/runbook-private-case.md`.
+The current research example is `thesis_offline_demo.py`: scripted synthetic replies pass through parameter revision, financial recomputation, report binding and Case reopening. `--bad-prose` exercises the unbound-number control. See the [main README](../README.md#try-the-current-research-workflow-offline) for the command.
+
+`verify_installed.py` runs the core suite from an isolated wheel, checks installed source bytes and removes source imports from the test workspace. The [CI workflow](../.github/workflows/offline.yml) uses it alongside native integration and Quant contract checks.
+
+Validation-profile usage is documented in the [private-case runbook](../docs/runbook-private-case.md).

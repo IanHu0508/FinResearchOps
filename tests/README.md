@@ -1,8 +1,8 @@
 # Tests
 
 The suite uses Python `unittest`, temporary directories, the one synthetic
-fixture, scripted candidates, and mocked or loopback-only HTTP exchanges. It
-needs no network, model, account, or issuer data.
+fixture, scripted candidates, and mocked or loopback-only HTTP exchanges. These inputs
+make the suite runnable entirely offline.
 
 ```bash
 PYTHONPATH=src .venv/bin/python -W error::ResourceWarning -m unittest discover -s tests
@@ -21,5 +21,5 @@ PYTHONPATH=src .venv/bin/python -W error::ResourceWarning -m unittest discover -
 | `test_private_storage.py` | the sibling `private/` boundary and single workspace anchor |
 | `test_paired_runner.py` | paired outputs stored before append-only human QA |
 
-Passing this suite is evidence about the mechanisms above only. It is not an
-evaluation result and says nothing about real issuer documents.
+The suite verifies the listed program contracts. Research evaluations separately
+record source data, comparison conditions and observations in [project status](../docs/status.md).

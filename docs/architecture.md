@@ -1,150 +1,44 @@
-# Architecture
+# Architecture: research, computation and delivery
 
-The main research path crosses `handle(ResearchThesis(...))` and `read_case`.
-The optional `--all-analysts` frozen-source route uses protocol/Case v24 for new
-runs (a resumed execution keeps the protocol it started with, so earlier v17 to
-v23 executions resume as such): four actual analyst reports precede the existing
-thirteen research stages. The
-reports and original sources reach downstream research; the independent
-assessment retains source-only input. It saves fundamental, market, news and
-sentiment outputs plus explicit Quant/input-flow presentation. This route does
-not invoke upstream live sentiment prefetch against historical dates. The
-default v16 route and earlier recorded Cases retain their existing behavior.
-The explicit `--fetch-news-social` route adds a bounded public-source collector
-before that same four-analyst flow. It queries by instrument and cutoff, records raw
-responses and typed coverage, then appends eligible news/events and investor
-discussions to the unchanged financial/market/Quant foundation. Models consume
-the frozen combined bundle; resume verifies and reuses it without fetching,
-and the standard-library Case reader performs no acquisition. Missing channels
-remain visible rather than being filled with invented material.
-Protocol 18 decides every stage retry from the saved answer with a
-standard-library validator and frozen stage schemas
-(`adapters/thesis_schemas_v18.py`), identically at run time and on reopen. An
-unparseable answer is asked again once with the unchanged prompt; a provenance
-label outside its vocabulary (`basis_type`, `correction_basis`,
-`update_basis`) is repaired alone while all other content is compared as
-canonical JSON. Every other schema error, and every content, citation, coverage
-or numeric failure, still halts the stage. Protocol 19 checks the frozen schema
-before any content check, asks any other schema-invalid answer the validator
-proves once more with the unchanged prompt, and drops blank `*_note` fields; its final instruction no longer asks to spell
-numbers out, since Chinese number words with 百/千/万/亿 are refused as amounts.
-Final-report number contract 2 (v18 to v24) only removes listed time and
-source-identifier labels from contract 1's pending items; every refusal is
-unchanged. Protocol 20 separates critical from non-critical stages. The four
-analysts and the trader feed context, not calculations: when every saved answer
-of such a stage is proven unusable by the same standard-library checks, the run
-continues with an explicit placeholder and the Case is saved PARTIAL. A final
-report refused only because at most five whole sentences hold unbound numbers,
-confirmed in the context of the complete report, gets one further call that
-rewrites just those sentences; the program splices them in and checks the
-complete report again under the unchanged contract. The reader re-derives the
-refused sentences, the repair prompt and the spliced report from saved calls,
-and proves for each degraded stage that no retry was left. Recovery policy v5
-allows three extra calls per run. Protocol 21 keeps every task's words and
-changes only their order and the reasoning effort: one fixed system message,
-then the shared request and frozen sources, then the stage input and task.
-Every stage before the final report starts with the same bytes for the
-provider's prefix cache; the final report, which reads the evidence-block
-catalog, shares its own prefix with its retries and repair, all of which are
-appended after the unchanged prompt. Protocol 21 fixes every stage's first
-reasoning effort (analysts and trader low, independent assessment and forward
-draft max, the rest high) and asks a truncated answer again one level lower.
-The reader parses each version's own layout only, and from 21 rebuilds every
-saved prompt exactly and checks the system message and first-attempt efforts.
-Protocol 22 (recovery policy v6) adds `CONTENT_CHECK`: when the program proves
-from a saved answer and its own prompt that the forward draft fails a check run
-before calculating, or that a critical stage before the final report cites an
-unknown source, the stage is asked once more with the proven problems appended
-after the unchanged prompt, as its only recovery apart from one transport retry;
-the reader re-proves the checks, rebuilds the retry and repeats the forward checks
-on the saved draft. Both failures stopped protocol 21. The final task restates
-that citations name evidence blocks; a final report citing source IDs is still
-delivered with findings, as before.
-Protocol 23 makes every report conclude and every stop deliver. The research
-manager and the final report choose one of five ratings (REVIEW is no longer a
-rating) and the final report adds a confidence; beside it the program recomputes
-a fixed rule's reference rating from the scenario calculations (each scenario's
-return annualized over the research horizon, weighted equally, banded at plus or
-minus 5% and 20%), which the final stage sees without numbers. When a run stops
-after its session started (a user interruption or a resumed-input mismatch aside),
-the Application saves a `thesis-halted-case/v1` Case with the stages completed
-before the stop, every saved call and recovery row, the rule's rating and a
-conclusion (the rule's rating when the scenarios allow it, otherwise the research
-manager's). The reader proves it exchange by exchange like a complete Case; the
-stopped stage's own answer stays in the calls but is not delivered.
-Protocol 24 delivers a final report refused only for unbound numbers when its
-sentence repair cannot be asked or does not pass. The contract reads each stretch
-of prose between two citations on its own; in a refused stretch every numeral-like
-span is first hidden as 〔数值待核〕 and spans are shown again, sentence by sentence and
-left to right, when the stretch still passes with them; text that fails with every
-span hidden becomes one mark that keeps its citations. No model is called. The
-Case is PARTIAL and records every changed sentence; the reader derives the same
-masking from the saved answer and checks that the repair could not be asked or did
-not pass. A final report that masking cannot make pass still stops the run as in
-protocol 23. The number contract derives its source facts (retrieval dates,
-storage-standard versions, technical indicators) once per report.
-Its instance-local protocol keeps native graph routing while isolating initial
-drafts, limiting round-two discussion to sealed first drafts, and obtaining
-source-only independent underwriting before the portfolio manager sees peer
-opinions. Within the same portfolio-manager node, a separate forward draft
-proposes business-driven annual earnings/cash assumptions without seeing the
-independent rating or beliefs. The core calculates the profit/attribution/EPS
-and cash bridges, then conditional earnings-multiple prices and cumulative
-returns. The final judge receives the exact draft and results alongside independent
-beliefs and research/risk analysis, without the initial rating, summary or
-prewritten trigger fields. It assesses each forecast path and updates each
-belief; rating comparison is computed afterwards. Explicitly tagged
-sensitivity notes appear only in the report appendix and post-report review,
-never in a rating request. Untagged legacy
-sources are not semantically filtered. Original vendor fields remain
-available. The Application persists the main Case before the optional data
-review and at most one targeted correction after the main Case is saved. The review reads the
-complete structured report, research sources and effective calculations. Corrections are separate
-artifacts; review failure retains the main report and marks the delivery rating unavailable. FinAuditGate is
-an independent optional financial component, not this path's admission gate.
-The calculator is an ordinary operating-company arithmetic tool, not a
-valuation engine, assumption certifier or rating gate. Missing inputs preserve
-the calculations that remain possible. Dates, earnings denominator and ADS/FX
-units are explicit; no net cash is added to capitalized parent earnings. The
-Application verifies that the final model received the recomputed results and
-renders assumptions, source labels and final acceptance/rejection separately.
-The current selected-evidence final call also receives a program-derived before/after
-input comparison. The main report shows those objective changes, attribution directions
-and unchanged dividends; model-written change and belief explanations remain complete
-in the process appendix for review. This does not certify their economic reasoning or
-remove the forward-calculation stages.
-See [thesis-research](thesis-research.md). The mechanisms below describe retained
-financial investigation and restricted audit routes.
+FinResearchOps coordinates a financial research task from company evidence to a report with forecasts, scenario decisions and counterevidence. The architecture separates model reasoning, deterministic computation and artifact management.
 
-Native audit execution crosses `handle(RunAuditedNativeResearch(...))` and
-`read_case(...)`. The Native Adapter adds a fixed evidence block through the
-upstream instance's instrument-context hook; original graph construction and
-routing remain unchanged. Application validation binds the recorded model,
-tool and node inputs/outputs to the core result and the final report. The live
-tool adapter retains vendor returns and exposes only the core financial
-projection to models. A separate core record binds ADS identity and market
-inputs. See [native-audit.md](native-audit.md) for commands and limits.
+TradingAgents provides the native graph and role routing. The project adds an instance-local research protocol, a financial revision loop, evidence-linked reporting and a separate quantitative research pipeline.
 
-The optional typed-judgment mode uses the same native workflow and state
-factories. Its model Adapter submits source-bound propositions to the core
-through `run(ReviewNativeJudgment(...))`. The core owns measurement types,
-relations, supported hypothesis scopes and admissibility; the Application owns
-review ordering and model/record/report binding. Only deterministic checked
-projections enter downstream context and the report. Raw analyst prose remains
-in private traces. This mode changes the judgment prompts; it is an enhancement,
-not an untouched native baseline or a general natural-language verifier.
+## How the research chain works
 
-The interim research path uses `InterimCashflowTask` inside the same
-`FundamentalEvidenceTask` and `ResearchSecurity` Interfaces. `core/interim.py`
-resolves spanned HTML period/date/currency columns and supplies source facts
-to the existing cash-flow reconciliation. It is an explicit January–June
-reader, not a fallback from failed annual inline-XBRL parsing. Tax and balance
-supplements remain core-owned; the Application compares source periods and
-availability only after persisting the new judgment. See the
-[research guide](tradingagents-research.md) for scope and commands.
+1. The Application receives the company, date, horizon, question, substantive hypotheses and research constraints. Explicit user expectations are stored in a separate channel.
+2. Fundamental, market, news and sentiment roles produce research inputs from the frozen source bundle. Bull and bear researchers seal independent drafts and then answer each other's claims.
+3. The portfolio manager forms a source-only initial view, proposes operating scenarios and submits forecast parameters. The core computes earnings attribution, EPS, cash and conditional returns.
+4. A field-level revision records expected old values, replacements and evidence. The program applies it to a new effective parameter set and recalculates.
+5. The final report evaluates scenarios and beliefs against the effective results. The Application saves the report, original proposals, calls, recovery rows and source bindings as a Case.
 
-Status is tracked in [`status.md`](status.md); this document describes only
-how the current code works.
+The default route uses protocol v16. The four-analyst route uses v24 for new executions and follows seventeen primary model stages. Resumed executions retain their own protocol and prompt layout.
+
+## Responsibilities and interfaces
+
+| Layer | Responsibility | Interface or implementation |
+| --- | --- | --- |
+| Application | Research dispatch, Case lifecycle, report rendering, review and export | `handle(command)` / `read_case(case_ref)` |
+| Financial core | Source semantics, formulas, parameter revisions and replay | `run(task)` / `replay(run_ref)` and internal task-specific calculation modules |
+| Research adapters | TradingAgents integration, model requests, stage protocols and bounded recovery | `adapters/tradingagents_thesis.py` and adjacent thesis modules |
+| Quant research | Historical market preparation, model comparison, date scoring and research notes | `quant.pipeline.prepare_dataset`, `run_experiment` and `quant.inference` |
+| Storage | Frozen sources, content-addressed Cases, raw calls and receipts | Canonical JSON, hashes and append-once writes |
+
+## Financial computation as the shared state
+
+A model proposes revenue, margins, tax, nonoperating income, minority attribution, shares, cash adjustments and valuation assumptions. Program calculations turn those inputs into comparable scenario outputs.
+
+The revision step checks each expected old value before applying its replacement. Original and effective parameters stay side by side, so the report can identify whether a change came from accounting direction, a new amount assumption or a different operating scenario.
+
+Forecast quantities in the report reference effective calculations. Historical quantities reference locatable source blocks. This connects financial explanation to the exact state used for the report.
+
+## Traceable continuation and delivery
+
+The same saved-call contracts support execution and reopening. Stage recovery records the observed failure, allowed retry and budget effect. Sentence repair and numerical masking retain the original answer beside the delivered text.
+
+Critical-stage stops preserve completed work in a halted Case. Noncritical degradation and numerical masking produce explicitly marked partial deliveries. Reports retain the scenario assumptions, reference rating and available model conclusion.
+
+[Research input and report contracts](thesis-research.md) describe the stage rules. [Project status](status.md) records the corresponding verification and research observations.
 
 ## Independent Quant research
 
@@ -154,8 +48,9 @@ market-only features, 20-session holding-return percentile labels, purged date s
 and evaluation. Historical market context uses each historical day's eligible pool;
 model Adapters declare stock-only or stock+context and receive the same prepared
 rows through `fit/predict`. Linear views include stock-by-market interactions. Research
-signals carry explicit target/ranking and availability-time meanings. No Agent
-route imports or consumes this module. Mechanism details and the offline
+signals carry explicit target/ranking and availability-time meanings. Date-bounded
+scores become deterministic research notes, which enter the Agent source bundle.
+The research roles consume this note through the source interface. Mechanism details and the offline
 synthetic example are in [Quant contracts](../quant/CONTRACTS.md) and the
 [Quant guide](../quant/README.md).
 
@@ -310,20 +205,168 @@ head. Material transitions (a new Workpaper, a new Review) are written as a
 content-addressed transaction intent, published, then sealed with a commit
 receipt; readers verify receipts independently, so an interrupted transition
 is either invisible or exactly resumable by the same command. Per-Case POSIX
-locks serialize local writers. This is deliberately heavier than a single-user
-CLI needs and is a candidate for later simplification; it is fully tested.
+locks serialize local writers. This journal separates publication, recovery and review transitions while
+retaining a verifiable record of each write.
 
-## Boundaries
+## Execution and storage contracts
 
 - Only `run-analysis` constructs a model Adapter. Everything else reopens the
   Application offline.
 - `PRIVATE_DEV` documents, profiles, traces, artifacts, and paired outputs
   must resolve below the workspace's sibling `private/` tree; the artifact root
   fixes one workspace anchor and mixed workspaces are rejected.
-- The core is standard-library only. The local runtime is an external
-  application, not a Python dependency.
+- The core uses the Python standard library. Local-model execution uses a
+  separately prepared external runtime.
 
 Research thesis requests distinguish substantive hypotheses and research constraints
 from an explicitly recorded user view. The latter remains in the Case/report but
-is excluded from the main model request projection. Free text is not automatically
-rewritten or certified as neutral; see [the input contract](thesis-research.md).
+is excluded from the main model request projection. The caller
+expresses each channel explicitly; see [the input contract](thesis-research.md).
+
+## Research protocol details
+
+The main research path crosses `handle(ResearchThesis(...))` and `read_case`.
+The optional `--all-analysts` frozen-source route uses protocol/Case v24 for new
+runs (a resumed execution keeps the protocol it started with, so earlier v17 to
+v23 executions resume as such): four actual analyst reports precede the existing
+thirteen research stages. The
+reports and original sources reach downstream research; the independent
+assessment retains source-only input. It saves fundamental, market, news and
+sentiment outputs plus explicit Quant/input-flow presentation. This route does
+not invoke upstream live sentiment prefetch against historical dates. The
+default v16 route and earlier recorded Cases retain their existing behavior.
+The explicit `--fetch-news-social` route adds a bounded public-source collector
+before that same four-analyst flow. It queries by instrument and cutoff, records raw
+responses and typed coverage, then appends eligible news/events and investor
+discussions to the unchanged financial/market/Quant foundation. Models consume
+the frozen combined bundle; resume verifies and reuses it without fetching,
+and the standard-library Case reader performs no acquisition. Missing channels
+remain visible rather than being filled with invented material.
+Protocol 18 decides every stage retry from the saved answer with a
+standard-library validator and frozen stage schemas
+(`adapters/thesis_schemas_v18.py`), identically at run time and on reopen. An
+unparseable answer is asked again once with the unchanged prompt; a provenance
+label outside its vocabulary (`basis_type`, `correction_basis`,
+`update_basis`) is repaired alone while all other content is compared as
+canonical JSON. Every other schema error, and every content, citation, coverage
+or numeric failure, still halts the stage. Protocol 19 checks the frozen schema
+before any content check, asks any other schema-invalid answer the validator
+proves once more with the unchanged prompt, and drops blank `*_note` fields; its final instruction no longer asks to spell
+numbers out, since Chinese number words with 百/千/万/亿 are refused as amounts.
+Final-report number contract 2 (v18 to v24) only removes listed time and
+source-identifier labels from contract 1's pending items; every refusal is
+unchanged. Protocol 20 separates critical from non-critical stages. The four
+analysts and the trader feed context, not calculations: when every saved answer
+of such a stage is proven unusable by the same standard-library checks, the run
+continues with an explicit placeholder and the Case is saved PARTIAL. A final
+report refused only because at most five whole sentences hold unbound numbers,
+confirmed in the context of the complete report, gets one further call that
+rewrites just those sentences; the program splices them in and checks the
+complete report again under the unchanged contract. The reader re-derives the
+refused sentences, the repair prompt and the spliced report from saved calls,
+and proves for each degraded stage that no retry was left. Recovery policy v5
+allows three extra calls per run. Protocol 21 keeps every task's words and
+changes only their order and the reasoning effort: one fixed system message,
+then the shared request and frozen sources, then the stage input and task.
+Every stage before the final report starts with the same bytes for the
+provider's prefix cache; the final report, which reads the evidence-block
+catalog, shares its own prefix with its retries and repair, all of which are
+appended after the unchanged prompt. Protocol 21 fixes every stage's first
+reasoning effort (analysts and trader low, independent assessment and forward
+draft max, the rest high) and asks a truncated answer again one level lower.
+The reader parses each version's own layout only, and from 21 rebuilds every
+saved prompt exactly and checks the system message and first-attempt efforts.
+Protocol 22 (recovery policy v6) adds `CONTENT_CHECK`: when the program proves
+from a saved answer and its own prompt that the forward draft fails a check run
+before calculating, or that a critical stage before the final report cites an
+unknown source, the stage is asked once more with the proven problems appended
+after the unchanged prompt, as its only recovery apart from one transport retry;
+the reader re-proves the checks, rebuilds the retry and repeats the forward checks
+on the saved draft. Both failures stopped protocol 21. The final task restates
+that citations name evidence blocks; a final report citing source IDs is still
+delivered with findings, as before.
+Protocol 23 gives completed reports explicit ratings and preserves completed work after a stop. The research
+manager and the final report choose one of five ratings (REVIEW is no longer a
+rating) and the final report adds a confidence; beside it the program recomputes
+a fixed rule's reference rating from the scenario calculations (each scenario's
+return annualized over the research horizon, weighted equally, banded at plus or
+minus 5% and 20%), which the final stage sees without numbers. When a run stops
+after its session started (a user interruption or a resumed-input mismatch aside),
+the Application saves a `thesis-halted-case/v1` Case with the stages completed
+before the stop, every saved call and recovery row, the rule's rating and a
+conclusion (the rule's rating when the scenarios allow it, otherwise the research
+manager's). The reader proves it exchange by exchange like a complete Case; the
+stopped stage's own answer stays in the calls but is not delivered.
+Protocol 24 delivers a final report refused only for unbound numbers when its
+sentence repair cannot be asked or does not pass. The contract reads each stretch
+of prose between two citations on its own; in a refused stretch every numeral-like
+span is first hidden as 〔数值待核〕 and spans are shown again, sentence by sentence and
+left to right, when the stretch still passes with them; text that fails with every
+span hidden becomes one mark that keeps its citations. No model is called. The
+Case is PARTIAL and records every changed sentence; the reader derives the same
+masking from the saved answer and checks that the repair could not be asked or did
+not pass. A final report that masking cannot make pass still stops the run as in
+protocol 23. The number contract derives its source facts (retrieval dates,
+storage-standard versions, technical indicators) once per report.
+Its instance-local protocol keeps native graph routing while isolating initial
+drafts, limiting round-two discussion to sealed first drafts, and obtaining
+source-only independent underwriting before the portfolio manager sees peer
+opinions. Within the same portfolio-manager node, a separate forward draft
+proposes business-driven annual earnings/cash assumptions without seeing the
+independent rating or beliefs. The core calculates the profit/attribution/EPS
+and cash bridges, then conditional earnings-multiple prices and cumulative
+returns. The final judge receives the exact draft and results alongside independent
+beliefs and research/risk analysis, without the initial rating, summary or
+prewritten trigger fields. It assesses each forecast path and updates each
+belief; rating comparison is computed afterwards. Explicitly tagged
+sensitivity notes appear only in the report appendix and post-report review,
+never in a rating request. Untagged legacy
+sources are not semantically filtered. Original vendor fields remain
+available. The Application persists the main Case before the optional data
+review and at most one targeted correction after the main Case is saved. The review reads the
+complete structured report, research sources and effective calculations. Corrections are separate
+artifacts; review failure retains the main report and marks the delivery rating unavailable. FinAuditGate is
+an independent optional financial component, not this path's admission gate.
+The calculator is an ordinary operating-company arithmetic tool, not a
+valuation engine, assumption certifier or rating gate. Missing inputs preserve
+the calculations that remain possible. Dates, earnings denominator and ADS/FX
+units are explicit; no net cash is added to capitalized parent earnings. The
+Application verifies that the final model received the recomputed results and
+renders assumptions, source labels and final acceptance/rejection separately.
+The current selected-evidence final call also receives a program-derived before/after
+input comparison. The main report shows those objective changes, attribution directions
+and unchanged dividends; model-written change and belief explanations remain complete
+in the process appendix for review. This does not certify their economic reasoning or
+remove the forward-calculation stages.
+See [thesis-research](thesis-research.md). The mechanisms below describe retained
+financial investigation and restricted audit routes.
+
+Native audit execution crosses `handle(RunAuditedNativeResearch(...))` and
+`read_case(...)`. The Native Adapter adds a fixed evidence block through the
+upstream instance's instrument-context hook; original graph construction and
+routing remain unchanged. Application validation binds the recorded model,
+tool and node inputs/outputs to the core result and the final report. The live
+tool adapter retains vendor returns and exposes only the core financial
+projection to models. A separate core record binds ADS identity and market
+inputs. See [native-audit.md](native-audit.md) for commands and limits.
+
+The optional typed-judgment mode uses the same native workflow and state
+factories. Its model Adapter submits source-bound propositions to the core
+through `run(ReviewNativeJudgment(...))`. The core owns measurement types,
+relations, supported hypothesis scopes and admissibility; the Application owns
+review ordering and model/record/report binding. Only deterministic checked
+projections enter downstream context and the report. Raw analyst prose remains
+in private traces. This mode changes the judgment prompts; it is an enhancement,
+not an untouched native baseline or a general natural-language verifier.
+
+The interim research path uses `InterimCashflowTask` inside the same
+`FundamentalEvidenceTask` and `ResearchSecurity` Interfaces. `core/interim.py`
+resolves spanned HTML period/date/currency columns and supplies source facts
+to the existing cash-flow reconciliation. It is an explicit January–June
+reader, not a fallback from failed annual inline-XBRL parsing. Tax and balance
+supplements remain core-owned; the Application compares source periods and
+availability only after persisting the new judgment. See the
+[research guide](tradingagents-research.md) for scope and commands.
+
+Status is tracked in [`status.md`](status.md); this document describes only
+how the current code works.

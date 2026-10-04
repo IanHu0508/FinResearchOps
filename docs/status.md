@@ -1,7 +1,17 @@
 # Project Status
 
-> Updated 2026-10-02. This file is the only public status source; other
+> Updated 2026-10-04. This file is the only public status source; other
 > documents describe mechanisms and link here.
+
+## Project brief
+
+FinResearchOps connects independent company research, financial recomputation and quantitative evidence in a TradingAgents workflow. The project develops three related capabilities:
+
+- **Judgment updates:** separate explicit user expectations, seal independent drafts and record claim-by-claim counterevidence and belief changes.
+- **Financial underwriting:** translate operating assumptions into earnings, EPS, cash and conditional valuation; apply explicit parameter changes and deliver the effective results in a research report.
+- **Quantitative evidence:** construct dated A-share research inputs, compare model/input groups under a preregistered protocol and convert frozen scores into citable notes.
+
+The engineering record covers execution, recovery, report binding and reopening. The research record contains the fixed quantitative study and scoped live-report observations. The sections below retain their original dates, measurements and acceptance definitions.
 
 ## Public project showcase — 2026-10-02
 

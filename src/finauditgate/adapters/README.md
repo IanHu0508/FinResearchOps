@@ -1,38 +1,18 @@
-# Adapters
+# Model and source adapters
 
-Two implementations of the `CandidateModel.propose` Seam:
+Adapters connect external models, the TradingAgents graph and source acquisition to the research workflow. The main cloud path is implemented by `tradingagents_thesis.py`, with stage protocols, schemas and bounded recovery in the adjacent thesis modules.
 
-1. `scripted.py` returns predeclared candidates or attempt sequences; it is
-   how the deterministic core is tested without a model.
-2. `ollama.py` calls the one frozen local route defined in `ollama_route.py`
-   (Qwen3-4B through a loopback Ollama daemon), captures the raw bytes with a
-   fixed budget, and writes one content-addressed trace per call. The response
-   codec in `ollama_trace.py` and the schema/decoder in `ollama_contract.py`
-   are shared with the offline verifier, so a saved trace can only ever claim
-   the proposal its own bytes produce.
+## Retained candidate-generation interface
 
-The schema is closed: evidence ids are `current` and `comparison`; metric,
-basis, unit, scale and sign are enumerations; `value` is a plain decimal
-string; `period` is `FYyyyy` or `yyyy-mm-dd`; `exact_span` is the number as
-printed or the complete document line that carries it. The same schema is sent
-as the runtime's response `format`, so it constrains generation as well as
-decoding, and the answer arrives as one JSON object in the message content
-(`CANDIDATE_CONTENT_NOT_JSON` when it is not). The decoder rejects anything
-outside that vocabulary before the core sees it, so the model and the reviewed
-profiles speak the same words and the gate never has to guess what a label
-meant.
+`CandidateModel.propose` has two implementations:
 
-A cited span must name exactly one region. It is looked for byte-exact first;
-only if those bytes appear nowhere is it matched word by word with any run of
-whitespace between the words, since a model transcribing a wrapped table row
-prints one space where the document prints several or a line break. A second
-placement is `EVIDENCE_SPAN_NOT_UNIQUE` either way, and the recorded offsets
-are always the document's own.
+1. `scripted.py` returns fixed candidates and attempt sequences for deterministic tests.
+2. `ollama.py` calls the Qwen3-8B loopback route in `ollama_route.py`, captures response bytes under a fixed budget and writes a content-addressed trace.
 
-The Adapter refuses redirects, ignores environment proxies, requires the
-installed tag to carry the frozen digest, and records the daemon version
-without gating on it. A shared daemon cannot prove which model bytes produced a
-response; the trace records what was observed and claims nothing more.
+The response codec and offline verifier share `ollama_trace.py` and `ollama_contract.py`. A saved trace binds the candidate to the captured response.
 
-The local runtime is an external application, not a Python dependency of the
-package. Real-filing acquisition or parsing Adapters do not exist.
+The closed response schema specifies `current` and `comparison` evidence IDs, enumerated financial semantics, a plain-decimal `value`, a `FYyyyy` or `yyyy-mm-dd` period, and `exact_span`. The same schema is sent as the runtime's response format and used when decoding.
+
+Source location first checks exact bytes, then a unique whitespace-tolerant match. The ledger always records the document's own offsets. Ambiguous locations produce `EVIDENCE_SPAN_NOT_UNIQUE`.
+
+The loopback adapter verifies the installed model tag and frozen digest, bounds captured responses and records the observed daemon version. Its transport uses direct loopback access with redirect and proxy checks. Local-model execution and cloud research use their separately prepared runtimes.

@@ -18,7 +18,7 @@ If Ollama re-pulls the tag with a new digest, that is a deliberate route
 change: update `MODEL_DIGEST` in `src/finauditgate/adapters/ollama_route.py`
 and the public route manifest together, and expect new run identities.
 
-The daemon version is recorded in every trace but does not gate a run.
+Each trace records the observed daemon version; model tag and digest determine the route checks.
 
 ## 1. Freeze the source
 
@@ -128,7 +128,7 @@ For a batch of cases, record per case: case id, failure class, machine
 decision, reason codes, whether replay was consistent, and the human action.
 Report aggregate counts only (how many `ACCEPT`, how many of each failure
 class, how many `unsafe_accept`, meaning an `ACCEPT` a reviewer later judged
-wrong). Small samples are counts, not percentages.
+wrong). Small samples are reported as raw counts with their case definitions.
 
 ## 6. Paired baseline (optional)
 

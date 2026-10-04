@@ -1,8 +1,8 @@
 # `finresearchops` CLI
 
-The CLI is a thin Adapter over the Application Interface. Every action is one
-call to `handle()` or `read_case()`; the CLI carries no financial, gating,
-review, or export rule of its own.
+The CLI translates research requests and inspection commands into the shared
+Application Interface, `handle()` / `read_case()`. Financial computation belongs
+to the core; the Application coordinates delivery, review and export.
 
 ```text
 finresearchops --artifact-root <private root> <action> [options]
@@ -22,17 +22,18 @@ finresearchops --artifact-root <private root> <action> [options]
 | `export` | `handle(ExportChangePacket)` | `--case-ref`, `--run-id`, optional `--model-trace-root` |
 | `replay` | `handle(ReplayRun)` | `--run-id`, optional `--model-trace-root` |
 
-Cash-flow command details and limits are in [cashflow-investigation.md](cashflow-investigation.md).
-TradingAgents setup, both new commands, and their data/model boundaries are
+Cash-flow inputs and operation details are in [cashflow-investigation.md](cashflow-investigation.md).
+TradingAgents setup, both new commands, and their source and model configuration are
 described in [tradingagents-research.md](tradingagents-research.md).
-It writes a local draft awaiting human review; its approval/public-export path
-is not implemented. `inspect-case` and `replay` also accept its references.
+The cash-flow task delivers a local research workpaper. `inspect-case` and
+`replay` accept its references. Approval and export are available on the separate
+reviewed-profile task.
 
-Commands never accept a machine decision, an answer, a verified fact, a
-calculation, `proposal_only=false`, or a resulting Case status. The Application
-derives those from the core artifacts and its append-only Review history.
+Commands supply inputs and requested actions. The Application derives decisions,
+calculations, Case status and proposal-only export from core artifacts and the
+append-only Review history.
 
-## Runtime boundary
+## Runtime and storage contract
 
 - `research-thesis --all-analysts` (or `--fetch-news-social`) starts protocol 24 for a
   new execution. `--resume-execution` keeps the protocol recorded in that execution's

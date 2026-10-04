@@ -1,8 +1,5 @@
-# Internal Seams
+# Model implementation interface
 
-`model.py` defines the one internal Seam that genuinely varies: candidate
-generation (`CandidateModel.propose`), with the scripted Adapter and the local
-Ollama Adapter as its two implementations, plus the `ModelTraceReceipt` a
-traced Adapter returns alongside its proposal.
+`model.py` defines `CandidateModel.propose`, the internal interface for candidate generation. Scripted and local Ollama adapters implement it. A traced adapter also returns `ModelTraceReceipt`, connecting its proposal to saved request and response bytes.
 
-Add another Seam here only when a second implementation actually exists.
+Ports represent behavior with concrete alternative implementations; financial rules remain in the core and Case management remains in the Application.

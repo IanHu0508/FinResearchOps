@@ -1,6 +1,6 @@
 # Cash-flow investigation
 
-Status and measured results live in [status.md](status.md).
+The workflow traces changes in earnings to operating cash flow and the filing disclosures that explain major adjustments. Execution records and measurements live in [status.md](status.md).
 
 The user task is to investigate whether changes in consolidated earnings are
 supported by operating cash flows, and find filing disclosures relevant to
@@ -12,10 +12,9 @@ links, missing inputs and the actual investigation steps.
 1. `FinResearchOps.handle(InvestigateCashflow(task))` accepts an acquired
    filing and declared source metadata, comparative annual periods and currency.
 2. `FinAuditGate.run(CashflowTask)` reads inline-XBRL facts from those bytes.
-   It does not accept or load an answer profile. The reader selects a
+   It reads the source directly. The reader selects a
    consolidated cash-flow table with `ProfitLoss` and operating cash flow;
-   entity, duration and currency must match. `NetIncomeLoss` (parent income)
-   is not silently substituted for consolidated profit.
+   entity, duration and currency must match. Parent `NetIncomeLoss` is retained as a distinct measure from consolidated profit.
 3. The core calculates the two-period differences and cash-flow reconciliation.
    Adjustment effects use the statement's displayed sign, which can differ
    from the XBRL taxonomy sign. The rounding allowance comes from the facts'
@@ -35,8 +34,8 @@ links, missing inputs and the actual investigation steps.
    This is one deterministic overview lookup plus at most two follow-up searches.
    Paragraphs and leaf divs retain nearby heading references. Topic matching handles
    plural financial terms; ranked evidence distinguishes current-period changes,
-   other periods, policies and conditional risk text. These remain documentary
-   candidates, not accepted causal explanations.
+   other periods, policies and conditional risk text. The results retain their documentary role, period and source so the researcher
+   can evaluate the corresponding financial explanation.
    If an adaptive search finds only background material or no matches, the
    remaining search uses the highest-priority unvisited driver without another
    model call. Each recorded step distinguishes `MODEL`, `RULES` and
@@ -85,11 +84,11 @@ The response contains the Case reference, run ID and workpaper path. Use
 same artifact root to recompute it offline. Cash-flow raw model responses are
 bound inside the private run record, so no separate trace-root flag is needed.
 
-## Deliberate limits
+## Input and interpretation contract
 
 - This reader handles an explicit subset of inline-XBRL annual consolidated
-  US-GAAP statements. It is not a conformant general XBRL processor, and does
-  not parse PDF, IFRS, dimensional/segment data or untagged numeric cells.
+  US-GAAP statements. Its input contract specifies the inline-XBRL concepts, periods, units and
+  consolidated statement structure used by this task.
 - Periods use actual start/end dates, monetary facts use explicit currency
   units, and unknown numeric transformations are rejected. Untagged dashes
   and blank cells are not silently interpreted as zero. An explicit zero
@@ -97,8 +96,7 @@ bound inside the private run record, so no separate trace-root flag is needed.
 - Source positions are Unicode character offsets in the UTF-8-decoded
   filing, with a hash of the exact source substring; these are not byte offsets.
 - Note matches are lexical candidates. The planner selects an investigation
-  direction, not an accepted causal explanation. No claim of superior
-  investigation quality follows from a successful model call.
+  direction and returns evidence with source and period labels for financial review.
 - When a current-period overview explicitly quantifies a working-capital
   movement in the selected currency, the core can compare it with the statement's
   operating-assets/liabilities section at the disclosed rounding precision.
@@ -121,4 +119,4 @@ The distinction between consolidated `ProfitLoss` and parent `NetIncomeLoss`
 is documented in the [FASB taxonomy implementation guide](https://xbrl.fasb.org/impdocs/OCI_TIG/othercompincome.htm).
 Numeric transforms, `contextRef`, `unitRef`, `scale` and `sign` are specified
 by [XBRL International](https://specifications.xbrl.org/work-product-index-inline-xbrl-inline-xbrl-1.1.html).
-The reader uses a documented subset of those mechanisms, not full conformance.
+The reader implements the subset specified in its input contract.

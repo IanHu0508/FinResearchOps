@@ -386,16 +386,16 @@ footer nav { display: flex; flex-wrap: wrap; gap: 8px 18px; }
     <div>
       <p class="eyebrow">个人项目 · 金融 AI 应用 / Agent 工程 / 量化研究 · 2026</p>
       <h1>FinResearchOps</h1>
-      <p class="thesis">把多智能体投研流程<wbr>改造成<mark>数字可复算、<wbr>每一步可复核</mark>的<wbr>研究工作流。</p>
-      <p class="lede">以开源 TradingAgents 的原生多角色图为底座（分析师、多空研究员、研究经理、交易员、风险讨论、组合经理），重做了信息流、修正流程与金融数字的处理方式；并自建 A 股横截面量化研究，从数据管线、特征与标签到预注册的样本外评估，冻结信号以可引用的研究说明接入 Agent。</p>
+      <p class="thesis">用证据更新观点，<wbr><mark>用金融复算<wbr>支撑投研。</mark></p>
+      <p class="lede">我在 TradingAgents 原生多角色图上设计独立观点与反证更新协议，把经营假设、金融复算和报告引用接成一条投研链路；同时构建 A 股横截面量化研究管线，将冻结模型评分转为 Agent 可引用的研究证据。</p>
       <div class="cta">
         <a class="btn primary" href="https://github.com/IanHu0508/FinResearchOps">查看 GitHub 仓库</a>
         <a class="btn" href="#demo">看合成演示</a>
         <a class="btn" href="#quant">看量化研究</a>
       </div>
       <div class="metrics" role="list" aria-label="关键数字">
-        <div class="metric" role="listitem"><b>17</b><span>个 Agent 阶段，程序关口把关</span></div>
-        <div class="metric" role="listitem"><b>v24</b><span>有界恢复与待核交付</span></div>
+        <div class="metric" role="listitem"><b>17</b><span>个研究阶段，连接四类分析</span></div>
+        <div class="metric" role="listitem"><b>v24</b><span>参数修正与报告引用</span></div>
         <div class="metric" role="listitem"><b>242万</b><span>个股票日的样本外最终期评估</span></div>
         <div class="metric" role="listitem"><b>离线 CI</b><span>源码、安装与原生集成</span></div>
       </div>
@@ -404,11 +404,11 @@ footer nav { display: flex; flex-wrap: wrap; gap: 8px 18px; }
       <div class="rating-head"><strong>项目概览卡</strong><span>仿本项目研报首页评级卡</span></div>
       <table>
         <tr><th>定位</th><td>金融投研多智能体工作流 + A 股横截面量化研究</td></tr>
-        <tr><th>交付机制</th><td><span class="chip acc">协议 v24</span>有界修复、待核标记与部分交付</td></tr>
+        <tr><th>交付机制</th><td><span class="chip acc">协议 v24</span>参数修正、有效计算与恢复留痕</td></tr>
         <tr><th>Agent 流程</th><td>17 个模型阶段 · 程序复算与校验关口 · 标准库可重放</td></tr>
         <tr><th>量化研究</th><td>预注册 A→D 四阶段 · 六个模型样本外评估 · Rank IC 最高组超过 0.13</td></tr>
         <tr><th>工程验证</th><td><span class="chip ok">离线 CI</span>源码、隔离安装、原生集成与量化契约</td></tr>
-        <tr><th>人在回路</th><td>研究结论与人工批准分开，调用预算与用量留痕</td></tr>
+        <tr><th>研究产物</th><td>预测参数、情景回报、反证条件与可引用研报</td></tr>
       </table>
       <p class="foot">测试离线运行、结果可复现；量化数字来自仓库公开的研究记录。</p>
     </aside>
@@ -417,9 +417,9 @@ footer nav { display: flex; flex-wrap: wrap; gap: 8px 18px; }
   <div class="band" role="region" aria-label="设计原则">
     <div class="wrap">
       <ol>
-        <li><small>第一步</small><b>模型提议</b><span>各角色给出观点、参数和终稿文字，全部原样留档。</span></li>
-        <li><small>第二步</small><b>校验器决定</b><span>程序复算数字、绑定来源、证明失败原因，决定接受、重试或停止。</span></li>
-        <li><small>第三步</small><b>人来批准</b><span>模型给出研究结论，人工复核与批准状态单独记录。</span></li>
+        <li><small>第一步</small><b>模型研究</b><span>依据经营来源形成观点，提出假设并回应反证。</span></li>
+        <li><small>第二步</small><b>金融复算</b><span>把参数转为盈利、现金和情景回报，记录修正影响。</span></li>
+        <li><small>第三步</small><b>报告交付</b><span>连接有效结果与来源，解释观点变化和后续证据。</span></li>
       </ol>
     </div>
   </div>
@@ -428,21 +428,21 @@ footer nav { display: flex; flex-wrap: wrap; gap: 8px 18px; }
     <div class="wrap">
       <div class="sec-head">
         <p class="eyebrow">挑战</p>
-        <h2>让多智能体写研报，难点不在“写出来”，<wbr>而在“能不能信、<wbr>能不能查”</h2>
-        <p>我从三个具体缺口入手，每个都对应一类可以用程序检查的约束。</p>
+        <h2>AI 投研的关键：<wbr>让观点、参数和证据<wbr>沿同一链路更新</h2>
+        <p>我将这条研究链分解为三个工程问题，分别建立输入分流、金融复算和变化留痕。</p>
       </div>
       <div class="problems">
         <article>
-          <h3>数字没有出处</h3>
-          <p>模型在长文里自由书写金额、比率和目标价。读者分不清哪些来自资料，哪些是计算，哪些只是顺手写出的。</p>
+          <h3>预测参数对应经营逻辑</h3>
+          <p>收入、利润率、税率和利润归属共同决定盈利；股数、现金调整与估值倍数继续影响每股结果和价格。将这些关系写成参数与计算，才能解释一次修正的金融影响。</p>
         </article>
         <article>
-          <h3>角色互相锚定</h3>
-          <p>辩论式流程里，后发言的角色能看到前面的评级和结论，独立判断与顺着既有观点走很难区分。</p>
+          <h3>研究任务与期望答案分流</h3>
+          <p>用户的问题、实质假设和风险约束进入研究，期望得到的结论单列留痕。多空先独立成稿，再回应具体反证，让观点形成与观点更新有明确顺序。</p>
         </article>
         <article>
-          <h3>失败悄悄被吞掉</h3>
-          <p>上游在结构化输出失败时会退回自由文本继续运行。出错的回答、重试和花费默认不会留下可供复核的记录。</p>
+          <h3>证据更新传到最终报告</h3>
+          <p>资料变化、假设修改与计算结果一起保存。最终报告说明采用哪些观点、修改哪些参数，以及什么证据会再次改变判断。</p>
         </article>
       </div>
     </div>
@@ -452,28 +452,28 @@ footer nav { display: flex; flex-wrap: wrap; gap: 8px 18px; }
     <div class="wrap">
       <div class="sec-head">
         <p class="eyebrow">方法</p>
-        <h2>四项改造，各自落在可测试的契约上</h2>
-        <p>保留上游的角色拓扑和路由，只改模型实际看到的输入、讨论方式和数字的来去。</p>
+        <h2>四项技术贡献，接通研究到交付</h2>
+        <p>TradingAgents提供原生角色与路由；我围绕观点更新、金融计算、有效报告与运行恢复建立新的数据流和接口契约。</p>
       </div>
       <div class="methods">
         <article class="method">
-          <header><span class="tag">信息流</span><h3>先独立，再反证</h3></header>
-          <p>多空研究员基于同一份资料各自写初稿，初稿封存后才看到对方并逐条回应。组合经理先在只看资料的条件下做独立初判，终判不继承前面的评级或交易员自设的门槛。</p>
+          <header><span class="tag">信息流</span><h3>独立观点与逐条反证</h3></header>
+          <p>我将显式用户期待与研究输入分离，让多空基于同一资料封存独立初稿，再逐条回应对方论点。组合经理用来源形成初判，后续按记录的信念处理反证；旧评级与交易员阈值在终判输入中隔离。</p>
         </article>
         <article class="method">
-          <header><span class="tag">数字契约</span><h3>前瞻数字由程序算</h3></header>
-          <p>前瞻假设以结构化参数保存，由 Python 复算利润归属、每股盈利、现金桥和条件估值。终稿里的前瞻数量只能写成引用，例如 <span class="token">{{metric:F1:eps_per_traded_unit}}</span>；历史数量引用证据块 <span class="token">{{source:E0001}}</span>。终稿未绑定的数值先按契约定位，必要时定向修复或遮盖为待核标记，保留原句。</p>
+          <header><span class="tag">数字契约</span><h3>经营假设到金融复算</h3></header>
+          <p>我把收入、利润率、税率、利润归属、股数与现金调整保存为结构化参数，由Python计算盈利、EPS、现金和条件估值。修改明确记录原值、新值与依据；终稿引用有效结果，例如 <span class="token">{{metric:F1:eps_per_traded_unit}}</span>；历史数量引用证据块 <span class="token">{{source:E0001}}</span>。报告的数字与来源由同一引用机制连接，原参数和修改过程同时保留。</p>
         </article>
         <article class="method">
-          <header><span class="tag">可重放证据</span><h3>保存的 Case 可核对重放</h3></header>
-          <p>Case 按内容寻址，保存请求、原始模型调用、失败回答和预算收据。读取时只用 Python 标准库核对输入输出绑定与计算一致，保留原始过程供复核，不需要模型、网络或第三方库。</p>
+          <header><span class="tag">可重放证据</span><h3>有效结果与研究过程双份保存</h3></header>
+          <p>我设计内容寻址的Case记录，将请求、来源、原始回答、参数修改和有效结果一起保存。标准库读回核对绑定与计算，正式研报引用有效版本，过程记录保留完整研究路径。</p>
         </article>
         <article class="method">
-          <header><span class="tag">失败处理</span><h3>有界恢复，按证据决定</h3></header>
-          <p>传输失败、长度截断、无法解析、结构不合规各有独立的证明规则和一次性额度，运行时与读回时由同一个函数判定。恢复按阶段和证据限定，v24保留非关键角色降级并增加待核交付：</p>
+          <header><span class="tag">失败处理</span><h3>有界恢复与计算资源管理</h3></header>
+          <p>我按角色设置推理强度，组织共享提示前缀供缓存复用，并为传输、截断、格式和内容问题设置有界恢复。运行与读回共用同一判定，v24将恢复落实到具体阶段和句子：</p>
           <ul>
-            <li>四类分析与交易员的全部回答被证明不可用、且重试额度已用尽时，以明示占位继续，Case 标为部分完成（PARTIAL）；预算或调用上限导致的停止仍然停止。</li>
-            <li>终稿只因不超过 5 句含未绑定数字被拒时，可定向改写并整份复检；修复不可用或未通过时，v24将被拒数值遮盖为待核标记，保留原句和PARTIAL状态。</li>
+            <li>四类分析与交易员按非关键阶段处理：额度内恢复，必要时以明示占位继续并记录PARTIAL，保留已完成的研究内容。</li>
+            <li>终稿采用句子级数值修复与整份复检；修复不可用或未通过时，v24将对应数值显示为待核标记，原句和处理方式逐项留痕。</li>
           </ul>
         </article>
       </div>
@@ -485,7 +485,7 @@ footer nav { display: flex; flex-wrap: wrap; gap: 8px 18px; }
       <div class="sec-head">
         <p class="eyebrow">流程</p>
         <h2>一次研究运行：17 个模型阶段，穿插程序关口</h2>
-        <p>角色和路由沿用上游原生图。蓝色步骤由程序执行，模型无法绕过；深色是存档、读回与人工复核；虚线框是允许有界降级的非关键角色。</p>
+        <p>角色和路由沿用上游原生图。蓝色步骤由程序完成金融计算与绑定；深色是存档、读回与人工复核；虚线框是允许有界降级的非关键角色。</p>
       </div>
       <div class="legend" aria-hidden="true">
         <span><i class="swatch"></i>模型阶段</span>
@@ -545,7 +545,7 @@ footer nav { display: flex; flex-wrap: wrap; gap: 8px 18px; }
       <div class="sec-head">
         <p class="eyebrow">量化研究</p>
         <h2>A 股横截面量化：从数据管线到预注册的样本外评估</h2>
-        <p>独立于 Agent 的研究模块。研究问题是：不同市场状态下，哪些量价路径更可能延续或反转；深度序列模型能否在人工特征和树模型之外，带来样本外增量。</p>
+        <p>我构建独立于Agent的量化研究模块，比较价量路径在不同市场状态下的排序表现，并用固定评价期检验序列模型相对人工特征和树模型的增量。</p>
       </div>
       <ol class="qsteps">
         <li><small>数据</small><b>按当时的世界构建</b><span>日频原始采集后规范化存储；证券身份按日期解析，历史股票池按当时状态构建，不用今天的存续名单回填。</span></li>
@@ -563,29 +563,29 @@ footer nav { display: flex; flex-wrap: wrap; gap: 8px 18px; }
       <div class="results">
         <figure class="chart" aria-label="最终期日均 Rank IC 识别区间">
           <p class="kicker">最终期 2024–2025 · 日均 Rank IC 识别区间</p>
-          <h3>加入市场背景，三类模型全部提升</h3>
+          <h3>最终期比较：市场上下文提升三类模型的均值界</h3>
           <div class="ic-legend" aria-hidden="true"><span class="s"><i></i>仅个股特征</span><span class="c"><i></i>含市场背景</span></div>
           <div class="ic-group"><b>Ridge</b>
             <div class="ic-row s"><span>仅个股</span><div class="ic-track"><div class="ic-bar" style="width:77.4%"></div></div><output>0.1147–0.1162</output></div>
-            <div class="ic-row c"><span>含背景</span><div class="ic-track"><div class="ic-bar" style="width:83.3%"></div></div><output>0.1234–0.1249</output></div>
+            <div class="ic-row c"><span>含上下文</span><div class="ic-track"><div class="ic-bar" style="width:83.3%"></div></div><output>0.1234–0.1249</output></div>
           </div>
           <div class="ic-group"><b>XGBoost</b>
             <div class="ic-row s"><span>仅个股</span><div class="ic-track"><div class="ic-bar" style="width:83.8%"></div></div><output>0.1241–0.1256</output></div>
-            <div class="ic-row c"><span>含背景</span><div class="ic-track"><div class="ic-bar" style="width:89.6%"></div></div><output>0.1329–0.1344</output></div>
+            <div class="ic-row c"><span>含上下文</span><div class="ic-track"><div class="ic-bar" style="width:89.6%"></div></div><output>0.1329–0.1344</output></div>
           </div>
           <div class="ic-group"><b>GRU</b>
             <div class="ic-row s"><span>仅个股</span><div class="ic-track"><div class="ic-bar" style="width:73.7%"></div></div><output>0.1091–0.1106</output></div>
-            <div class="ic-row c"><span>含背景</span><div class="ic-track"><div class="ic-bar" style="width:91.1%"></div></div><output>0.1353–0.1366</output></div>
+            <div class="ic-row c"><span>含上下文</span><div class="ic-track"><div class="ic-bar" style="width:91.1%"></div></div><output>0.1353–0.1366</output></div>
           </div>
           <div class="ic-axis" aria-hidden="true"><i></i><div><span style="left:0">0</span><span style="left:33.3%">0.05</span><span style="left:66.7%">0.10</span><span style="left:100%">0.15</span></div><i></i></div>
-          <p class="ic-note">条长按识别区间上界、从 0 起画。区间来自对未知结果的部分识别，不是置信区间；Rank IC 衡量横截面排序能力，不等同于组合收益。 GRU背景组与XGBoost背景组的HAC差异仍跨0，不能据均值排序判断前者稳定胜出。</p>
+          <p class="ic-note">条长按识别区间上界、从0起画。Rank IC衡量横截面排序相关性；识别区间刻画未知收益结果的影响，模型差异的统计不确定性另用HAC20/60评估。完整比较见项目状态。</p>
         </figure>
         <aside class="takeaways">
           <h3>结果要点</h3>
           <ul>
             <li>六个模型的年度平均 IC 下界全部为正。</li>
-            <li>加入市场状态与相对强弱后，Ridge、XGBoost、GRU 都高于各自的仅个股版本。</li>
-            <li>XGBoost 与 GRU（含市场背景）最高，识别区间均在 0.13 以上。</li>
+            <li>加入市场上下文后，Ridge、XGBoost、GRU的最终期均值界都高于各自仅个股组。</li>
+            <li>XGBoost与GRU上下文组的均值界超过0.13，GRU上下文组相对自身仅个股组得到正增量证据。</li>
             <li>方法在揭示前冻结：没有在看到表现后更换候选、样本或方向。</li>
           </ul>
         </aside>
@@ -602,7 +602,7 @@ footer nav { display: flex; flex-wrap: wrap; gap: 8px 18px; }
       <div class="sec-head">
         <p class="eyebrow">合成演示</p>
         <h2>一次少数股东归属修正：每股盈利变了，合并现金没变</h2>
-        <p>仓库自带的最小离线演示使用合成模型响应，断开网络、不需要 API key。它走v16研究路径，覆盖前瞻提案、程序复算、归属修正、终稿引用和保存读回。以下数字展示这条计算链；完整四分析师执行使用v24。</p>
+        <p>仓库自带的最小离线演示使用合成模型响应，断开网络、不需要 API key。它走v16研究路径，覆盖前瞻提案、程序复算、归属修正、终稿引用和保存读回。这条演示让归属修正的影响直接落到EPS和现金；四分析师研究路径使用v24。</p>
       </div>
       <div class="demo-grid">
         <div class="panel">
@@ -617,7 +617,7 @@ footer nav { display: flex; flex-wrap: wrap; gap: 8px 18px; }
               </tbody>
             </table>
           </div>
-          <p>少数股东盈利要从合并利润中扣减，所以归母盈利和每股盈利下降；经营现金从合并净利润起算，归属修正不改变它。这个区分由程序复算保证，不依赖模型记得。</p>
+          <p>少数股东盈利要从合并利润中扣减，所以归母盈利和每股盈利下降；经营现金从合并净利润起算，归属修正不改变它。程序复算将利润归属与现金基底分开处理。</p>
         </div>
         <div class="panel">
           <p class="kicker">模型只写引用，数值由程序填入</p>
@@ -636,13 +636,13 @@ footer nav { display: flex; flex-wrap: wrap; gap: 8px 18px; }
         </div>
         <div class="panel">
           <p class="kicker">反例对照</p>
-          <h3>裸写的预测数字会被拒收</h3>
+          <h3>报告引用的反例检查</h3>
           <div class="flow-step">
             <span class="label">故意写入的终稿句子</span>
             <div class="body">F1 的预测 EPS 为 999 USD。</div>
           </div>
           <div class="reject"><span class="chip stop">拒收</span><code>UNBOUND_RESEARCH_NUMBER</code><span class="chip acc">不保存 Case</span></div>
-          <p>在这个v16最小演示中，该数值没有对应的计算或来源绑定，因此被拒收。v24四分析师路径还支持有界修复与待核数值遮盖。</p>
+          <p>该v16演示检查了数值与有效结果的对应关系，记录UNBOUND_RESEARCH_NUMBER。v24四分析师路径进一步提供定向修复和待核数值交付。</p>
         </div>
         <div class="panel">
           <p class="kicker">合成数据 · 摘自演示生成的正式研报首页</p>
@@ -671,8 +671,8 @@ footer nav { display: flex; flex-wrap: wrap; gap: 8px 18px; }
     <div class="wrap">
       <div class="sec-head">
         <p class="eyebrow">工程</p>
-        <h2>证据链上的工程约束</h2>
-        <p>这些约束写在代码与测试里，发布前逐项运行。</p>
+        <h2>支撑研究链路的工程实现</h2>
+        <p>我将模型调用、确定性计算和交付管理分层实现，通过离线测试与发布流程核对各层接口。</p>
       </div>
       <div class="facts">
         <article class="fact">
@@ -740,8 +740,8 @@ footer nav { display: flex; flex-wrap: wrap; gap: 8px 18px; }
       </div>
       <div class="status">
         <div>
-          <p class="statement">从结构化输出恢复、非关键角色降级，到句子级修复与数值遮盖，按具体失败完善交付链；原始回答、修正记录和待核状态均保留。</p>
-          <p>工程约束可以复核机制，研究价值还需比较与内容验收。Quant评分已经作为来源接入；观点隔离、信号接入和数字契约不自动证明判断质量提高。</p>
+          <p class="statement">从结构化输出恢复、非关键角色降级，到句子级修复与数值遮盖，围绕具体运行问题完善交付链；原始回答、修正记录和待核状态均保留。</p>
+          <p>项目将观点更新、前瞻复算、量化研究与报告交付连接起来。后续评价沿同一条研究链展开，分别比较事实解释、反证响应、情景假设与交付效率。</p>
         </div>
         <aside class="next">
           <h3>接下来</h3>
@@ -758,7 +758,7 @@ footer nav { display: flex; flex-wrap: wrap; gap: 8px 18px; }
 
 <footer>
   <div class="wrap">
-    <p>本页演示数据为合成，量化图来自固定历史研究。验证记录与复现边界见项目状态；研究展示不构成投资建议。</p>
+    <p>本页展示项目设计与工程实现：金融演示使用合成数据，量化图来自固定历史研究。方法、验证记录与适用范围统一见项目状态。</p>
     <nav aria-label="仓库链接">
       <a href="https://github.com/IanHu0508/FinResearchOps">GitHub 仓库</a>
       <a href="https://github.com/IanHu0508/FinResearchOps/blob/main/docs/thesis-research.md">研究流程文档</a>
