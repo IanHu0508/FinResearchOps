@@ -61,6 +61,13 @@ EPS changes because minority profit is deducted from consolidated earnings. Cons
 
 ## A-share quantitative research
 
+The public V2/V3 extension adds exact historical neighbours, learned numerical/cosine
+distance, a separate future-loss estimate, dated calibration and G0/G1 mixtures.
+NN here means nearest neighbours. The optional launcher and synthetic numerical
+checks are included; [definitions and commands](docs/quant-research.md) and
+[latest research results](docs/status.md#current-quant-publication-v2v3-modules--2026-10-07)
+explain the scope and measured increments.
+
 The [Quant module](quant/README.md) studies which price-volume paths persist or reverse under different market states, and how sequence models compare with engineered features and trees.
 
 | Stage | Technical design |

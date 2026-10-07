@@ -84,3 +84,36 @@ jobs:
             env PYTHONPATH=src LANGSMITH_TRACING=false LANGCHAIN_TRACING_V2=false \
             ../tmp/tradingagents-runtime/bin/python scripts/thesis_offline_demo.py \
             --artifact-root "$GITHUB_WORKSPACE/private/ci-thesis-negative" --bad-prose
+
+  quant-numerical:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: finaudit-gate
+    env:
+      OMP_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          path: finaudit-gate
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: finaudit-gate/requirements/quant-ml.lock
+      - name: Install pinned optional Quant dependencies
+        run: |
+          mkdir -p ../private
+          python -m venv ../tmp/quant-runtime
+          ../tmp/quant-runtime/bin/python -m pip install -r requirements/quant-ml.lock
+      - name: Quant imports and synthetic numerical checks without networking
+        run: |
+          sudo unshare --net -- sh -c 'ip link set lo up; exec "$@"' sh \
+            python scripts/run_quant.py --python ../tmp/quant-runtime/bin/python --check
+          sudo unshare --net -- sh -c 'ip link set lo up; exec "$@"' sh \
+            python scripts/run_quant.py --python ../tmp/quant-runtime/bin/python -- \
+            -W error::ResourceWarning -m unittest discover -s quant/ml_tests

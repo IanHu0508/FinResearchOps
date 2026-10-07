@@ -22,3 +22,7 @@ The current research example is `thesis_offline_demo.py`: scripted synthetic rep
 `verify_installed.py` runs the core suite from an isolated wheel, checks installed source bytes and removes source imports from the test workspace. The [CI workflow](../.github/workflows/offline.yml) uses it alongside native integration and Quant contract checks.
 
 Validation-profile usage is documented in the [private-case runbook](../docs/runbook-private-case.md).
+
+`run_quant.py` starts the selected optional Quant interpreter with its explicit
+OpenMP path, checks pinned versions and invokes Quant modules. See the
+[Quant guide](../docs/quant-research.md#安装与检查) for checks and report generation.

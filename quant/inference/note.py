@@ -7,9 +7,11 @@ changed. The result is one finresearchops.thesis-sources/v2 source row.
 """
 
 from datetime import datetime
+from collections import Counter
 import hashlib
+import math
 
-from quant.contracts import CHINA, MARKET_NAMES, RELATIVE_NAMES, SCALAR_NAMES, require
+from quant.contracts import CHINA, MARKET_NAMES, RELATIVE_NAMES, SCALAR_NAMES, finite, require
 from quant.evaluation.evidence import ValidationEvidence
 from .signals import validate_signal
 
@@ -17,7 +19,7 @@ NOTE_VERSION = "quant-research-note/v1"
 MODES = {"HISTORICAL_SIMULATION": "历史模拟（只列评分时点已能计算的历史结果）",
          "RETROSPECTIVE": "事后回顾（可含评分时点之后才揭晓的历史结果，并逐项标注）"}
 INPUTS = {"stock-only": "个股日频价量特征", "stock+context": "个股日频价量特征加市场状态"}
-MODEL_FAMILIES = {"xgboost-": "XGBoost 树模型"}
+MODEL_FAMILIES = {"xgboost-": "XGBoost 树模型", "analogue-": "历史相似状态近邻模型", "fusion-": "树模型与近邻模型融合"}
 MISSING = "不可得（该项输入缺失）"
 
 
@@ -127,3 +129,81 @@ def research_note(signal, row, evidence, *, mode, source_id="QUANT", extra_limit
             "availability_note": f"评分时点{_time(as_of)}上海时间；行情截止{_time(datetime.fromisoformat(signal['data_cutoff']))}；"
                                  f"{MODES[mode]}；证据知识截止最晚{_time(latest)}。",
             "content": content, "sha256": hashlib.sha256(content.encode()).hexdigest(), "use": "research"}
+
+
+def analogue_research_note(signals, row, evidence, details, *, mode, source_id="QUANT"):
+    """Bind global/local/fused estimates and inspectable historical samples.
+
+    Evidence is time-gated by the existing note contract. The three estimates
+    share inputs and outcomes; this is one quantitative evidence source.
+    Neighbour intervals are presented intact, with no midpoint distribution.
+    """
+    require(set(signals) == set(evidence) == {"xgb", "nn", "fusion"}, "NOTE_V2_MODELS_REQUIRED")
+    require(set(details) == {"alpha", "k", "fusion_weight", "fallback", "date_count", "mean_distance", "neighbors"},
+            "NOTE_V2_DETAIL_SHAPE")
+    require(details["alpha"] in (0., .25, .5) and details["k"] in (32, 64)
+            and details["fusion_weight"] in (0., .25, .5, 1.), "NOTE_V2_CONFIG_INVALID")
+    require(type(details["fallback"]) is int and details["fallback"] in (0, 1, 2, 3)
+            and type(details["date_count"]) is int and details["date_count"] >= 0
+            and finite(details["mean_distance"]) and details["mean_distance"] >= 0,
+            "NOTE_V2_RETRIEVAL_SUMMARY_INVALID")
+    for signal in signals.values():
+        validate_signal(signal)
+    base = signals["xgb"]
+    for signal in signals.values():
+        require(all(signal[key] == base[key] for key in ("symbol", "as_of", "data_cutoff", "universe_size",
+                                                        "inference_input_id", "target_id")), "NOTE_V2_MODEL_POOL_MISMATCH")
+    notes = {name: research_note(signal, row, evidence[name], mode=mode)
+             for name, signal in signals.items()}
+    neighbors = details["neighbors"]
+    require(isinstance(neighbors, list) and (not neighbors if details["fallback"] else len(neighbors) == details["k"]),
+            "NOTE_V2_NEIGHBOR_COVERAGE")
+    dates, identities = [], set()
+    for neighbor in neighbors:
+        require(set(neighbor) == {"symbol", "as_of", "target_interval", "weight"}, "NOTE_V2_NEIGHBOR_SHAPE")
+        lower, upper = neighbor["target_interval"]
+        require(finite(lower) and finite(upper) and 0 <= lower <= upper <= 1
+                and finite(neighbor["weight"]) and neighbor["weight"] > 0
+                and datetime.fromisoformat(neighbor["as_of"]) < datetime.fromisoformat(signals["nn"]["training_cutoff"]),
+                "NOTE_V2_NEIGHBOR_TIME_OR_TARGET")
+        historical_date = datetime.fromisoformat(neighbor["as_of"]).astimezone(CHINA).date()
+        identity = (historical_date, neighbor["symbol"])
+        require(identity not in identities, "NOTE_V2_NEIGHBOR_UNIQUENESS")
+        identities.add(identity)
+        dates.append(historical_date)
+    counts = Counter(dates)
+    require(all(count <= details["k"] // 8 for count in counts.values()), "NOTE_V2_NEIGHBOR_DATE_CAP")
+    require(details["date_count"] == len(counts), "NOTE_V2_NEIGHBOR_DATE_COUNT")
+    require(all(math.isclose(neighbor["weight"], 1 / (len(counts) * counts[day]), rel_tol=0, abs_tol=1e-12)
+                for neighbor, day in zip(neighbors, dates)), "NOTE_V2_NEIGHBOR_WEIGHTS")
+    expected_fusion = base["predicted_target_percentile"] if details["fallback"] else (
+        (1 - details["fusion_weight"]) * base["predicted_target_percentile"]
+        + details["fusion_weight"] * signals["nn"]["predicted_target_percentile"])
+    require(math.isclose(signals["fusion"]["predicted_target_percentile"], expected_fusion,
+                         rel_tol=0, abs_tol=1e-12), "NOTE_V2_FUSION_SCORE_MISMATCH")
+    lines = ["QUANT_RESEARCH_NOTE quant-research-note/v2", "",
+             "本说明包含三个分别计算的估计器。它们共享股票池、价量信息和历史标签，不能计作三份独立市场证据。",
+             "全局树模型学习总体条件关系；局部近邻检索历史样本；融合检验两种估计是否互补。", "",
+             f"NN固定配置：k={details['k']}，市场状态距离权重alpha={details['alpha']}；融合权重w={details['fusion_weight']}。",
+             "普通NN也含相对收益；alpha检验的是额外四项市场状态距离。",
+             "融合对预测标量加权后重新全池排名，不直接平均两个rank，不产生一份新的原始市场来源。",
+             "| 估计器 | 目标排名预测标量（非上涨概率） | 当日全池模型rank |",
+             "| --- | --- | --- |",
+             *[f"| {name} | {signals[name]['predicted_target_percentile']:.6f} | {signals[name]['cross_sectional_model_rank']:.6f} |"
+               for name in ("xgb", "nn", "fusion")], "",
+             "检索结果内日期等权；单日期至多k/8个样本；点预测最小化区间损失，多解向训练中心投影。",
+             "不同历史日期仍可能相关；日期数、距离和样本数不是胜率或校准可信度。", "",
+             f"本次有效邻居日期数：{details['date_count']}；平均完整平方距离：{details['mean_distance']:.6f}；回退标记：{details['fallback']}。",
+             "回退时NN输出训练期常数、融合输出XGB，不把回退常数解释为新的局部预测依据。", "",
+             "历史邻居（完整保留目标排名区间，不用中点替代标签）：",
+             "| 证券 | 历史评分时点 | 已成熟target区间 | 日期等权样本权重 |",
+             "| --- | --- | --- | --- |",
+             *[f"| {n['symbol']} | {n['as_of']} | [{n['target_interval'][0]:.6f}, {n['target_interval'][1]:.6f}] | {n['weight']:.6f} |" for n in neighbors], ""]
+    for name, title in (("xgb", "全局模型"), ("nn", "历史局部模型"), ("fusion", "融合估计")):
+        lines += ["## " + title, "", notes[name]["content"], ""]
+    lines += ["本轮模型选择与比较使用已见历史，是冻结新规则后的回顾性研究；没有新的blind test或生产验证。",
+              "Quant的二十个交易日目标与公司年度经营/财务假设不同；不能直接据此设定收入、利润、税率或公允PE。"]
+    content = "\n".join(lines) + "\n"
+    return {"id": source_id, "origin": "FinResearchOps quant-research-note/v2（确定性生成，三个估计器共享市场来源）",
+            "availability_note": notes["xgb"]["availability_note"], "content": content,
+            "sha256": hashlib.sha256(content.encode()).hexdigest(), "use": "research"}

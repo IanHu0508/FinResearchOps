@@ -1,6 +1,6 @@
 # Project Status
 
-> Updated 2026-10-04. This file is the only public status source; other
+> Updated 2026-10-07. This file is the only public status source; other
 > documents describe mechanisms and link here.
 
 ## Project brief
@@ -12,6 +12,51 @@ FinResearchOps connects independent company research, financial recomputation an
 - **Quantitative evidence:** construct dated A-share research inputs, compare model/input groups under a preregistered protocol and convert frozen scores into citable notes.
 
 The engineering record covers execution, recovery, report binding and reopening. The research record contains the fixed quantitative study and scoped live-report observations. The sections below retain their original dates, measurements and acceptance definitions.
+
+## Current Quant publication: V2/V3 modules — 2026-10-07
+
+Quant V2/V3 source, synthetic checks and the optional runtime launcher are now
+included in this public checkout. V2 adds fixed exact historical neighbours and
+fusion. V3 adds 14-input learned numerical/cosine retrieval, a separate
+`max(-R20,0)` future-loss target, historical OOF calibration, G0/G1 mixtures,
+conditional-risk fallback and complete-pool evaluation. NN means nearest
+neighbours, not a neural network. [Quant definitions and commands](quant-research.md)
+describe the implemented interfaces.
+
+The canonical repaired local study retains 56 annual base-forecast receipts,
+20 historical OOF artifacts and 80,911 calibration queries. The original 340
+arrays and constant-calibration failure remain preserved. Constant-prediction
+calibration uses zero slope. Source and report bindings were checked; every
+raw ranking label and global absence of leakage have not been independently
+reconstructed. The 1,922-date / 21,142-model-day risk summaries were independently
+recomputed from saved member identities and labels.
+
+Development selection uses 2018–2022, the fixed check uses 2023, and the final
+historical comparison covers 485 dates in 2024–2025. All periods were previously
+seen. The selected neighbour is G1 and the development-fixed default rank is
+fusion-0.25. Final mean Rank IC identification bounds are:
+
+| Candidate | Mean Rank IC lower bound | Upper bound |
+| --- | ---: | ---: |
+| Original full-input XGBoost | 0.132942 | 0.134366 |
+| G1 nearest-neighbour mixture | 0.096739 | 0.098156 |
+| Fusion weight 0.25 | 0.134747 | 0.136168 |
+
+Fusion-minus-XGBoost paired HAC20 outer bounds are [-0.006408, 0.009911]
+and HAC60 bounds are [-0.007294, 0.011004]; both contain zero. Ranking and risk
+increments have not established significant improvement over the baseline.
+The earlier V2 study retained its development-selected XGBoost default
+(fusion weight zero). These are separate fixed retrospective studies, not a
+fresh blind evaluation, portfolio P&L or proof of current investment effectiveness.
+
+Publication includes original code, dependency declarations, synthetic tests,
+report generation and reviewed aggregate results. Real prices/labels, member
+forecasts, weights, complete neighbour evidence, issuer sources, raw calls and
+private execution directories remain local. V1 Ridge/GRU historical fitters are
+still private; the public checkout cannot independently reproduce the real
+studies without compatible admitted inputs. The Quant report renderer is
+independent of unpublished Agent protocols. The previous public Agent route
+remains v24; later local company-workflow changes are outside this publication.
 
 ## Public project showcase — 2026-10-02
 

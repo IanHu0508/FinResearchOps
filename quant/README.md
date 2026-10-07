@@ -1,5 +1,15 @@
 # Quant research infrastructure
 
+Quant V3 keeps the daily 20-session full-pool rank target and adds an independent
+`max(-R20,0)` downside-loss target. It compares the full original XGB, same-input
+XGB, ordinary NN, learned numerical/cosine retrieval, risk calibration and dated
+scenario mixtures. Fourteen stock/market inputs, dated supervision, exact full-memory
+retrieval and explicitly bounded learning queries connect through saved artifacts.
+Conditional risk fallback uses G0; unknown outcomes never become zero losses.
+[Definitions and commands](../docs/quant-research.md) describe the mechanism;
+[status](../docs/status.md) records implementation, execution and results.
+V1 and [V2](../docs/quant-research.md#v2固定近邻与融合) artifacts remain historical references.
+
 Quant V1是一条独立的A股日频横截面研究管线。它将个股60日价量路径、趋势、风险、活跃度、流动性代理和市场上下文转为特征，预测未来20交易日持有收益的完整股票池排名。共享模型逐股评分，未知结果通过排名识别区间保留在评价中。
 
 我围绕历史证券身份、日期切分和标签成熟度组织研究，比较Ridge、XGBoost、GRU及两类输入，再将冻结XGBoost评分转换为Agent可引用的研究说明。数据准备、模型评价和说明生成各自有确定的输入与产物。
@@ -123,6 +133,23 @@ SQLite 按稳定或临时证券 ID 保存规范化日线与各日资格，并保
 ## 可选XGBoost运行时
 
 在独立环境安装`requirements/quant-ml.lock`，不要改FinAuditGate核心环境。
+Quant V3 的度量学习、校准和组合还使用同一锁文件中的 NumPy 和 SciPy。
+核心 wheel 不包含 `quant/`；运行时须保留完整源码 checkout。
+macOS arm64 还需要环境内的 OpenMP 动态库及其许可。入口会在启动子进程前
+设置库搜索路径，并保留所选虚拟环境：
+
+```bash
+python3.12 scripts/run_quant.py --python <Quant环境>/bin/python --check
+python3.12 scripts/run_quant.py --python <Quant环境>/bin/python \
+  --openmp-lib <OpenMP目录>/libomp.dylib -- \
+  -m quant.state_report --study <已封存的修订study> --output <新的私有报告目录>
+```
+
+`--check` 核对锁定版本并实际导入数值库和 V3 入口。省略 `--openmp-lib` 时，
+macOS 使用 `<Quant环境>/lib/libomp.dylib`。报告命令只读取已保存比较并生成报告；
+不拟合模型、不生成预测。安装和首次研究执行的依赖、真实数据准入及结果边界
+仍须分别满足，当前验收见[项目状态](../docs/status.md)。
+
 macOS需要兼容的OpenMP动态库；它可以单独保存在私有运行时的lib目录，并只为该进程设置
 `DYLD_LIBRARY_PATH`。本仓库不分发本机运行库或真实数据；依赖和原生库的取得/校验记录保存在私有运行材料中。
 应直接启动带该环境变量的Python进程；经macOS受保护的系统程序转发时，变量可能被清除。
